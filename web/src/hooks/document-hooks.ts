@@ -66,7 +66,11 @@ export const useFetchNextDocumentList = () => {
   const { pagination, setPagination } = useGetPaginationWithRouter();
   const { id } = useParams();
 
-  const { data, isFetching: loading } = useQuery<{
+  const {
+    data,
+    isFetching: loading,
+    error,
+  } = useQuery<{
     docs: IDocumentInfo[];
     total: number;
   }>({
@@ -75,20 +79,28 @@ export const useFetchNextDocumentList = () => {
     refetchInterval: 15000,
     enabled: !!knowledgeId || !!id,
     queryFn: async () => {
-      const ret = await listDocument({
-        kb_id: knowledgeId || id,
-        keywords: searchString,
-        page_size: pagination.pageSize,
-        page: pagination.current,
-      });
-      if (ret.data.code === 0) {
-        return ret.data.data;
-      }
+      try {
+        const ret = await listDocument({
+          kb_id: knowledgeId || id,
+          keywords: searchString,
+          page_size: pagination.pageSize,
+          page: pagination.current,
+        });
+        if (ret.data.code === 0) {
+          return ret.data.data;
+        }
 
-      return {
-        docs: [],
-        total: 0,
-      };
+        return {
+          docs: [],
+          total: 0,
+        };
+      } catch (error) {
+        console.error('获取文档列表失败:', error);
+        return {
+          docs: [],
+          total: 0,
+        };
+      }
     },
   });
 
@@ -102,6 +114,7 @@ export const useFetchNextDocumentList = () => {
 
   return {
     loading,
+    error,
     searchString,
     documents: data.docs,
     pagination: { ...pagination, total: data?.total },

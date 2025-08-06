@@ -949,12 +949,16 @@ const KnowledgeManagementPage = () => {
               dataIndex: 'size',
               key: 'size',
               width: 120,
-              render: (size: number) =>
-                size < 1024
+              render: (size: number) => {
+                if (size == null || typeof size !== 'number') {
+                  return '0 B';
+                }
+                return size < 1024
                   ? `${size} B`
                   : size < 1024 * 1024
                     ? `${(size / 1024).toFixed(2)} KB`
-                    : `${(size / 1024 / 1024).toFixed(2)} MB`,
+                    : `${(size / 1024 / 1024).toFixed(2)} MB`;
+              },
             },
             { title: '类型', dataIndex: 'type', key: 'type', width: 120 },
           ]}

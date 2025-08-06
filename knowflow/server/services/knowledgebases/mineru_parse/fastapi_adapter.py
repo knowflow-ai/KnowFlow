@@ -97,6 +97,7 @@ class MinerUFastAPIAdapter:
         
         data = {
             'backend': backend,
+            'return_md': True,           # 返回 Markdown 内容
             'return_content_list': True,  # 总是返回内容列表
             'return_info': True,         # 默认返回解析信息（用于位置信息）
             'return_layout': False,      # 默认不返回布局
@@ -191,7 +192,9 @@ class MinerUFastAPIAdapter:
                 
             # 发送请求
             with open(pdf_to_process, 'rb') as f:
-                files = {'file': f}
+                # MinerU 期望 files 参数，并且是 List[UploadFile] 类型
+                # 在 multipart/form-data 中，需要发送多个同名的文件字段
+                files = [('files', f)]
                 response = self.session.post(
                     f"{self.base_url}/file_parse",
                     files=files,
@@ -200,24 +203,34 @@ class MinerUFastAPIAdapter:
                 )
                 
             if response.status_code == 200:
-                result = response.json()
+                mineru_result = response.json()
                 
                 if update_progress:
                     update_progress(0.8, "FastAPI 处理完成")
-                    
-                # 添加处理信息
-                result['_adapter_info'] = {
-                    'backend_used': result.get('backend', data['backend']),
-                    'file_processed': os.path.basename(file_path),
-                    'converted_from': os.path.basename(file_path) if temp_pdf_to_delete else None,
-                    'adapter_version': '2.2.0',  # 更新版本号
-                    'processing_mode': 'fastapi_with_document_conversion'
-                }
                 
-                if update_progress:
-                    update_progress(1.0, "处理完成")
+                # 处理 MinerU 的响应数据结构
+                # MinerU 返回: {"results": {"filename": {"md_content": "...", "middle_json": "..."}}}
+                # 我们需要提取第一个文件的结果
+                if 'results' in mineru_result and mineru_result['results']:
+                    # 获取第一个文件的结果
+                    first_file_key = list(mineru_result['results'].keys())[0]
+                    result = mineru_result['results'][first_file_key]
                     
-                return result
+                    # 添加处理信息
+                    result['_adapter_info'] = {
+                        'backend_used': mineru_result.get('backend', data['backend']),
+                        'file_processed': os.path.basename(file_path),
+                        'converted_from': os.path.basename(file_path) if temp_pdf_to_delete else None,
+                        'adapter_version': '2.2.0',  # 更新版本号
+                        'processing_mode': 'fastapi_with_document_conversion'
+                    }
+                    
+                    if update_progress:
+                        update_progress(1.0, "处理完成")
+                    
+                    return result
+                else:
+                    raise Exception("MinerU 返回的结果为空")
             else:
                 error_msg = f"FastAPI 请求失败: {response.status_code} - {response.text}"
                 logger.error(error_msg)

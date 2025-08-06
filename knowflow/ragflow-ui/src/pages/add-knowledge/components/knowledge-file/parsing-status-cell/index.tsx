@@ -59,11 +59,11 @@ const PopoverContent = ({ record }: IProps) => {
       key: 'process_begin_at',
       label: t('processBeginAt'),
       children: record.process_begin_at,
-    },
+    }, 
     {
-      key: 'process_duation',
+      key: 'process_duration',
       label: t('processDuration'),
-      children: `${record.process_duation.toFixed(2)} s`,
+      children: `${record.process_duration.toFixed(2)} s`,
     },
     {
       key: 'progress_msg',
@@ -114,7 +114,7 @@ export const ParsingStatusCell = ({ record }: IProps) => {
             <Space>
               <Badge color={runningStatus.color} />
               {label}
-              <span>{(record.progress * 100).toFixed(2)}%</span>
+              <span>{record.progress != null && typeof record.progress === 'number' ? (record.progress * 100).toFixed(2) : 0}%</span>
             </Space>
           ) : (
             label

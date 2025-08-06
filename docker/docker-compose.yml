@@ -20,8 +20,8 @@ services:
     container_name: ragflow-server
     ports:
       - ${SVR_HTTP_PORT}:9380
-      - 80:80
-      - 443:443
+      - 9222:80
+      - 9443:443
       - 5678:5678
       - 5679:5679
       - 9382:9382 # entry for MCP (host_port:docker_port). The docker_port must match the value you set for `mcp-port` above.
@@ -33,6 +33,13 @@ services:
       - ../history_data_agent:/ragflow/history_data_agent
       - ./service_conf.yaml.template:/ragflow/conf/service_conf.yaml.template
       - ./entrypoint.sh:/ragflow/entrypoint.sh
+      # 挂载KnowFlow API文件到容器内部
+      - ../api/apps/document_app.py:/ragflow/api/apps/document_app.py:ro
+      - ../api/db/db_models.py:/ragflow/api/db/db_models.py:ro
+      - ../api/apps/sdk/doc.py:/ragflow/api/apps/sdk/doc.py:ro
+      - ../api/db/services/document_service.py:/ragflow/api/db/services/document_service.py:ro
+      - ../web/src/pages/add-knowledge/components/knowledge-file/parsing-status-cell/index.tsx:/ragflow/web/src/pages/add-knowledge/components/knowledge-file/parsing-status-cell/index.tsx
+      
 
     env_file: .env
     environment:
@@ -71,7 +78,7 @@ services:
 
   knowflow-backend:
     container_name: knowflow-backend
-    image: zxwei/knowflow-server:v2.0.0
+    image: knowflow-server:v2.0.2
     build:
       context: ../knowflow
       dockerfile: Dockerfile
@@ -103,6 +110,8 @@ services:
       - TZ=${TIMEZONE:-UTC}
     volumes:
       - ../knowflow/server/services/config:/app/services/config:ro
+      - ../knowflow/server/services/knowledgebases/mineru_parse/fastapi_adapter.py:/app/services/knowledgebases/mineru_parse/fastapi_adapter.py:ro
+      - ../knowflow/web/src/pages/add-knowledge/components/knowledge-file/parsing-status-cell/index.tsx:/app/frontend/src/pages/add-knowledge/components/knowledge-file/parsing-status-cell/index.tsx
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

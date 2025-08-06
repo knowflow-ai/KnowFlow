@@ -114,7 +114,11 @@ const FileManager = () => {
       key: 'size',
       render(value) {
         return (
-          formatNumberWithThousandsSeparator((value / 1024).toFixed(2)) + ' KB'
+          formatNumberWithThousandsSeparator(
+            value != null && typeof value === 'number'
+              ? (value / 1024).toFixed(2)
+              : '0.00',
+          ) + ' KB'
         );
       },
     },

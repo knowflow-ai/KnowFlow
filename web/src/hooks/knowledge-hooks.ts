@@ -39,9 +39,10 @@ export const useFetchKnowledgeBaseConfiguration = () => {
   const knowledgeBaseId = useKnowledgeBaseId();
 
   const { data, isFetching: loading } = useQuery<IKnowledge>({
-    queryKey: ['fetchKnowledgeDetail'],
+    queryKey: ['fetchKnowledgeDetail', knowledgeBaseId],
     initialData: {} as IKnowledge,
     gcTime: 0,
+    enabled: !!knowledgeBaseId, // 只有当 knowledgeBaseId 存在时才发起请求
     queryFn: async () => {
       const { data } = await kbService.get_kb_detail({
         kb_id: knowledgeBaseId,

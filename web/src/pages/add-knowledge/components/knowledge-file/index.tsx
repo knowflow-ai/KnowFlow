@@ -36,8 +36,14 @@ import { SetMetaModal } from './set-meta-modal';
 const { Text } = Typography;
 
 const KnowledgeFile = () => {
-  const { searchString, documents, pagination, handleInputChange } =
-    useFetchNextDocumentList();
+  const {
+    searchString,
+    documents,
+    pagination,
+    handleInputChange,
+    loading,
+    error,
+  } = useFetchNextDocumentList();
   const parserList = useSelectParserList();
   const { setDocumentStatus } = useSetNextDocumentStatus();
   const { toChunk } = useNavigateToOtherPage();
@@ -179,6 +185,27 @@ const KnowledgeFile = () => {
     className: `${styles.column}`,
   }));
 
+  // 如果有错误，显示错误信息
+  if (error) {
+    return (
+      <div className={styles.datasetWrapper}>
+        <h3>{t('dataset')}</h3>
+        <p>{t('datasetDescription')}</p>
+        <Divider></Divider>
+        <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+          <h4>加载失败</h4>
+          <p>获取文档列表时出现错误，请刷新页面重试</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ marginTop: '10px', padding: '8px 16px' }}
+          >
+            刷新页面
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.datasetWrapper}>
       <h3>{t('dataset')}</h3>
@@ -200,6 +227,7 @@ const KnowledgeFile = () => {
         rowSelection={rowSelection}
         className={styles.documentTable}
         scroll={{ scrollToFirstRowOnChange: true, x: 1300 }}
+        loading={loading}
       />
       <CreateFileModal
         visible={createVisible}

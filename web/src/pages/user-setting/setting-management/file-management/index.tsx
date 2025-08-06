@@ -206,6 +206,9 @@ const FileManagementPage = () => {
   };
 
   const formatFileSize = (size: number): string => {
+    if (size == null || typeof size !== 'number') {
+      return '0 B';
+    }
     if (size < 1024) {
       return `${size} B`;
     } else if (size < 1024 * 1024) {

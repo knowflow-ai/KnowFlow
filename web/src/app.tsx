@@ -15,6 +15,7 @@ import weekOfYear from 'dayjs/plugin/weekOfYear';
 import weekYear from 'dayjs/plugin/weekYear';
 import weekday from 'dayjs/plugin/weekday';
 import React, { ReactNode, useEffect, useState } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 import { ThemeProvider, useTheme } from './components/theme-provider';
 import { TooltipProvider } from './components/ui/tooltip';
 import storage from './utils/authorization-util';
@@ -37,6 +38,28 @@ const AntLanguageMap = {
 const queryClient = new QueryClient();
 
 type Locale = ConfigProviderProps['locale'];
+
+// 错误边界回退组件
+function ErrorFallback({
+  error,
+  resetErrorBoundary,
+}: {
+  error: Error;
+  resetErrorBoundary: () => void;
+}) {
+  return (
+    <div style={{ padding: '20px', textAlign: 'center' }}>
+      <h2>页面出现错误</h2>
+      <p>错误信息: {error.message}</p>
+      <button
+        onClick={resetErrorBoundary}
+        style={{ marginTop: '10px', padding: '8px 16px' }}
+      >
+        重试
+      </button>
+    </div>
+  );
+}
 
 function Root({ children }: React.PropsWithChildren) {
   const { theme: themeragflow } = useTheme();
@@ -81,13 +104,15 @@ const RootProvider = ({ children }: React.PropsWithChildren) => {
   }, []);
 
   return (
-    <TooltipProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider defaultTheme="light" storageKey="ragflow-ui-theme">
-          <Root>{children}</Root>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </TooltipProvider>
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <TooltipProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider defaultTheme="light" storageKey="ragflow-ui-theme">
+            <Root>{children}</Root>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </TooltipProvider>
+    </ErrorBoundary>
   );
 };
 export function rootContainer(container: ReactNode) {

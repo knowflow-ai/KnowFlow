@@ -69,7 +69,7 @@ mineru:
     # Docker部署: http://host.docker.internal:8888 (Docker Desktop)
     #           或 http://宿主机IP:8888 (Linux Docker)
     #           或 http://mineru-api:8888 (Docker Compose网络)
-    url: "http://localhost:8888"
+    url: "http://172.19.0.3:8009"
     
     # HTTP 请求超时时间（秒）
     timeout: 30000

@@ -36,6 +36,10 @@ const PopoverContent = ({ record }: IProps) => {
   const { t } = useTranslate('knowledgeDetails');
 
   const replaceText = (text: string) => {
+    if (!text || typeof text !== 'string') {
+      return '-';
+    }
+
     // Remove duplicate \n
     const nextText = text.replace(/(\n)\1+/g, '$1');
 
@@ -61,14 +65,20 @@ const PopoverContent = ({ record }: IProps) => {
       children: record.process_begin_at,
     },
     {
-      key: 'process_duation',
+      key: 'process_duration',
       label: t('processDuration'),
-      children: `${record.process_duation.toFixed(2)} s`,
+      children:
+        record.process_duration != null &&
+        typeof record.process_duration === 'number'
+          ? `${record.process_duration.toFixed(2)} s`
+          : '-',
     },
     {
       key: 'progress_msg',
       label: t('progressMsg'),
-      children: replaceText(record.progress_msg?.trim() || ''),
+      children: record.progress_msg
+        ? replaceText(record.progress_msg.trim())
+        : '-',
     },
   ];
 
@@ -88,7 +98,8 @@ const PopoverContent = ({ record }: IProps) => {
 
 export const ParsingStatusCell = ({ record }: IProps) => {
   const text = record.run;
-  const runningStatus = RunningStatusMap[text];
+  const runningStatus =
+    RunningStatusMap[text] || RunningStatusMap[RunningStatus.FAIL];
   const { t } = useTranslation();
   const { handleRunDocumentByIds, loading } = useHandleRunDocumentByIds(
     record.id,
@@ -96,7 +107,7 @@ export const ParsingStatusCell = ({ record }: IProps) => {
 
   const isRunning = isParserRunning(text);
 
-  const OperationIcon = iconMap[text];
+  const OperationIcon = iconMap[text] || iconMap[RunningStatus.FAIL];
 
   const label = t(`knowledgeDetails.runningStatus${text}`);
 
@@ -114,7 +125,12 @@ export const ParsingStatusCell = ({ record }: IProps) => {
             <Space>
               <Badge color={runningStatus.color} />
               {label}
-              <span>{(record.progress * 100).toFixed(2)}%</span>
+              <span>
+                {record.progress != null && typeof record.progress === 'number'
+                  ? (record.progress * 100).toFixed(2)
+                  : 0}
+                %
+              </span>
             </Space>
           ) : (
             label

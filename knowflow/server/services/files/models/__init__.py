@@ -39,7 +39,7 @@ class Document(BaseModel):
     progress = FloatField(default=0)
     progress_msg = TextField(null=True, default="")
     process_begin_at = DateTimeField(null=True)
-    process_duation = FloatField(default=0)
+    process_duration = FloatField(default=0)
     meta_fields = TextField(null=True)  # JSONField
     run = CharField(default="0")
     status = CharField(default="1")

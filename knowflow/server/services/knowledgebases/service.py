@@ -617,7 +617,7 @@ class KnowledgebaseService:
                         thumbnail, kb_id, parser_id, parser_config, source_type,
                         type, created_by, name, location, size,
                         token_num, chunk_num, progress, progress_msg, process_begin_at,
-                        process_duation, meta_fields, run, status
+                        process_duration, meta_fields, run, status
                     ) VALUES (
                         %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s,
@@ -651,7 +651,7 @@ class KnowledgebaseService:
                     0.0,
                     None,
                     "0",
-                    "1",  # process_duation到status
+                    "1",  # process_duration到status
                 ]
 
                 cursor.execute(doc_query, doc_params)

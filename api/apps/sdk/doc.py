@@ -333,7 +333,7 @@ def update_doc(tenant_id, dataset_id, document_id):
                 doc.kb_id,
                 doc.token_num * -1,
                 doc.chunk_num * -1,
-                doc.process_duation * -1,
+                doc.process_duration * -1,
             )
             if not e:
                 return get_error_data_result(message="Document not found!")
@@ -1502,4 +1502,204 @@ def retrieval_test(tenant_id):
                 message="No chunk found! Check the chunk status please!",
                 code=settings.RetCode.DATA_ERROR,
             )
+        return server_error_response(e)
+
+@manager.route("/datasets/<dataset_id>/documents/<document_id>/status", methods=["PUT"])  # noqa: F821
+@token_required
+def change_document_status_sdk(tenant_id, dataset_id, document_id):
+    """
+    Changes the status (enable/disable) of a specific document within a dataset via SDK.
+    ---
+    tags:
+      - Documents
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - in: path
+        name: dataset_id
+        type: string
+        required: true
+        description: ID of the dataset.
+      - in: path
+        name: document_id
+        type: string
+        required: true
+        description: ID of the document.
+      - in: body
+        name: body
+        description: Status update parameters.
+        required: true
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              enum: [0, 1]
+              required: true
+              description: New status (0 for disabled, 1 for enabled).
+      - in: header
+        name: Authorization
+        type: string
+        required: true
+        description: Bearer token for authentication.
+    responses:
+      200:
+        description: Document status updated successfully.
+        schema:
+          type: object
+          properties:
+            data:
+              type: boolean
+              description: True if successful.
+      400:
+        description: Invalid arguments.
+      401:
+        description: Unauthorized.
+      404:
+        description: Document or Dataset not found.
+      500:
+        description: Internal server error.
+    """
+    req = request.json
+    status = req.get("status")
+
+    # 1. Input Validation
+    if status is None:
+        return get_error_data_result(message="`status` is required.")
+    if not isinstance(status, int) or status not in [0, 1]:
+        return get_error_data_result(message="`status` must be 0 or 1.")
+
+    # 2. Authorization Check (Check if the tenant associated with the token has access to the dataset)
+    # This aligns with the pattern in other SDK doc functions checking dataset access using tenant_id.
+    if not KnowledgebaseService.accessible(kb_id=dataset_id, user_id=tenant_id):
+        return get_error_data_result(message=f"You don't own the dataset {dataset_id}.")
+
+    try:
+        # 3. Check if document exists and belongs to the dataset
+        e_doc, doc = DocumentService.get_by_id(document_id)
+        if not e_doc:
+            return get_error_data_result(message=f"Document with ID {document_id} not found.")
+
+        if doc.kb_id != dataset_id:
+            # Ensure the document is actually in the specified dataset
+            return get_error_data_result(message=f"Document with ID {document_id} does not belong to dataset with ID {dataset_id}.")
+
+        # 4. Update database status
+        updated_db = DocumentService.update_by_id(document_id, {"status": str(status)})
+        if not updated_db:
+            # Database update failed
+            return get_error_data_result(message="Failed to update document status in database.")
+
+        # 5. Update search index availability
+        index_name = search.index_name(tenant_id)
+
+        # Check if index exists before attempting update
+        # This prevents errors if the KB index hasn't been created yet (e.g., empty KB)
+        if settings.docStoreConn.indexExist(index_name, doc.kb_id):
+            settings.docStoreConn.update({"doc_id": document_id}, {"available_int": status}, index_name, doc.kb_id)
+        else:
+            pass  # Continue as database update was successful
+
+        # 6. Return success result
+        return get_result(data=True)
+
+    except Exception as e:
+        # Catch any unexpected exceptions during the process
+        return server_error_response(e)
+
+@manager.route("/datasets/<dataset_id>/documents/<document_id>/set_meta", methods=["PUT"])  # noqa: F821
+@token_required
+def set_document_meta(tenant_id: str, dataset_id: str, document_id: str):
+    """
+    Sets or updates the metadata for a specific document within a dataset.
+    ---
+    tags:
+      - Documents
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - in: path
+        name: dataset_id
+        type: string
+        required: true
+        description: ID of the dataset.
+      - in: path
+        name: document_id
+        type: string
+        required: true
+        description: ID of the document.
+      - in: body
+        name: body
+        description: Metadata update parameters.
+        required: true
+        schema:
+          type: object
+          properties:
+            meta:
+              type: object
+              additionalProperties: true
+              description: 'Meta data in JSON map format, like {"key": "value"}'
+              example: {"source": "external_api", "processed_by": "script_v2"}
+          required:
+            - meta
+      - in: header
+        name: Authorization
+        type: string
+        required: true
+        description: Bearer token for authentication.
+    responses:
+      200:
+        description: Document metadata updated successfully.
+        schema:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: The status code of the response.
+            message:
+              type: string
+              description: The message of the response.
+            data:
+              type: boolean
+              description: True if successful.
+      400:
+        description: Invalid arguments (e.g., meta not a dict, missing meta, document not in dataset).
+      401:
+        description: Unauthorized (e.g., invalid token, insufficient permissions).
+      404:
+        description: Document or Dataset not found.
+      500:
+        description: Internal server error.
+    """
+    req_data = request.json
+    if not req_data or "meta" not in req_data:
+        return get_result(data=False, message="'meta' field is required in the JSON body.", code=settings.RetCode.ARGUMENT_ERROR)
+
+    meta_payload = req_data["meta"]
+    if not isinstance(meta_payload, dict):
+        return get_result(data=False, message="Meta data should be in Json map format, like {'key': 'value'}.", code=settings.RetCode.ARGUMENT_ERROR)
+
+    try:
+        # Check if document exists and belongs to the dataset
+        e_doc, doc = DocumentService.get_by_id(document_id)
+        if not e_doc:
+            return get_error_data_result(message=f"Document with ID {document_id} not found.")
+
+        if doc.kb_id != dataset_id:
+            return get_error_data_result(message=f"Document with ID {document_id} does not belong to dataset with ID {dataset_id}.")
+
+        # Update document metadata
+        # Check if meta_fields already exists
+        if "meta_fields" in doc.meta_fields:
+            # Merge existing meta_fields with new payload
+            existing_meta = doc.meta_fields["meta_fields"]
+            merged_meta = {**existing_meta, **meta_payload}
+            meta_payload = merged_meta
+
+        if not DocumentService.update_by_id(document_id, {"meta_fields": meta_payload}):
+            return get_error_data_result(message="Failed to update document metadata in database.")
+
+        return get_result(data=True)
+
+    except Exception as e:
         return server_error_response(e)

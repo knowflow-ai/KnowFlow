@@ -38,7 +38,7 @@ def _update_document_progress(doc_id, progress=None, message=None, status=None, 
              updates.append("chunk_num = %s")
              params.append(chunk_count)
         if process_duration is not None:
-            updates.append("process_duation = %s")
+            updates.append("process_duration = %s")
             params.append(process_duration)
 
 

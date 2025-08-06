@@ -25,6 +25,22 @@ const KnowledgeAdding = () => {
 
   const gotoList = useNavigateWithFromState();
 
+  // 如果没有知识库ID，显示错误信息
+  if (!knowledgeBaseId) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h3>知识库ID缺失</h3>
+        <p>请检查URL参数是否正确</p>
+        <button
+          onClick={() => gotoList('/knowledge')}
+          style={{ marginTop: '10px', padding: '8px 16px' }}
+        >
+          返回知识库列表
+        </button>
+      </div>
+    );
+  }
+
   const breadcrumbItems: ItemType[] = useMemo(() => {
     const items: ItemType[] = [
       {
