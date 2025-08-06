@@ -78,7 +78,7 @@ services:
 
   knowflow-backend:
     container_name: knowflow-backend
-    image: knowflow-server:v2.0.2
+    image: teacheryang/knowflow-server:v2.0.2
     build:
       context: ../knowflow
       dockerfile: Dockerfile
