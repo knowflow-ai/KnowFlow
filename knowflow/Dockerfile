@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsm6 \
     libxext6 \
     libxrender-dev \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 COPY server/requirements.txt /app/
