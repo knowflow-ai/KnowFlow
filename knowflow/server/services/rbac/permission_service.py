@@ -406,22 +406,44 @@ class PermissionService:
             
             role_id = role_result[0]
             
-            # 检查用户是否已有全局角色记录
-            check_sql = "SELECT id FROM rbac_user_roles WHERE user_id = %s AND resource_type IS NULL AND resource_id IS NULL"
-            cursor.execute(check_sql, (user_id,))
+            # 检查用户是否已有对应资源的角色记录
+            if resource_type and resource_id:
+                # 资源级权限检查
+                check_sql = """
+                    SELECT id FROM rbac_user_roles
+                    WHERE user_id = %s AND resource_type = %s AND resource_id = %s
+                """
+                cursor.execute(check_sql, (user_id, resource_type.value, resource_id))
+            else:
+                # 全局角色检查
+                check_sql = "SELECT id FROM rbac_user_roles WHERE user_id = %s AND resource_type IS NULL AND resource_id IS NULL"
+                cursor.execute(check_sql, (user_id,))
             existing_record = cursor.fetchone()
             
             if existing_record:
                 # 更新现有记录
-                update_sql = """
-                    UPDATE rbac_user_roles 
-                    SET role_id = %s, tenant_id = %s, granted_by = %s, 
-                        granted_at = NOW(), expires_at = %s, updated_at = NOW()
-                    WHERE user_id = %s AND resource_type IS NULL AND resource_id IS NULL
-                """
-                cursor.execute(update_sql, (
-                    role_id, tenant_id, granted_by, expires_at, user_id
-                ))
+                if resource_type and resource_id:
+                    # 更新资源级权限记录
+                    update_sql = """
+                        UPDATE rbac_user_roles
+                        SET role_id = %s, tenant_id = %s, granted_by = %s,
+                            granted_at = NOW(), expires_at = %s, updated_at = NOW()
+                        WHERE user_id = %s AND resource_type = %s AND resource_id = %s
+                    """
+                    cursor.execute(update_sql, (
+                        role_id, tenant_id, granted_by, expires_at, user_id, resource_type.value, resource_id
+                    ))
+                else:
+                    # 更新全局权限记录
+                    update_sql = """
+                        UPDATE rbac_user_roles
+                        SET role_id = %s, tenant_id = %s, granted_by = %s,
+                            granted_at = NOW(), expires_at = %s, updated_at = NOW()
+                        WHERE user_id = %s AND resource_type IS NULL AND resource_id IS NULL
+                    """
+                    cursor.execute(update_sql, (
+                        role_id, tenant_id, granted_by, expires_at, user_id
+                    ))
             else:
                 # 插入新记录
                 insert_sql = """
