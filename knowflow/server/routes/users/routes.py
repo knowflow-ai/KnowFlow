@@ -107,12 +107,17 @@ def create_user_route():
 def update_user_route(user_id):
     """更新用户的API端点"""
     data = request.json
-    user_id = data.get('id')
-    update_user(user_id=user_id, user_data=data)
-    return jsonify({
-        "code": 0,
-        "message": f"用户 {user_id} 更新成功"
-    })
+    success = update_user(user_id=user_id, user_data=data)
+    if success:
+        return jsonify({
+            "code": 0,
+            "message": f"用户更新成功"
+        })
+    else:
+        return jsonify({
+            "code": 500,
+            "message": "用户更新失败"
+        }), 500
 
 @users_bp.route('/me', methods=['GET'])
 def get_current_user():
