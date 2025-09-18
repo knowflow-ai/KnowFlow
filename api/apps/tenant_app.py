@@ -70,7 +70,7 @@ def create(tenant_id):
         return get_data_error_result(message="User not found.")
 
     user_id_to_invite = invite_users[0].id
-    user_tenants = UserTenantService.query(user_id=user_id_to_invite, tenant_id=tenant_id)
+    user_tenants = UserTenantService.query(user_id=user_id_to_invite, tenant_id=tenant_id, status=StatusEnum.VALID.value)
     if user_tenants:
         user_tenant_role = user_tenants[0].role
         if user_tenant_role == UserTenantRole.NORMAL:
