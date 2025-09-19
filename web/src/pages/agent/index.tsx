@@ -61,7 +61,7 @@ function AgentDropdownMenuItem({
 
 export default function Agent() {
   const { id } = useParams();
-  const { navigateToAgents } = useNavigatePage();
+  const { navigateToAgents, navigateToAgentLogs } = useNavigatePage();
   const {
     visible: chatDrawerVisible,
     hideModal: hideChatDrawer,
