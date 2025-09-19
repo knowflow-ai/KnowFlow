@@ -32,6 +32,8 @@ const {
   upload_and_parse,
   listTagByKnowledgeIds,
   setMeta,
+  getMeta,
+  retrievalTestShare,
   knowflow_document_parse,
   knowflow_parse_progress,
   knowflow_parse_cancel,
@@ -165,6 +167,14 @@ const methods = {
   },
   knowflow_parse_cancel: {
     url: knowflow_parse_cancel,
+    method: 'post',
+  },
+  getMeta: {
+    url: getMeta,
+    method: 'get',
+  },
+  retrievalTestShare: {
+    url: retrievalTestShare,
     method: 'post',
   },
 };

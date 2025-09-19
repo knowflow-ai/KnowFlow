@@ -24,7 +24,7 @@ from io import BytesIO
 
 import trio
 import xxhash
-from peewee import fn
+from peewee import fn, Case
 
 from api import settings
 from api.constants import IMG_BASE64_PREFIX, FILE_NAME_LEN_LIMIT
@@ -719,6 +719,25 @@ class DocumentService(CommonService):
 
     @classmethod
     @DB.connection_context()
+    def get_meta_by_kbs(cls, kb_ids):
+        fields = [
+            cls.model.id,
+            cls.model.meta_fields,
+        ]
+        meta = {}
+        for r in cls.model.select(*fields).where(cls.model.kb_id.in_(kb_ids)):
+            doc_id = r.id
+            for k,v in r.meta_fields.items():
+                if k not in meta:
+                    meta[k] = {}
+                v = str(v)
+                if v not in meta[k]:
+                    meta[k][v] = []
+                meta[k][v].append(doc_id)
+        return meta
+
+    @classmethod
+    @DB.connection_context()
     def update_progress(cls):
         docs = cls.get_unfinished_docs()
         for d in docs:
@@ -798,6 +817,53 @@ class DocumentService(CommonService):
         return False
 
 
+    @classmethod
+    @DB.connection_context()
+    def knowledgebase_basic_info(cls, kb_id: str) -> dict[str, int]:
+        # cancelled: run == "2" but progress can vary
+        cancelled = (
+            cls.model.select(fn.COUNT(1))
+            .where((cls.model.kb_id == kb_id) & (cls.model.run == TaskStatus.CANCEL))
+            .scalar()
+        )
+
+        row = (
+            cls.model.select(
+                # finished: progress == 1
+                fn.COALESCE(fn.SUM(Case(None, [(cls.model.progress == 1, 1)], 0)), 0).alias("finished"),
+
+                # failed: progress == -1
+                fn.COALESCE(fn.SUM(Case(None, [(cls.model.progress == -1, 1)], 0)), 0).alias("failed"),
+
+                # processing: 0 <= progress < 1
+                fn.COALESCE(
+                    fn.SUM(
+                        Case(
+                            None,
+                            [
+                                (((cls.model.progress == 0) | ((cls.model.progress > 0) & (cls.model.progress < 1))), 1),
+                            ],
+                            0,
+                        )
+                    ),
+                    0,
+                ).alias("processing"),
+            )
+            .where(
+                (cls.model.kb_id == kb_id)
+                & ((cls.model.run.is_null(True)) | (cls.model.run != TaskStatus.CANCEL))
+            )
+            .dicts()
+            .get()
+        )
+
+        return {
+            "processing": int(row["processing"]),
+            "finished": int(row["finished"]),
+            "failed": int(row["failed"]),
+            "cancelled": int(cancelled),
+        }
+
 def queue_raptor_o_graphrag_tasks(doc, ty, priority):
     chunking_config = DocumentService.get_chunking_config(doc["id"])
     hasher = xxhash.xxh64()
@@ -826,6 +892,8 @@ def queue_raptor_o_graphrag_tasks(doc, ty, priority):
 
 def get_queue_length(priority):
     group_info = REDIS_CONN.queue_info(get_svr_queue_name(priority), SVR_CONSUMER_GROUP_NAME)
+    if not group_info:
+        return 0
     return int(group_info.get("lag", 0) or 0)
 
 
@@ -971,3 +1039,4 @@ def doc_upload_and_parse(conversation_id, file_objs, user_id):
             doc_id, kb.id, token_counts[doc_id], chunk_counts[doc_id], 0)
 
     return [d["id"] for d, _ in files]
+

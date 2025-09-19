@@ -155,6 +155,11 @@ const KnowledgeFile = () => {
       title: t('parsingStatus'),
       dataIndex: 'run',
       key: 'run',
+      filters: Object.values(RunningStatus).map((value) => ({
+        text: t(`runningStatus${value}`),
+        value: value,
+      })),
+      onFilter: (value, record: IDocumentInfo) => record.run === value,
       render: (text, record) => {
         return <ParsingStatusCell record={record}></ParsingStatusCell>;
       },

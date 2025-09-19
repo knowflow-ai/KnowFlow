@@ -23,6 +23,8 @@ import 'katex/dist/katex.min.css'; // `rehype-katex` does not import the CSS for
 import { preprocessLaTeX, replaceThinkToSection } from '@/utils/chat';
 import { replaceTextByOldReg } from '../utils';
 
+import classNames from 'classnames';
+import { omit } from 'lodash';
 import { pipe } from 'lodash/fp';
 import styles from './index.less';
 
@@ -210,14 +212,23 @@ const MarkdownContent = ({
           'custom-typography': ({ children }: { children: string }) =>
             renderReference(children),
           code(props: any) {
-            const { children, className, node, ...rest } = props;
+            const { children, className, ...rest } = props;
+            const restProps = omit(rest, 'node');
             const match = /language-(\w+)/.exec(className || '');
             return match ? (
-              <SyntaxHighlighter {...rest} PreTag="div" language={match[1]}>
+              <SyntaxHighlighter
+                {...restProps}
+                PreTag="div"
+                language={match[1]}
+                wrapLongLines
+              >
                 {String(children).replace(/\n$/, '')}
               </SyntaxHighlighter>
             ) : (
-              <code {...rest} className={className}>
+              <code
+                {...restProps}
+                className={classNames(className, 'text-wrap')}
+              >
                 {children}
               </code>
             );

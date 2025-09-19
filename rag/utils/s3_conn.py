@@ -80,10 +80,13 @@ class RAGFlowS3:
                 s3_params['region_name'] = self.region_name
             if self.endpoint_url:
                 s3_params['endpoint_url'] = self.endpoint_url
+            
+            # Configure signature_version and addressing_style through Config object
             if self.signature_version:
-                s3_params['signature_version'] = self.signature_version
+                config_kwargs['signature_version'] = self.signature_version
             if self.addressing_style:
-                s3_params['addressing_style'] = self.addressing_style
+                config_kwargs['s3'] = {'addressing_style': self.addressing_style}
+            
             if config_kwargs:
                 s3_params['config'] = Config(**config_kwargs)
             
@@ -190,3 +193,16 @@ class RAGFlowS3:
                 self.__open__()
                 time.sleep(1)
         return
+
+    @use_default_bucket
+    def rm_bucket(self, bucket, *args, **kwargs):
+        for conn in self.conn:
+            try:
+                if not conn.bucket_exists(bucket):
+                    continue
+                for o in conn.list_objects_v2(Bucket=bucket):
+                    conn.delete_object(bucket, o.object_name)
+                conn.delete_bucket(Bucket=bucket)
+                return
+            except Exception as e:
+                logging.error(f"Fail rm {bucket}: " + str(e))

@@ -136,6 +136,14 @@ export interface ITestingResult {
   labels?: Record<string, number>;
 }
 
+export interface INextTestingResult {
+  chunks: ITestingChunk[];
+  doc_aggs: ITestingDocument[];
+  total: number;
+  labels?: Record<string, number>;
+  isRuned?: boolean;
+}
+
 export type IRenameTag = { fromTag: string; toTag: string };
 
 export interface IKnowledgeGraph {

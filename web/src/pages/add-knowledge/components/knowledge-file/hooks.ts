@@ -144,6 +144,7 @@ export const useHandleUploadDocument = () => {
     showModal: showDocumentUploadModal,
   } = useSetModalState();
   const { uploadDocument, loading } = useUploadNextDocument();
+  const { runDocumentByIds } = useRunNextDocument();
 
   const onDocumentUploadOk = useCallback(
     async (fileList: UploadFile[]): Promise<number | undefined> => {
