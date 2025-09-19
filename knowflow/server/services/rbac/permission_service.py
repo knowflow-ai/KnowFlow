@@ -427,7 +427,7 @@ class PermissionService:
                     update_sql = """
                         UPDATE rbac_user_roles
                         SET role_id = %s, tenant_id = %s, granted_by = %s,
-                            granted_at = NOW(), expires_at = %s, updated_at = NOW()
+                            granted_at = NOW(), expires_at = %s, is_active = 1, updated_at = NOW()
                         WHERE user_id = %s AND resource_type = %s AND resource_id = %s
                     """
                     cursor.execute(update_sql, (
@@ -438,7 +438,7 @@ class PermissionService:
                     update_sql = """
                         UPDATE rbac_user_roles
                         SET role_id = %s, tenant_id = %s, granted_by = %s,
-                            granted_at = NOW(), expires_at = %s, updated_at = NOW()
+                            granted_at = NOW(), expires_at = %s, is_active = 1, updated_at = NOW()
                         WHERE user_id = %s AND resource_type IS NULL AND resource_id IS NULL
                     """
                     cursor.execute(update_sql, (
