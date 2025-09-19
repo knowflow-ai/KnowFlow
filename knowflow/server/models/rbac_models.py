@@ -207,3 +207,18 @@ SYSTEM_PERMISSIONS = {
         "permission_type": PermissionType.ADMIN
     }
 }
+
+# 权限控制配置
+RBAC_CONFIG = {
+    # 受限角色：非超级管理员不能分配的角色列表
+    "RESTRICTED_ROLES": ["admin"],
+
+    # 角色层级：定义角色的权限层级（将来可扩展）
+    "ROLE_HIERARCHY": {
+        "super_admin": ["admin", "editor", "viewer", "user"],
+        "admin": ["editor", "viewer", "user"],
+        "editor": ["viewer", "user"],
+        "viewer": ["user"],
+        "user": []
+    }
+}

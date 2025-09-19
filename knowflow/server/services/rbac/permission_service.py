@@ -16,7 +16,7 @@ from database import get_db_connection
 from models.rbac_models import (
     Permission, Role, UserRole, RolePermission,
     PermissionCheck, PermissionType, ResourceType, RoleType,
-    SYSTEM_ROLES, SYSTEM_PERMISSIONS, TeamRole
+    SYSTEM_ROLES, SYSTEM_PERMISSIONS, TeamRole, RBAC_CONFIG
 )
 import uuid
 from .permission_calculator import permission_calculator, PermissionResult
@@ -639,7 +639,35 @@ class PermissionService:
                 cursor.close()
             if db:
                 db.close()
-    
+
+    def get_assignable_roles(self, current_user_id: str, tenant_id: Optional[str] = None) -> List[Role]:
+        """
+        获取当前用户可以分配的角色列表
+        根据RBAC配置进行权限过滤
+
+        Args:
+            current_user_id: 当前用户ID
+            tenant_id: 租户ID
+
+        Returns:
+            List[Role]: 可分配的角色列表
+        """
+        try:
+            # 获取所有角色
+            all_roles = self.get_all_roles(tenant_id)
+
+            # 超级管理员可以分配所有角色
+            if self._is_super_admin(current_user_id):
+                return all_roles
+
+            # 非超级管理员过滤受限角色
+            restricted_roles = RBAC_CONFIG.get("RESTRICTED_ROLES", [])
+            return [role for role in all_roles if role.code not in restricted_roles]
+
+        except Exception as e:
+            logger.error(f"获取可分配角色失败: {e}")
+            return []
+
     def get_user_permissions(self, user_id: str, resource_type: Optional[ResourceType] = None,
                            tenant_id: Optional[str] = None) -> List[Permission]:
         """

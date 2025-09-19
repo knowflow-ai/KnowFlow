@@ -152,8 +152,10 @@ const TeamManagementPage = () => {
 
             // 团队角色API返回的是TeamRole对象，需要转换为Role格式
             if (teamRolesList.length > 0) {
-              // 获取所有角色信息用于匹配
-              const rolesRes = await request.get('/api/knowflow/v1/rbac/roles');
+              // 获取可分配的角色信息用于匹配
+              const rolesRes = await request.get(
+                '/api/knowflow/v1/rbac/assignable-roles',
+              );
               const allRoles = rolesRes?.data?.data || [];
 
               // 根据role_code匹配角色信息
@@ -272,8 +274,10 @@ const TeamManagementPage = () => {
   const handleTeamRoleManagement = async (team: TeamData) => {
     setCurrentTeam(team);
     try {
-      // 获取所有可用角色作为选项
-      const rolesRes = await request.get('/api/knowflow/v1/rbac/roles');
+      // 获取可分配的角色（根据当前用户权限过滤）
+      const rolesRes = await request.get(
+        '/api/knowflow/v1/rbac/assignable-roles',
+      );
       setTeamRoles(rolesRes?.data?.data || []);
 
       // 获取团队当前已分配角色，用于预选中

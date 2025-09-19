@@ -395,3 +395,4 @@ def get_user_permissions(user_id):
             "code": 500,
             "message": f"获取用户权限失败: {str(e)}"
         }), 500
+

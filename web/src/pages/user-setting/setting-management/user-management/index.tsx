@@ -248,8 +248,10 @@ const UserManagementPage = () => {
     setEditingUser(user);
     setCurrentUserId(user.id);
     try {
-      // 获取所有角色
-      const rolesRes = await request.get('/api/knowflow/v1/rbac/roles');
+      // 获取可分配的角色（根据当前用户权限过滤）
+      const rolesRes = await request.get(
+        '/api/knowflow/v1/rbac/assignable-roles',
+      );
       setRoles(rolesRes.data.data || []);
 
       // 获取用户当前角色（兼容不同返回结构）

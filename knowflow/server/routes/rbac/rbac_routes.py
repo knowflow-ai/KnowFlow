@@ -26,6 +26,39 @@ logger = logging.getLogger(__name__)
 # 创建蓝图
 rbac_bp = Blueprint('rbac', __name__, url_prefix='/api/v1/rbac')
 
+def _format_role_data(role):
+    """统一的角色数据格式化方法"""
+    return {
+        'id': role.id,
+        'name': role.name,
+        'code': role.code,
+        'description': role.description,
+        'role_type': role.role_type.value,
+        'is_system': role.is_system,
+        'tenant_id': role.tenant_id,
+        'created_at': role.created_at.isoformat() if role.created_at else None,
+        'updated_at': role.updated_at.isoformat() if role.updated_at else None
+    }
+
+def _build_roles_response(roles):
+    """统一的角色响应构建方法"""
+    roles_data = [_format_role_data(role) for role in roles]
+    return {
+        'success': True,
+        'data': roles_data,
+        'total': len(roles_data)
+    }
+
+def _handle_roles_error(error_msg, exception):
+    """统一的错误处理方法"""
+    logger.error(f"{error_msg}: {exception}")
+    return {
+        'success': False,
+        'error': error_msg,
+        'message': str(exception),
+        'code': 500
+    }, 500
+
 @rbac_bp.route('/permissions/check', methods=['POST'])
 def check_permission():
     """
@@ -440,35 +473,34 @@ def get_all_roles():
     """
     try:
         roles = permission_service.get_all_roles()
-        
-        roles_data = []
-        for role in roles:
-            roles_data.append({
-                'id': role.id,
-                'name': role.name,
-                'code': role.code,
-                'description': role.description,
-                'role_type': role.role_type.value,
-                'is_system': role.is_system,
-                'tenant_id': role.tenant_id,
-                'created_at': role.created_at.isoformat() if role.created_at else None,
-                'updated_at': role.updated_at.isoformat() if role.updated_at else None
-            })
-        
-        return jsonify({
-            'success': True,
-            'data': roles_data,
-            'total': len(roles_data)
-        })
-        
+        return jsonify(_build_roles_response(roles))
+
     except Exception as e:
-        logger.error(f"获取角色列表失败: {e}")
-        return jsonify({
-            'success': False,
-            'error': '获取角色列表失败',
-            'message': str(e),
-            'code': 500
-        }), 500
+        return jsonify(*_handle_roles_error("获取角色列表失败", e))
+
+@rbac_bp.route('/assignable-roles', methods=['GET'])
+def get_assignable_roles():
+    """
+    获取可分配的角色列表（根据当前用户权限过滤）
+    - 超级管理员：返回所有角色
+    - 普通管理员：过滤掉受限角色（如admin）
+    - 无用户信息：返回所有角色（向后兼容）
+    """
+    try:
+        current_user_id = getattr(g, 'current_user_id', None)
+        tenant_id = request.args.get('tenant_id')
+
+        if current_user_id:
+            # 有用户信息时，根据权限过滤
+            roles = permission_service.get_assignable_roles(current_user_id, tenant_id)
+        else:
+            # 无用户信息时，返回所有角色（向后兼容）
+            roles = permission_service.get_all_roles(tenant_id)
+
+        return jsonify(_build_roles_response(roles))
+
+    except Exception as e:
+        return jsonify(*_handle_roles_error("获取可分配角色列表失败", e))
 
 @rbac_bp.route('/my/roles', methods=['GET'])
 def get_my_roles():
