@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigatePage } from '@/hooks/logic-hooks/navigate-hooks';
 import { EllipsisVertical } from 'lucide-react';
 import { AppSettings } from './app-settings';
-import { ChatBox } from './chat-box';
+import { SingleChatBox } from './chat-box/single-chat-box';
 import { Sessions } from './sessions';
 
 export default function Chat() {
@@ -23,7 +23,7 @@ export default function Chat() {
       </PageHeader>
       <div className="flex flex-1">
         <Sessions></Sessions>
-        <ChatBox></ChatBox>
+        <SingleChatBox></SingleChatBox>
         <AppSettings></AppSettings>
       </div>
     </section>

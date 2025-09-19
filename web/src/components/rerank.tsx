@@ -3,6 +3,7 @@ import { useTranslate } from '@/hooks/common-hooks';
 import { useSelectLlmOptionsByModelType } from '@/hooks/llm-hooks';
 import { Select as AntSelect, Form, Slider } from 'antd';
 import { useFormContext } from 'react-hook-form';
+import { z } from 'zod';
 import { SingleFormSlider } from './ui/dual-range-slider';
 import {
   FormControl,
@@ -75,6 +76,11 @@ const Rerank = () => {
 export default Rerank;
 
 const RerankId = 'rerank_id';
+
+export const rerankFormSchema = {
+  [RerankId]: z.string().optional(),
+  top_k: z.coerce.number().optional(),
+};
 
 function RerankFormField() {
   const form = useFormContext();

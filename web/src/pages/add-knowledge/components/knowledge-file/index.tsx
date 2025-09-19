@@ -1,5 +1,6 @@
 import ChunkMethodModal from '@/components/chunk-method-modal';
 import SvgIcon from '@/components/svg-icon';
+import { RunningStatus } from '@/constants/knowledge';
 import {
   useFetchNextDocumentList,
   useSetNextDocumentStatus,

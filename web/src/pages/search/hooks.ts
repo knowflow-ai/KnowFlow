@@ -1,6 +1,9 @@
 import { useFetchRelatedQuestions } from '@/hooks/chat-hooks';
 import { useSetModalState } from '@/hooks/common-hooks';
-import { useTestChunkRetrieval } from '@/hooks/knowledge-hooks';
+import {
+  useTestChunkAllRetrieval,
+  useTestChunkRetrieval,
+} from '@/hooks/knowledge-hooks';
 import {
   useGetPaginationWithRouter,
   useSendMessageWithSse,
