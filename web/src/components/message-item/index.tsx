@@ -110,7 +110,6 @@ const MessageItem = ({
                     ? styles.messageTextDark
                     : styles.messageText
                   : styles.messageUserText,
-                { '!bg-bg-card': !isAssistant },
               )}
             >
               <MarkdownContent

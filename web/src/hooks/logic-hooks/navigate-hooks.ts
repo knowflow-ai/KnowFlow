@@ -136,13 +136,13 @@ export const useNavigatePage = () => {
     getQueryString,
     navigateToChunk,
     navigateToAgentList,
+    navigateToAgents: navigateToAgentList, // Navigate to agent list page when clicking breadcrumb
     navigateToAgent,
     navigateToAgentLogs,
     navigateToAgentTemplates,
     navigateToSearchList,
     navigateToSearch,
     navigateToFiles,
-    navigateToAgentList,
     navigateToOldProfile,
     navigateToDataflowResult,
   };
