@@ -312,19 +312,33 @@ const UserManagementPage = () => {
       setLoading(true);
       if (editingUser) {
         if (editingUser.id) {
-          await request.put(`/api/knowflow/v1/users/${editingUser.id}`, {
-            data: values,
-          });
+          const result = await request.put(
+            `/api/knowflow/v1/users/${editingUser.id}`,
+            {
+              data: values,
+            },
+          );
+          // 由于 getResponse: true，需要检查响应数据
+          if (result?.data?.code === 0) {
+            message.success('更新用户成功');
+            setUserModalVisible(false);
+            await loadUserData();
+          }
         }
-        message.success('更新用户成功');
       } else {
-        await request.post('/api/knowflow/v1/users', { data: values });
-        message.success('创建用户成功');
+        const result = await request.post('/api/knowflow/v1/users', {
+          data: values,
+        });
+        // 由于 getResponse: true，需要检查响应数据
+        if (result?.data?.code === 0) {
+          message.success('创建用户成功');
+          setUserModalVisible(false);
+          await loadUserData();
+        }
       }
-      setUserModalVisible(false);
-      await loadUserData();
     } catch (error) {
-      message.error('操作失败');
+      // 错误已经由 request 拦截器显示，这里只记录日志
+      console.error('操作失败:', error);
     } finally {
       setLoading(false);
     }

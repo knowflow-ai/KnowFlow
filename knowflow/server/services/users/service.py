@@ -117,7 +117,20 @@ def create_user(user_data, created_by=None):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
-        
+
+        # 获取用户基本信息
+        email = user_data.get("email")
+        if not email:
+            raise ValueError("邮箱地址不能为空")
+
+        # 检查邮箱是否已存在
+        email_check_query = "SELECT COUNT(*) as count FROM user WHERE email = %s"
+        cursor.execute(email_check_query, (email,))
+        if cursor.fetchone()['count'] > 0:
+            cursor.close()
+            conn.close()
+            raise ValueError(f"邮箱 {email} 已被注册")
+
         # 检查用户表是否为空
         check_users_query = "SELECT COUNT(*) as user_count FROM user"
         cursor.execute(check_users_query)
@@ -160,7 +173,6 @@ def create_user(user_data, created_by=None):
         user_id = generate_uuid()
         # 获取基本信息
         username = user_data.get("username")
-        email = user_data.get("email")
         password = user_data.get("password")
         # 加密密码
         encrypted_password = encrypt_password(password)

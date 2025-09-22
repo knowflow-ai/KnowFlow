@@ -118,6 +118,8 @@ request.interceptors.response.use(async (response: Response, options) => {
   if (data && Object.prototype.hasOwnProperty.call(data, 'code')) {
     if (data?.code === 100) {
       message.error(data?.message);
+      // 由于设置了 getResponse: true，需要手动抛出错误
+      throw new Error(data?.message);
     } else if (data?.code === 401) {
       notification.error({
         message: data?.message,
@@ -126,12 +128,16 @@ request.interceptors.response.use(async (response: Response, options) => {
       });
       authorizationUtil.removeAll();
       redirectToLogin();
+      // 由于设置了 getResponse: true，需要手动抛出错误
+      throw new Error(data?.message);
     } else if (data?.code !== 0) {
       notification.error({
         message: `${i18n.t('message.hint')} : ${data?.code}`,
         description: data?.message,
         duration: 3,
       });
+      // 由于设置了 getResponse: true，需要手动抛出错误
+      throw new Error(data?.message);
     }
   }
   return response;

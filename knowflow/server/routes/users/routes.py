@@ -97,7 +97,14 @@ def create_user_route():
                 "code": 400,
                 "message": "用户创建失败"
             }), 400
+    except ValueError as e:
+        # 处理业务逻辑错误（如邮箱重复、参数验证失败等）
+        return jsonify({
+            "code": 400,
+            "message": str(e)
+        }), 400
     except Exception as e:
+        # 处理系统错误
         return jsonify({
             "code": 500,
             "message": f"用户创建失败: {str(e)}"
