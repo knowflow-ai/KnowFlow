@@ -1304,7 +1304,7 @@ class LiteLLMBase(ABC):
 
     import litellm
 
-    litellm._turn_on_debug()
+    # litellm._turn_on_debug()
 
     def __init__(self, key, model_name, base_url=None, **kwargs):
         self.timeout = int(os.environ.get("LM_TIMEOUT_SECONDS", 600))
