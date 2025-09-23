@@ -150,7 +150,14 @@ def parent_child_retrieval(query, embd_mdl, tenant_ids, kb_ids, page, top_n, sim
             #     logging.warning(f"Failed to check document strategy for {doc_id}: {e}")
             #     continue
             
-            # 查询父子关系映射
+            # 默认使用子分块作为结果（标记为作为父分块使用的子分块）
+            current_chunk_result = {
+                **chunk,  # 保留子分块的所有原始字段
+                "chunk_type": "child_as_parent",  # 标记这是作为父分块使用的子分块
+                "fallback_reason": "default"  # 默认使用子分块
+            }
+
+            # 尝试查找并使用父分块
             try:
                 mappings = ParentChildMapping.select().where(
                     ParentChildMapping.child_chunk_id == child_chunk_id
@@ -161,14 +168,15 @@ def parent_child_retrieval(query, embd_mdl, tenant_ids, kb_ids, page, top_n, sim
                      ParentChildMapping.child_chunk_id == child_chunk_id
                 ).count()
                 logging.info("mapping_count=%s", count)
-                
+
                 for mapping in mappings:
                     parent_id = mapping.parent_chunk_id
                     if parent_id in processed_parents:
+                        # 父分块已处理过，跳过当前映射，继续查找其他映射
                         continue
                     processed_parents.add(parent_id)
                     logging.info("3-------------")
-                    
+
                     # 获取正确的tenant_id
                     try:
                         from api.db.services.document_service import DocumentService
@@ -179,19 +187,19 @@ def parent_child_retrieval(query, embd_mdl, tenant_ids, kb_ids, page, top_n, sim
                     except Exception as e:
                         logging.warning(f"Failed to get tenant_id for doc {mapping.doc_id}: {e}")
                         continue
-                    
+
                     # 从单独的父分块ES索引中获取父分块内容
                     parent_index = f"{index_name(tenant_id)}_parent"
                     parent_chunk_data = settings.docStoreConn.get(
-                        parent_id, 
-                        parent_index, 
+                        parent_id,
+                        parent_index,
                         [mapping.kb_id]
                     )
-                    
+
                     if parent_chunk_data:
                         logging.info(f"Successfully retrieved parent chunk {parent_id} from separate index {parent_index} for child {child_chunk_id}")
-                        # 构建父分块数据结构，保持与标准检索结果兼容
-                        parent_chunk = {
+                        # 成功获取父分块，替换默认的子分块
+                        current_chunk_result = {
                             "id": parent_id,
                             "content_with_weight": parent_chunk_data.get("content_with_weight", ""),
                             "content_ltks": parent_chunk_data.get("content_ltks", ""),  # 添加缺失的字段
@@ -207,17 +215,24 @@ def parent_child_retrieval(query, embd_mdl, tenant_ids, kb_ids, page, top_n, sim
                             "question_kwd": parent_chunk_data.get("question_kwd", []),
                             "chunk_type": "parent"  # 标记为父分块
                         }
-                        parent_chunks.append(parent_chunk)
+                        break  # 找到父分块后退出循环
                     else:
                         logging.warning(f"Failed to retrieve parent chunk data from ES: {parent_id}")
-            
+
             except Exception as e:
                 logging.warning(f"Failed to get parent chunk for child {child_chunk_id}: {e}")
-                continue
+
+            # 将结果添加到列表（保持原始顺序）
+            parent_chunks.append(current_chunk_result)
         
         # 如果找到父分块，返回父分块结果；否则返回原始子分块结果
         if parent_chunks:
-            logging.info(f"Parent-child retrieval: {len(parent_chunks)} parent chunks retrieved")
+            # 统计父分块和子分块的数量
+            actual_parent_count = sum(1 for chunk in parent_chunks if chunk.get("chunk_type") == "parent")
+            child_as_parent_count = sum(1 for chunk in parent_chunks if chunk.get("chunk_type") == "child_as_parent")
+
+            logging.info(f"Parent-child retrieval: {len(parent_chunks)} total chunks "
+                        f"({actual_parent_count} parent chunks, {child_as_parent_count} child chunks used as fallback)")
             # 保持原有的结果结构
             result = deepcopy(child_results)
             result["chunks"] = parent_chunks[:top_n]  # 限制返回数量
