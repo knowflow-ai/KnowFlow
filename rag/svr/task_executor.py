@@ -438,16 +438,25 @@ def init_kb(row, vector_size: int):
     return settings.docStoreConn.createIdx(idxnm, row.get("kb_id", ""), vector_size)
 
 
-def check_parent_child_enabled(parser_config: dict) -> bool:
-    """检查文档解析配置是否启用父子分块"""
+def check_parent_child_enabled(parser_config: dict, parser_id: str | None = None) -> bool:
+    """检查是否启用父子分块：同时校验分块策略与解析器类型。
+
+    规则：
+    - 需要 chunking_config.strategy == 'parent_child'
+    - 且解析器 parser_id 必须是 mineru 或 dots（大小写不敏感）
+    """
     if not parser_config:
         return False
-    
+
     try:
         chunking_config = parser_config.get('chunking_config', {})
         strategy = chunking_config.get('strategy', 'smart')
-        return strategy == 'parent_child'
-    except:
+        if strategy != 'parent_child':
+            return False
+        if parser_id is None:
+            return False
+        return str(parser_id).lower() in ("mineru", "dots")
+    except Exception:
         return False
 
 
@@ -804,9 +813,9 @@ async def do_handle_task(task):
         progress_callback(prog=1.0, msg="Knowledge Graph done ({:.2f}s)".format(timer() - start_ts))
         return
     else:
-        # Check if parent-child chunking is enabled in document parser config
-        parent_child_enabled = check_parent_child_enabled(task_parser_config)
-        
+        # 统一在 check_parent_child_enabled 中判断
+        parent_child_enabled = check_parent_child_enabled(task_parser_config, task.get("parser_id"))
+
         if parent_child_enabled:
             # Parent-child chunking methods
             start_ts = timer()
