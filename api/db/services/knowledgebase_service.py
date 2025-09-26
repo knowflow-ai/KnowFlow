@@ -166,13 +166,10 @@ class KnowledgebaseService(CommonService):
         #     parser_id: Optional parser ID filter
         # Returns:
         #     Tuple of (knowledge_base_list, total_count)
-        
-        # RBAC HTTP API integration
+
         # Import RBAC utilities
-        from api.utils.rbac_utils import check_rbac_permission, RBACResourceType, RBACPermissionType
-        
-        print("Using unified RBAC utilities for permission checks")
-        
+        from api.utils.rbac_utils import batch_check_rbac_permissions, RBACResourceType, RBACPermissionType
+
         fields = [
             cls.model.id,
             cls.model.avatar,
@@ -190,59 +187,54 @@ class KnowledgebaseService(CommonService):
             User.avatar.alias('tenant_avatar'),
             cls.model.update_time
         ]
-        
+
         # Build base query
         base_query = cls.model.select(*fields).join(User, on=(cls.model.tenant_id == User.id)).where(
             cls.model.status == StatusEnum.VALID.value
         )
-        
+
         # Apply keyword filter
         if keywords:
             base_query = base_query.where(fn.LOWER(cls.model.name).contains(keywords.lower()))
-        
+
         # Apply parser filter
         if parser_id:
             base_query = base_query.where(cls.model.parser_id == parser_id)
-        
+
         # Get all knowledge bases first
         all_kbs = list(base_query.dicts())
-        print(f"Found {len(all_kbs)} knowledge bases in database")
-        
-        # Filter by permissions - only check RBAC permissions
-        accessible_kbs = []
-        for kb in all_kbs:
-            kb_id = kb['id']
-            
-            # Only check knowledge base level RBAC permissions, no tenant mixing
-            has_kb_permission = check_rbac_permission(
-                user_id=user_id,
-                resource_type=RBACResourceType.KNOWLEDGEBASE,
-                resource_id=kb_id,
-                permission_type=RBACPermissionType.KB_READ
-                # 不传tenant_id，让RBAC底层使用default
-            )
-            print(f"KB {kb_id}: RBAC check result={has_kb_permission}")
-            
-            # Only include KB if user has explicit knowledge base permission
-            if has_kb_permission:
-                accessible_kbs.append(kb)
-                print(f"KB {kb_id}: GRANTED access")
-            else:
-                print(f"KB {kb_id}: DENIED access")
-        
+
+        # If no knowledge bases found, return empty result
+        if not all_kbs:
+            return [], 0
+
+        # Extract all KB IDs for batch permission check
+        kb_ids = [kb['id'] for kb in all_kbs]
+
+        # Batch check RBAC permissions - single HTTP request
+        permissions = batch_check_rbac_permissions(
+            user_id=user_id,
+            resource_type=RBACResourceType.KNOWLEDGEBASE,
+            resource_ids=kb_ids,
+            permission_type=RBACPermissionType.KB_READ
+        )
+
+        # Filter by permissions
+        accessible_kbs = [kb for kb in all_kbs if permissions.get(kb['id'], False)]
+
         # Apply sorting
         if orderby and hasattr(cls.model, orderby):
             reverse_sort = desc if isinstance(desc, bool) else (desc == 'true' or desc == True)
             accessible_kbs.sort(key=lambda x: x.get(orderby, ''), reverse=reverse_sort)
-        
+
         total_count = len(accessible_kbs)
-        
+
         # Apply pagination
         if page_number and items_per_page:
             start_idx = (page_number - 1) * items_per_page
             end_idx = start_idx + items_per_page
             accessible_kbs = accessible_kbs[start_idx:end_idx]
-        
+
         return accessible_kbs, total_count
     
     @classmethod

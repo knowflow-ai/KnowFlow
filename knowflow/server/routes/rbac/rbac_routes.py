@@ -130,6 +130,101 @@ def check_permission():
             'code': 500
         }), 500
 
+@rbac_bp.route('/permissions/batch-check', methods=['POST'])
+def batch_check_permissions():
+    """
+    批量检查用户对多个资源的权限
+
+    Request Body:
+    {
+        "user_id": "user_123",
+        "resource_type": "knowledgebase",
+        "resource_ids": ["kb_1", "kb_2", "kb_3"],
+        "permission_type": "read",
+        "tenant_id": "default"  // 可选
+    }
+
+    Response:
+    {
+        "permissions": {
+            "kb_1": true,
+            "kb_2": false,
+            "kb_3": true
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'error': '请求数据不能为空',
+                'code': 400
+            }), 400
+
+        # 验证必需参数
+        required_fields = ['user_id', 'resource_type', 'resource_ids', 'permission_type']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'error': f'缺少必需参数: {field}',
+                    'code': 400
+                }), 400
+
+        # 验证 resource_ids 是列表
+        if not isinstance(data['resource_ids'], list):
+            return jsonify({
+                'error': 'resource_ids 必须是列表',
+                'code': 400
+            }), 400
+
+        if len(data['resource_ids']) == 0:
+            return jsonify({
+                'error': 'resource_ids 不能为空列表',
+                'code': 400
+            }), 400
+
+        # 限制批量检查的数量，避免性能问题
+        if len(data['resource_ids']) > 100:
+            return jsonify({
+                'error': 'resource_ids 数量不能超过100个',
+                'code': 400
+            }), 400
+
+        # 解析参数
+        try:
+            resource_type = ResourceType(data['resource_type'])
+            permission_type = PermissionType(data['permission_type'])
+        except ValueError as e:
+            return jsonify({
+                'error': f'无效的参数值: {str(e)}',
+                'code': 400
+            }), 400
+
+        user_id = data['user_id']
+        resource_ids = data['resource_ids']
+        tenant_id = data.get('tenant_id', 'default')
+
+        # 使用优化的批量权限检查方法
+        permissions = permission_service.batch_check_permissions(
+            user_id=user_id,
+            resource_type=resource_type,
+            resource_ids=resource_ids,
+            permission_type=permission_type,
+            tenant_id=tenant_id
+        )
+
+        return jsonify({
+            'permissions': permissions
+        })
+
+    except Exception as e:
+        logger.error(f"批量权限检查失败: {e}")
+        return jsonify({
+            'error': '批量权限检查失败',
+            'message': str(e),
+            'code': 500
+        }), 500
+
 @rbac_bp.route('/permissions/check-global', methods=['POST'])
 def check_global_permission():
     """
