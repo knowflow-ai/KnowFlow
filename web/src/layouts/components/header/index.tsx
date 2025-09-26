@@ -2,6 +2,7 @@
 // import { ReactComponent as GraphIcon } from '@/assets/svg/graph.svg';
 // import { ReactComponent as KnowledgeBaseIcon } from '@/assets/svg/knowledge-base.svg';
 
+import logo from '@/assets/image/logo.svg';
 import { ReactComponent as Chat } from '@/assets/svg/leftBar/chat.svg';
 import { ReactComponent as ChatActive } from '@/assets/svg/leftBar/chatActive.svg';
 import { ReactComponent as File } from '@/assets/svg/leftBar/file.svg';
@@ -52,7 +53,12 @@ const RagHeader = () => {
         iconActive: SearchActive,
       },
       // { path: '/flow', name: t('flow'), icon: Flow, iconActive: FlowActive },
-      { path: '/agent-list', name: t('flow'), icon: Flow, iconActive: FlowActive },
+      {
+        path: '/agent-list',
+        name: t('flow'),
+        icon: Flow,
+        iconActive: FlowActive,
+      },
       {
         path: '/file',
         name: t('fileManager'),
@@ -100,7 +106,7 @@ const RagHeader = () => {
           onClick={handleLogoClick}
           className={styles.logoWrapper}
         >
-          <img src="/logo.png" alt="" className={styles.appIcon} />
+          <img src={logo} alt="KnowFlow" className={styles.appIcon} />
           {/* <span className={styles.appName}>{appConf.appName}</span> */}
         </Space>
       </div>

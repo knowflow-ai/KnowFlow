@@ -3,6 +3,7 @@ import { IReference, IReferenceChunk } from '@/interfaces/database/chat';
 import classNames from 'classnames';
 import { memo, useCallback, useEffect, useMemo } from 'react';
 
+import logo from '@/assets/image/logo.svg';
 import {
   useFetchDocumentInfosByIds,
   useFetchDocumentThumbnailsByIds,
@@ -95,11 +96,11 @@ const MessageItem = ({
         >
           {visibleAvatar &&
             (item.role === MessageType.User ? (
-              <Avatar size={40} src={avatar ?? '/logo.png'} />
+              <Avatar size={40} src={avatar ?? logo} />
             ) : avatarDialog ? (
               <Avatar size={40} src={avatarDialog} />
             ) : (
-              <Avatar size={40} src="/logo.png" />
+              <Avatar size={40} src={logo} />
             ))}
 
           <Flex vertical gap={8} flex={1}>
