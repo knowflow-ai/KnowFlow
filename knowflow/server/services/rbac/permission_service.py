@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import logging
 from database import get_db_connection
@@ -34,11 +34,11 @@ class PermissionService:
         """获取数据库连接"""
         return get_db_connection()
     
-    def batch_check_permissions(self, user_id: str, resource_type: ResourceType,
-                                resource_ids: List[str], permission_type: PermissionType,
-                                tenant_id: Optional[str] = None) -> Dict[str, bool]:
+    def batch_check_permissions_detailed(self, user_id: str, resource_type: ResourceType,
+                                        resource_ids: List[str], permission_type: PermissionType,
+                                        tenant_id: Optional[str] = None) -> Dict[str, 'PermissionCheck']:
         """
-        批量检查用户对多个资源的权限（优化版本）
+        批量检查用户对多个资源的权限，返回详细信息
 
         Args:
             user_id: 用户ID
@@ -48,7 +48,7 @@ class PermissionService:
             tenant_id: 租户ID
 
         Returns:
-            Dict[str, bool]: 资源ID到权限结果的映射
+            Dict[str, PermissionCheck]: 资源ID到详细权限信息的映射
         """
         db = None
         cursor = None
@@ -59,7 +59,17 @@ class PermissionService:
 
             # 1. 检查超级管理员权限
             if self._is_super_admin(user_id):
-                return {rid: True for rid in resource_ids}
+                return {
+                    rid: PermissionCheck(
+                        has_permission=True,
+                        user_id=user_id,
+                        resource_type=resource_type,
+                        resource_id=rid,
+                        permission_type=permission_type,
+                        granted_roles=["super_admin"],
+                        reason="超级管理员权限"
+                    ) for rid in resource_ids
+                }
 
             # 2. 批量检查各种权限
             db = self._get_db_connection()
@@ -68,14 +78,16 @@ class PermissionService:
             # 使用 IN 子句批量查询
             placeholders = ','.join(['%s'] * len(resource_ids))
 
-            # 获取有权限的资源ID集合
-            authorized_resources = set()
+            # 存储每个资源的权限信息
+            resource_permissions = {}  # {resource_id: {'roles': [], 'reasons': []}}
+            for rid in resource_ids:
+                resource_permissions[rid] = {'roles': [], 'reasons': []}
 
             # 1) 检查资源级别的角色权限（用户直接角色）
             # 注意：普通管理员(admin)不再自动获得所有资源权限
             # 只有超级管理员才能自动获得所有权限（已在上面处理）
             resource_role_query = f"""
-                SELECT DISTINCT ur.resource_id
+                SELECT DISTINCT ur.resource_id, r.name, r.code
                 FROM rbac_user_roles ur
                 JOIN rbac_roles r ON ur.role_id = r.id
                 JOIN rbac_role_permissions rp ON r.id = rp.role_id
@@ -89,11 +101,15 @@ class PermissionService:
             """
             role_params = [user_id, resource_type.value, permission_type.value] + resource_ids
             cursor.execute(resource_role_query, role_params)
-            authorized_resources.update(row[0] for row in cursor.fetchall())
+            for resource_id, role_name, role_code in cursor.fetchall():
+                if role_name not in resource_permissions[resource_id]['roles']:
+                    resource_permissions[resource_id]['roles'].append(role_name)
+                if '角色权限授权' not in resource_permissions[resource_id]['reasons']:
+                    resource_permissions[resource_id]['reasons'].append('角色权限授权')
 
             # 1.5) 检查团队角色权限
             team_role_query = f"""
-                SELECT DISTINCT tr.resource_id
+                SELECT DISTINCT tr.resource_id, r.name, r.code
                 FROM rbac_team_roles tr
                 JOIN user_tenant ut ON tr.team_id = ut.tenant_id
                 JOIN rbac_roles r ON tr.role_code = r.code
@@ -109,7 +125,12 @@ class PermissionService:
             """
             team_params = [user_id, resource_type.value, permission_type.value] + resource_ids
             cursor.execute(team_role_query, team_params)
-            authorized_resources.update(row[0] for row in cursor.fetchall())
+            for resource_id, role_name, role_code in cursor.fetchall():
+                role_display = f"{role_name}(通过团队)"
+                if role_display not in resource_permissions[resource_id]['roles']:
+                    resource_permissions[resource_id]['roles'].append(role_display)
+                if '角色权限授权' not in resource_permissions[resource_id]['reasons']:
+                    resource_permissions[resource_id]['reasons'].append('角色权限授权')
 
             # 2) 检查直接权限授权
             direct_query = f"""
@@ -128,7 +149,12 @@ class PermissionService:
                 params.append(tenant_id)
 
             cursor.execute(direct_query, params)
-            authorized_resources.update(row[0] for row in cursor.fetchall())
+            for row in cursor.fetchall():
+                resource_id = row[0]
+                if 'direct' not in resource_permissions[resource_id]['roles']:
+                    resource_permissions[resource_id]['roles'].append('direct')
+                if '直接权限授权' not in resource_permissions[resource_id]['reasons']:
+                    resource_permissions[resource_id]['reasons'].append('直接权限授权')
 
             # 3) 检查资源所有者权限（如果是知识库）
             if resource_type == ResourceType.KNOWLEDGEBASE:
@@ -139,117 +165,109 @@ class PermissionService:
                     AND status = 1
                 """
                 cursor.execute(owner_query, resource_ids + [user_id])
-                authorized_resources.update(row[0] for row in cursor.fetchall())
+                for row in cursor.fetchall():
+                    resource_id = row[0]
+                    if 'owner' not in resource_permissions[resource_id]['roles']:
+                        resource_permissions[resource_id]['roles'].append('owner')
+                    if '资源所有者权限' not in resource_permissions[resource_id]['reasons']:
+                        resource_permissions[resource_id]['reasons'].append('资源所有者权限')
 
             # 构建最终结果
-            permissions = {}
+            result = {}
             for rid in resource_ids:
-                permissions[rid] = rid in authorized_resources
+                perms = resource_permissions[rid]
+                has_permission = len(perms['roles']) > 0
 
-            return permissions
+                if has_permission:
+                    # 合并原因为单个字符串
+                    reason = perms['reasons'][0] if perms['reasons'] else '权限授权'
+                else:
+                    reason = '无相关权限'
+
+                result[rid] = PermissionCheck(
+                    has_permission=has_permission,
+                    user_id=user_id,
+                    resource_type=resource_type,
+                    resource_id=rid,
+                    permission_type=permission_type,
+                    granted_roles=perms['roles'] if has_permission else [],
+                    reason=reason
+                )
+
+            return result
 
         except Exception as e:
             logger.error(f"批量权限检查失败: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            # 失败时返回全部无权限
-            return {rid: False for rid in resource_ids}
+            # 失败时返回全部无权限的PermissionCheck对象
+            return {
+                rid: PermissionCheck(
+                    has_permission=False,
+                    user_id=user_id,
+                    resource_type=resource_type,
+                    resource_id=rid,
+                    permission_type=permission_type,
+                    reason=f"权限检查异常: {str(e)}"
+                ) for rid in resource_ids
+            }
         finally:
             if cursor:
                 cursor.close()
             if db:
                 db.close()
 
+    def batch_check_permissions(self, user_id: str, resource_type: ResourceType,
+                               resource_ids: List[str], permission_type: PermissionType,
+                               tenant_id: Optional[str] = None) -> Dict[str, bool]:
+        """
+        批量检查用户对多个资源的权限，返回简单布尔值
+
+        Args:
+            user_id: 用户ID
+            resource_type: 资源类型
+            resource_ids: 资源ID列表
+            permission_type: 权限类型
+            tenant_id: 租户ID
+
+        Returns:
+            Dict[str, bool]: 资源ID到权限布尔值的映射
+        """
+        # 调用详细方法并提取布尔值
+        detailed_results = self.batch_check_permissions_detailed(
+            user_id, resource_type, resource_ids, permission_type, tenant_id
+        )
+        return {rid: check.has_permission for rid, check in detailed_results.items()}
+
     def check_permission(self, user_id: str, resource_type: ResourceType,
                         resource_id: str, permission_type: PermissionType,
                         tenant_id: Optional[str] = None) -> PermissionCheck:
         """
         检查用户是否有指定资源的权限
-        
+
         Args:
             user_id: 用户ID
             resource_type: 资源类型
             resource_id: 资源ID
             permission_type: 权限类型
             tenant_id: 租户ID
-            
+
         Returns:
             PermissionCheck: 权限检查结果
         """
-        try:
-            # 1. 检查超级管理员权限
-            if self._is_super_admin(user_id):
-                return PermissionCheck(
-                    has_permission=True,
-                    user_id=user_id,
-                    resource_type=resource_type,
-                    resource_id=resource_id,
-                    permission_type=permission_type,
-                    granted_roles=["super_admin"],
-                    reason="超级管理员权限"
-                )
-            
-            # 2. 检查直接资源权限
-            direct_permission = self._check_direct_permission(
-                user_id, resource_type, resource_id, permission_type, tenant_id
-            )
-            if direct_permission:
-                return PermissionCheck(
-                    has_permission=True,
-                    user_id=user_id,
-                    resource_type=resource_type,
-                    resource_id=resource_id,
-                    permission_type=permission_type,
-                    granted_roles=["direct"],
-                    reason="直接权限授权"
-                )
-            
-            # 3. 检查角色权限
-            role_permission = self._check_role_permission(
-                user_id, resource_type, resource_id, permission_type, tenant_id
-            )
-            if role_permission[0]:
-                return PermissionCheck(
-                    has_permission=True,
-                    user_id=user_id,
-                    resource_type=resource_type,
-                    resource_id=resource_id,
-                    permission_type=permission_type,
-                    granted_roles=role_permission[1],
-                    reason="角色权限授权"
-                )
-            
-            # 4. 检查资源所有者权限
-            if self._is_resource_owner(user_id, resource_type, resource_id):
-                return PermissionCheck(
-                    has_permission=True,
-                    user_id=user_id,
-                    resource_type=resource_type,
-                    resource_id=resource_id,
-                    permission_type=permission_type,
-                    granted_roles=["owner"],
-                    reason="资源所有者权限"
-                )
-            
-            return PermissionCheck(
-                has_permission=False,
-                user_id=user_id,
-                resource_type=resource_type,
-                resource_id=resource_id,
-                permission_type=permission_type,
-                reason="无相关权限"
-            )
-            
-        except Exception as e:
-            logger.error(f"权限检查失败: {e}")
-            return PermissionCheck(
-                has_permission=False,
-                user_id=user_id,
-                resource_type=resource_type,
-                resource_id=resource_id,
-                permission_type=permission_type,
-                reason=f"权限检查异常: {str(e)}"
-            )
+        # 调用批量方法处理单个资源
+        results = self.batch_check_permissions_detailed(
+            user_id, resource_type, [resource_id], permission_type, tenant_id
+        )
+        # 返回单个资源的结果
+        return results.get(resource_id, PermissionCheck(
+            has_permission=False,
+            user_id=user_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            permission_type=permission_type,
+            reason="资源未找到"
+        ))
     
     def _is_super_admin(self, user_id: str) -> bool:
         """检查是否为超级管理员"""
@@ -276,32 +294,7 @@ class PermissionService:
         except Exception as e:
             logger.error(f"检查超级管理员权限失败: {e}")
             return False
-    
-    def _check_direct_permission(self, user_id: str, resource_type: ResourceType,
-                               resource_id: str, permission_type: PermissionType,
-                               tenant_id: Optional[str] = None) -> bool:
-        """检查直接权限"""
-        try:
-            db = self._get_db_connection()
-            cursor = db.cursor()
-            sql = """
-                SELECT COUNT(*) FROM rbac_resource_permissions
-                WHERE user_id = %s AND resource_type = %s AND resource_id = %s
-                AND permission_type = %s AND is_active = 1
-                AND (expires_at IS NULL OR expires_at > NOW())
-            """
-            params = [user_id, resource_type.value, resource_id, permission_type.value]
-            
-            if tenant_id:
-                sql += " AND tenant_id = %s"
-                params.append(tenant_id)
-            
-            cursor.execute(sql, params)
-            return cursor.fetchone()[0] > 0
-        except Exception as e:
-            logger.error(f"检查直接权限失败: {e}")
-            return False
-    
+
     def check_global_permission(self, user_id: str, permission_type: PermissionType,
                                tenant_id: Optional[str] = None) -> 'PermissionCheck':
         """
@@ -389,116 +382,6 @@ class PermissionService:
                 cursor.close()
             if db:
                 db.close()
-    
-    def _check_role_permission(self, user_id: str, resource_type: ResourceType,
-                             resource_id: str, permission_type: PermissionType,
-                             tenant_id: Optional[str] = None) -> Tuple[bool, List[str]]:
-        """检查角色权限（包含用户直接角色和团队角色）"""
-        db = None
-        cursor = None
-        try:
-            db = self._get_db_connection()
-            cursor = db.cursor()
-            
-            # 1. 检查用户直接角色权限
-            user_sql = """
-                SELECT DISTINCT r.code, r.name FROM rbac_user_roles ur
-                JOIN rbac_roles r ON ur.role_id = r.id
-                JOIN rbac_role_permissions rp ON r.id = rp.role_id
-                JOIN rbac_permissions p ON rp.permission_id = p.id
-                WHERE ur.user_id = %s AND ur.is_active = 1
-                AND p.resource_type = %s AND p.permission_type = %s
-                AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
-                AND ur.resource_id = %s
-            """
-            user_params = [user_id, resource_type.value, permission_type.value, resource_id]
-            
-            if tenant_id:
-                user_sql += " AND ur.tenant_id = %s"
-                user_params.append(tenant_id)
-            
-            cursor.execute(user_sql, user_params)
-            user_roles = cursor.fetchall()
-            
-            # 2. 检查用户团队角色权限
-            team_sql = """
-                SELECT DISTINCT r.code, r.name FROM rbac_team_roles tr
-                JOIN user_tenant ut ON tr.team_id = ut.tenant_id
-                JOIN rbac_roles r ON tr.role_code = r.code
-                JOIN rbac_role_permissions rp ON r.id = rp.role_id
-                JOIN rbac_permissions p ON rp.permission_id = p.id
-                WHERE ut.user_id = %s AND ut.status = 1 AND tr.is_active = 1
-                AND p.resource_type = %s AND p.permission_type = %s
-                AND (tr.expires_at IS NULL OR tr.expires_at > NOW())
-                AND tr.resource_id = %s
-            """
-            team_params = [user_id, resource_type.value, permission_type.value, resource_id]
-            
-            if tenant_id:
-                team_sql += " AND tr.tenant_id = %s"
-                team_params.append(tenant_id)
-            
-            cursor.execute(team_sql, team_params)
-            team_roles = cursor.fetchall()
-            
-            # 3. 合并结果
-            all_roles = list(user_roles) + list(team_roles)
-            
-            if all_roles:
-                role_names = []
-                for role in all_roles:
-                    role_name = f"{role[1]}(通过团队)" if role in team_roles else role[1]
-                    role_names.append(role_name)
-                return True, role_names
-            return False, []
-            
-        except Exception as e:
-            logger.error(f"检查角色权限失败: {e}")
-            return False, []
-        finally:
-            if cursor:
-                cursor.close()
-            if db:
-                db.close()
-    
-    def _is_resource_owner(self, user_id: str, resource_type: ResourceType, resource_id: str) -> bool:
-        """检查是否为资源所有者"""
-        try:
-            db = self._get_db_connection()
-            cursor = db.cursor()
-            
-            if resource_type == ResourceType.KNOWLEDGEBASE:
-                # 检查knowledgebase表是否存在
-                cursor.execute("""
-                    SELECT COUNT(*) FROM information_schema.tables 
-                    WHERE table_schema = DATABASE() AND table_name = 'knowledgebase'
-                """)
-                table_exists = cursor.fetchone()[0]
-                
-                if not table_exists:
-                    logger.warning("knowledgebase表不存在，跳过资源所有者检查")
-                    return False
-                
-                cursor.execute("""
-                    SELECT COUNT(*) FROM knowledgebase
-                    WHERE id = %s AND created_by = %s
-                """, (resource_id, user_id))
-                return cursor.fetchone()[0] > 0
-            elif resource_type == ResourceType.TEAM:
-                cursor.execute("""
-                    SELECT COUNT(*) FROM user_tenant
-                    WHERE tenant_id = %s AND user_id = %s AND role = 'owner'
-                """, (resource_id, user_id))
-                return cursor.fetchone()[0] > 0
-            
-            return False
-        except Exception as e:
-            logger.error(f"检查资源所有者失败: {e}")
-            return False
-        finally:
-            if 'cursor' in locals():
-                cursor.close()
-    
     def grant_role_to_user(self, user_id: str, role_code: str, 
                           granted_by: str, tenant_id: Optional[str] = None,
                           resource_type: Optional[ResourceType] = None,
