@@ -289,6 +289,95 @@ def check_global_permission():
             'code': 500
         }), 500
 
+@rbac_bp.route('/users/batch-roles', methods=['POST'])
+def batch_get_user_roles():
+    """
+    批量获取多个用户的角色信息
+
+    Request Body:
+    {
+        "user_ids": ["user_id1", "user_id2", "user_id3"],
+        "tenant_id": "default"  // 可选
+    }
+
+    Response:
+    {
+        "user_roles": {
+            "user_id1": [
+                {
+                    "id": "role_id",
+                    "name": "角色名称",
+                    "code": "role_code",
+                    ...
+                }
+            ],
+            "user_id2": [...]
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data or 'user_ids' not in data:
+            return jsonify({
+                'error': '缺少必需参数: user_ids',
+                'code': 400
+            }), 400
+
+        user_ids = data['user_ids']
+        if not isinstance(user_ids, list):
+            return jsonify({
+                'error': 'user_ids 必须是列表',
+                'code': 400
+            }), 400
+
+        if len(user_ids) == 0:
+            return jsonify({
+                'error': 'user_ids 不能为空',
+                'code': 400
+            }), 400
+
+        # 限制批量查询数量
+        if len(user_ids) > 50:
+            return jsonify({
+                'error': 'user_ids 数量不能超过50个',
+                'code': 400
+            }), 400
+
+        tenant_id = data.get('tenant_id', 'default')
+
+        # 批量获取用户角色
+        user_roles_map = permission_service.batch_get_user_roles(user_ids, tenant_id)
+
+        # 格式化返回数据
+        formatted_result = {}
+        for user_id, roles in user_roles_map.items():
+            formatted_result[user_id] = []
+            for role in roles:
+                formatted_result[user_id].append({
+                    'id': role.id,
+                    'name': role.name,
+                    'code': role.code,
+                    'description': role.description,
+                    'role_type': role.role_type.value,
+                    'is_system': role.is_system,
+                    'tenant_id': role.tenant_id,
+                    'created_at': role.created_at.isoformat() if role.created_at else None,
+                    'updated_at': role.updated_at.isoformat() if role.updated_at else None
+                })
+
+        return jsonify({
+            'user_roles': formatted_result,
+            'total_users': len(formatted_result)
+        })
+
+    except Exception as e:
+        logger.error(f"批量获取用户角色失败: {e}")
+        return jsonify({
+            'error': '批量获取用户角色失败',
+            'message': str(e),
+            'code': 500
+        }), 500
+
 @rbac_bp.route('/users/<user_id>/roles', methods=['GET'])
 def get_user_roles(user_id: str):
     """
@@ -689,6 +778,63 @@ def get_my_permissions():
         logger.error(f"获取当前用户权限失败: {e}")
         return jsonify({
             'error': '获取权限失败',
+            'message': str(e),
+            'code': 500
+        }), 500
+
+@rbac_bp.route('/teams/batch-roles', methods=['POST'])
+def batch_get_team_roles():
+    """
+    批量获取多个团队的角色信息
+
+    Request Body:
+    {
+        "team_ids": ["team_id1", "team_id2", "team_id3"],
+        "tenant_id": "default"  // 可选
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data or 'team_ids' not in data:
+            return jsonify({
+                'error': '缺少必需参数: team_ids',
+                'code': 400
+            }), 400
+
+        team_ids = data['team_ids']
+        if not isinstance(team_ids, list):
+            return jsonify({
+                'error': 'team_ids 必须是列表',
+                'code': 400
+            }), 400
+
+        if len(team_ids) == 0:
+            return jsonify({
+                'error': 'team_ids 不能为空',
+                'code': 400
+            }), 400
+
+        # 限制批量查询数量
+        if len(team_ids) > 50:
+            return jsonify({
+                'error': 'team_ids 数量不能超过50个',
+                'code': 400
+            }), 400
+
+        tenant_id = data.get('tenant_id', 'default')
+
+        # 批量获取团队角色
+        team_roles_map = permission_service.batch_get_team_roles(team_ids, tenant_id)
+
+        return jsonify({
+            'team_roles': team_roles_map,
+            'total_teams': len(team_roles_map)
+        })
+
+    except Exception as e:
+        logger.error(f"批量获取团队角色失败: {e}")
+        return jsonify({
+            'error': '批量获取团队角色失败',
             'message': str(e),
             'code': 500
         }), 500

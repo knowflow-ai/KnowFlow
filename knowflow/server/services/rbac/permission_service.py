@@ -71,50 +71,47 @@ class PermissionService:
             # 获取有权限的资源ID集合
             authorized_resources = set()
 
-            # 1) 检查全局角色权限
-            global_role_query = """
-                SELECT r.code
+            # 1) 检查资源级别的角色权限（用户直接角色）
+            # 注意：普通管理员(admin)不再自动获得所有资源权限
+            # 只有超级管理员才能自动获得所有权限（已在上面处理）
+            resource_role_query = f"""
+                SELECT DISTINCT ur.resource_id
                 FROM rbac_user_roles ur
                 JOIN rbac_roles r ON ur.role_id = r.id
+                JOIN rbac_role_permissions rp ON r.id = rp.role_id
+                JOIN rbac_permissions p ON rp.permission_id = p.id
                 WHERE ur.user_id = %s
                 AND ur.is_active = 1
+                AND p.resource_type = %s
+                AND p.permission_type = %s
                 AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
-                AND ur.resource_id IS NULL
-                AND r.code IN ('admin', 'editor', 'viewer')
+                AND ur.resource_id IN ({placeholders})
             """
-            cursor.execute(global_role_query, (user_id,))
-            user_roles = set(row[0] for row in cursor.fetchall())
+            role_params = [user_id, resource_type.value, permission_type.value] + resource_ids
+            cursor.execute(resource_role_query, role_params)
+            authorized_resources.update(row[0] for row in cursor.fetchall())
 
-            # 根据角色和权限类型判断
-            if 'admin' in user_roles:
-                return {rid: True for rid in resource_ids}
+            # 1.5) 检查团队角色权限
+            team_role_query = f"""
+                SELECT DISTINCT tr.resource_id
+                FROM rbac_team_roles tr
+                JOIN user_tenant ut ON tr.team_id = ut.tenant_id
+                JOIN rbac_roles r ON tr.role_code = r.code
+                JOIN rbac_role_permissions rp ON r.id = rp.role_id
+                JOIN rbac_permissions p ON rp.permission_id = p.id
+                WHERE ut.user_id = %s
+                AND ut.status = 1
+                AND tr.is_active = 1
+                AND p.resource_type = %s
+                AND p.permission_type = %s
+                AND (tr.expires_at IS NULL OR tr.expires_at > NOW())
+                AND tr.resource_id IN ({placeholders})
+            """
+            team_params = [user_id, resource_type.value, permission_type.value] + resource_ids
+            cursor.execute(team_role_query, team_params)
+            authorized_resources.update(row[0] for row in cursor.fetchall())
 
-            if permission_type == PermissionType.READ and ('viewer' in user_roles or 'editor' in user_roles):
-                authorized_resources.update(resource_ids)
-            elif permission_type == PermissionType.WRITE and 'editor' in user_roles:
-                authorized_resources.update(resource_ids)
-            else:
-                # 2) 检查资源级别的角色权限
-                resource_role_query = f"""
-                    SELECT DISTINCT ur.resource_id
-                    FROM rbac_user_roles ur
-                    JOIN rbac_roles r ON ur.role_id = r.id
-                    WHERE ur.user_id = %s
-                    AND ur.resource_type = %s
-                    AND ur.resource_id IN ({placeholders})
-                    AND ur.is_active = 1
-                    AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
-                    AND (
-                        (r.code = 'admin') OR
-                        (r.code IN ('editor', 'viewer') AND %s = 'read') OR
-                        (r.code = 'editor' AND %s = 'write')
-                    )
-                """
-                role_params = [user_id, resource_type.value] + resource_ids + [permission_type.value, permission_type.value]
-                cursor.execute(resource_role_query, role_params)
-                authorized_resources.update(row[0] for row in cursor.fetchall())
-
-            # 3) 检查直接权限授权
+            # 2) 检查直接权限授权
             direct_query = f"""
                 SELECT DISTINCT resource_id
                 FROM rbac_resource_permissions
@@ -133,7 +130,7 @@ class PermissionService:
             cursor.execute(direct_query, params)
             authorized_resources.update(row[0] for row in cursor.fetchall())
 
-            # 4) 检查资源所有者权限（如果是知识库）
+            # 3) 检查资源所有者权限（如果是知识库）
             if resource_type == ResourceType.KNOWLEDGEBASE:
                 owner_query = f"""
                     SELECT id FROM knowledgebase
@@ -305,19 +302,21 @@ class PermissionService:
             logger.error(f"检查直接权限失败: {e}")
             return False
     
-    def check_global_permission(self, user_id: str, permission_type: PermissionType, 
+    def check_global_permission(self, user_id: str, permission_type: PermissionType,
                                tenant_id: Optional[str] = None) -> 'PermissionCheck':
         """
         检查全局权限（用于全局操作如创建知识库、创建文件等）
-        
+
         Args:
             user_id: 用户ID
             permission_type: 权限类型
             tenant_id: 租户ID
-            
+
         Returns:
             PermissionCheck: 权限检查结果
         """
+        db = None
+        cursor = None
         try:
             # 1. 超级管理员检查
             if self._is_super_admin(user_id):
@@ -646,6 +645,187 @@ class PermissionService:
             logger.error(f"撤销角色失败: {e}")
             return False
     
+    def batch_get_user_roles(self, user_ids: List[str], tenant_id: Optional[str] = None) -> Dict[str, List[Role]]:
+        """
+        批量获取多个用户的角色信息
+
+        Args:
+            user_ids: 用户ID列表
+            tenant_id: 租户ID
+
+        Returns:
+            Dict[str, List[Role]]: 用户ID到角色列表的映射
+        """
+        if not user_ids:
+            return {}
+
+        if tenant_id is None:
+            tenant_id = "default"
+
+        db = None
+        cursor = None
+        try:
+            db = self._get_db_connection()
+            cursor = db.cursor(dictionary=True)
+
+            # 使用IN子句批量查询
+            placeholders = ','.join(['%s'] * len(user_ids))
+
+            query = f"""
+            SELECT
+                ur.user_id,
+                r.id,
+                r.name,
+                r.code,
+                r.description,
+                r.role_type,
+                r.is_system,
+                r.tenant_id,
+                r.created_at,
+                r.updated_at,
+                ur.resource_type,
+                ur.resource_id,
+                ur.granted_by,
+                ur.granted_at,
+                ur.expires_at
+            FROM rbac_user_roles ur
+            JOIN rbac_roles r ON ur.role_id = r.id
+            WHERE ur.user_id IN ({placeholders})
+            AND ur.tenant_id = %s
+            AND ur.is_active = 1
+            AND ur.resource_type IS NULL
+            AND ur.resource_id IS NULL
+            AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
+            ORDER BY ur.user_id, r.role_type, r.name
+            """
+
+            params = user_ids + [tenant_id]
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+
+            # 组织结果为用户ID到角色列表的映射
+            user_roles_map = {user_id: [] for user_id in user_ids}
+
+            for row in results:
+                user_id = row['user_id']
+                try:
+                    role_type = RoleType(row['role_type']) if row['role_type'] else RoleType.CUSTOM
+                except ValueError:
+                    role_type = RoleType.CUSTOM
+
+                role = Role(
+                    id=row['id'],
+                    name=row['name'],
+                    code=row['code'],
+                    description=row['description'],
+                    role_type=role_type,
+                    is_system=bool(row['is_system']),
+                    tenant_id=row['tenant_id'],
+                    created_at=row['created_at'],
+                    updated_at=row['updated_at']
+                )
+
+                # 添加额外的授权信息
+                role.resource_type = row.get('resource_type')
+                role.resource_id = row.get('resource_id')
+                role.granted_by = row.get('granted_by')
+                role.granted_at = row.get('granted_at')
+                role.expires_at = row.get('expires_at')
+
+                user_roles_map[user_id].append(role)
+
+            return user_roles_map
+
+        except Exception as e:
+            logger.error(f"批量获取用户角色失败: {e}")
+            # 返回空角色列表的映射
+            return {user_id: [] for user_id in user_ids}
+        finally:
+            if cursor:
+                cursor.close()
+            if db:
+                db.close()
+
+    def batch_get_team_roles(self, team_ids: List[str], tenant_id: Optional[str] = None) -> Dict[str, List]:
+        """
+        批量获取多个团队的角色信息
+
+        Args:
+            team_ids: 团队ID列表
+            tenant_id: 租户ID
+
+        Returns:
+            Dict[str, List]: 团队ID到角色列表的映射
+        """
+        if not team_ids:
+            return {}
+
+        if tenant_id is None:
+            tenant_id = "default"
+
+        db = None
+        cursor = None
+        try:
+            db = self._get_db_connection()
+            cursor = db.cursor(dictionary=True)
+
+            # 使用IN子句批量查询
+            placeholders = ','.join(['%s'] * len(team_ids))
+
+            query = f"""
+            SELECT
+                tr.team_id,
+                tr.id,
+                tr.role_code,
+                tr.resource_type,
+                tr.resource_id,
+                tr.granted_by,
+                tr.granted_at,
+                tr.expires_at,
+                tr.is_active,
+                r.name as role_name,
+                r.description as role_description
+            FROM rbac_team_roles tr
+            LEFT JOIN rbac_roles r ON tr.role_code = r.code
+            WHERE tr.team_id IN ({placeholders})
+            AND tr.tenant_id = %s
+            AND tr.is_active = 1
+            AND (tr.expires_at IS NULL OR tr.expires_at > NOW())
+            ORDER BY tr.team_id, tr.role_code
+            """
+
+            params = team_ids + [tenant_id]
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+
+            # 组织结果为团队ID到角色列表的映射
+            team_roles_map = {team_id: [] for team_id in team_ids}
+
+            for row in results:
+                team_id = row['team_id']
+                team_roles_map[team_id].append({
+                    'id': row['id'],
+                    'role_code': row['role_code'],
+                    'role_name': row.get('role_name', row['role_code']),
+                    'role_description': row.get('role_description'),
+                    'resource_type': row['resource_type'],
+                    'resource_id': row['resource_id'],
+                    'granted_by': row['granted_by'],
+                    'granted_at': row['granted_at'].isoformat() if row['granted_at'] else None,
+                    'expires_at': row['expires_at'].isoformat() if row['expires_at'] else None
+                })
+
+            return team_roles_map
+
+        except Exception as e:
+            logger.error(f"批量获取团队角色失败: {e}")
+            return {team_id: [] for team_id in team_ids}
+        finally:
+            if cursor:
+                cursor.close()
+            if db:
+                db.close()
+
     def get_user_roles(self, user_id: str, tenant_id: Optional[str] = None) -> List[Role]:
         """
         获取用户的角色列表（遵循单一角色语义：返回优先级最高的一个）

@@ -387,11 +387,11 @@ def check_global_permission(user_id, permission_type, tenant_id=None):
 def check_global_kb_admin_permission(user_id, tenant_id=None):
     """
     检查用户是否具有全局知识库管理员权限（兼容性方法）
-    
+
     Args:
         user_id: 用户ID
         tenant_id: 租户ID
-        
+
     Returns:
         bool: 是否有全局kb_admin权限
     """
