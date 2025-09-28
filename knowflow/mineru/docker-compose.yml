@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: knowflow/mineru-api:2.5-offline
+    image: zxwei/mineru-api-full:v2.5.4
     container_name: knowflow-mineru-api
     restart: always
     ports:
@@ -44,7 +44,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: knowflow/mineru-api:2.5-offline
+    image: zxwei/mineru-api-full:v2.5.4
     container_name: knowflow-mineru-vllm
     restart: always
     profiles: ["vllm"]  # 需要显式启用
