@@ -76,8 +76,7 @@ def _load_mineru_env_vars() -> Dict[str, Any]:
         'MINERU_TABLE_ENABLE': 'pipeline.table_enable',
         
         # VLM后端配置
-        'MINERU_VLM_SERVER_URL': 'vlm.sglang.server_url',
-        'SGLANG_SERVER_URL': 'vlm.sglang.server_url',  # 兼容旧变量
+        'MINERU_VLM_HTTP_SERVER_URL': 'vlm.http_client.server_url',
         
         # 额外的MinerU服务端配置（用于web_api目录）
         'MINERU_MODEL_SOURCE': 'model.source',
@@ -194,8 +193,7 @@ def get_mineru_env_mapping() -> Dict[str, str]:
         'MINERU_LANG': 'mineru.pipeline.lang',
         'MINERU_FORMULA_ENABLE': 'mineru.pipeline.formula_enable',
         'MINERU_TABLE_ENABLE': 'mineru.pipeline.table_enable',
-        'MINERU_VLM_SERVER_URL': 'mineru.vlm.sglang.server_url',
-        'SGLANG_SERVER_URL': 'mineru.vlm.sglang.server_url',
+        'MINERU_VLM_HTTP_SERVER_URL': 'mineru.vlm.http_client.server_url',
     }
 
 # 创建全局配置实例

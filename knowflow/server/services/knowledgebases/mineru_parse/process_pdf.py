@@ -66,61 +66,37 @@ def _process_pdf_with_fastapi(pdf_path, update_progress):
     adapter = get_global_adapter()
     result = adapter.process_file(
         file_path=pdf_path,
-        update_progress=update_progress,
-        return_middle_json=True,   # 确保返回 middle_json 信息
-        return_images=True         # 获取原始图片数据
+        return_middle_json=True,  
+        return_images=True,
+        update_progress=update_progress
     )
     
-    # 调试信息
-    print(f"[DEBUG] FastAPI 响应结构: {type(result)}")
-    print(f"[DEBUG] FastAPI 响应字段: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
-    
-    # 处理 FastAPI 的响应结构
-    # 根据curl请求，可能直接返回结果，也可能嵌套在 results 数组中
-    if 'results' in result and len(result['results']) > 0:
-        # 从 results 数组中获取第一个结果（兼容旧格式）
-        first_result = result['results'][0]
-        print(f"[DEBUG] 使用 results 数组格式")
-    elif 'md_content' in result or 'middle_json' in result:
-        # 直接使用结果（新格式）
-        first_result = result
-        print(f"[DEBUG] 使用直接结果格式")
-    else:
-        raise ValueError("FastAPI 返回的数据格式不符合预期，既没有 results 数组也没有直接的 md_content")
-    
-    # 调试信息
-    print(f"[DEBUG] 处理结果字段: {list(first_result.keys())}")
-    print(f"[DEBUG] md_content 存在: {'md_content' in first_result}")
-    print(f"[DEBUG] middle_json 存在: {'middle_json' in first_result}")
-    if 'middle_json' in first_result:
-        print(f"[DEBUG] middle_json 类型: {type(first_result['middle_json'])}")
-        print(f"[DEBUG] middle_json 是否为空: {not first_result['middle_json']}")
-    
-    # 检查是否有 md_content
-    if 'md_content' in first_result and first_result['md_content']:
-        temp_dir = tempfile.mkdtemp()
-        
-        # 保存 Markdown 文件
-        md_file_path = os.path.join(temp_dir, "result.md")
-        with open(md_file_path, 'w', encoding='utf-8') as f:
-            f.write(first_result['md_content'])
-        
-        # 保存 middle_json 数据到对应位置，供 get_bbox_for_chunk 使用
-        if 'middle_json' in first_result and first_result['middle_json']:
-            middle_json_path = os.path.join(temp_dir, "result_middle.json")
-            with open(middle_json_path, 'w', encoding='utf-8') as f:
-                json.dump(first_result['middle_json'], f, ensure_ascii=False, indent=2)
-            print(f"[INFO] 已保存位置信息文件: {middle_json_path}")
-        else:
-            print(f"[WARNING] FastAPI 未返回位置信息数据 (middle_json 字段为空或不存在)")
-        
-        # 创建并保存图片到临时目录
-        images_dir = os.path.join(temp_dir, 'images')
-        _save_images_from_result(first_result, images_dir)
-            
-        return md_file_path
-    else:
-        raise ValueError("FastAPI 返回的结果中未包含 md_content 或 md_content 为空")
+    # 获取文档解析结果
+    doc_id = list(result['results'].keys())[0]
+    doc_result = result['results'][doc_id]
+
+    # 提取内容
+    md_content = doc_result['md_content']
+
+    temp_dir = tempfile.mkdtemp()
+
+    # 保存 Markdown 文件
+    md_file_path = os.path.join(temp_dir, "result.md")
+    with open(md_file_path, 'w', encoding='utf-8') as f:
+        f.write(md_content)
+
+    # 保存 middle_json 数据
+    if 'middle_json' in doc_result:
+        json_path = os.path.join(temp_dir, "result_middle.json")
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(doc_result['middle_json'], f, ensure_ascii=False, indent=2)
+
+    # 保存图片
+    images_dir = os.path.join(temp_dir, 'images')
+    _save_images_from_result(doc_result, images_dir)
+
+    return md_file_path
+
 
 
 def _safe_create_ragflow(doc_id, kb_id, md_file_path, image_dir, update_progress):

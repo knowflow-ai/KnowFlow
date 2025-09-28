@@ -107,14 +107,15 @@ mineru:
     # Docker部署: http://knowflow-mineru-api:8000 (容器内部通信)
     #           或 http://host.docker.internal:8000 (Docker Desktop)
     #           或 http://宿主机IP:8000 (Linux Docker)
-    url: "http://knowflow-mineru-api:8000"
+    # 生产环境: http://8.134.177.47:18001 (新部署的MinerU API服务)
+    url: "http://8.134.177.47:18001"
 
     # HTTP 请求超时时间（秒）
     timeout: 30000
   
   # 默认使用的后端类型
-  # 选项: pipeline, vlm-sglang-client
-  default_backend: "vlm-sglang-client"
+  # 选项: pipeline, vlm-http-client
+  default_backend: "vlm-http-client"
   
   # Pipeline 后端请求参数
   pipeline:
@@ -132,10 +133,10 @@ mineru:
   
   # VLM 后端配置
   vlm:
-    sglang:
-      # SGLang 服务器地址（vlm-sglang-client 后端需要）
-      # Docker部署: http://knowflow-mineru-vllm:30000 (容器内部通信)
-      server_url: "http://knowflow-mineru-vllm:30000"
+    # HTTP 客户端配置（vlm-http-client 后端）
+    http_client:
+      # VLM HTTP 服务器地址
+      server_url: "http://8.134.177.47:30001"
 
 # =======================================================
 # DOTS OCR 文档解析配置

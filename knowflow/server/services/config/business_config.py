@@ -69,14 +69,14 @@ class MinerUPipelineConfig:
     table_enable: bool = True
 
 @dataclass
-class MinerUSGLangConfig:
-    """MinerU SGLang 配置"""
-    server_url: str = "http://localhost:30000"
+class MinerUHTTPClientConfig:
+    """MinerU HTTP Client 配置"""
+    server_url: str = "http://localhost:30001"
 
 @dataclass
 class MinerUVLMConfig:
     """MinerU VLM 配置"""
-    sglang: MinerUSGLangConfig = field(default_factory=MinerUSGLangConfig)
+    http_client: MinerUHTTPClientConfig = field(default_factory=MinerUHTTPClientConfig)
 
 @dataclass
 class MinerUModelConfig:

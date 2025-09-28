@@ -98,24 +98,22 @@ class MinerUFastAPIAdapter:
         data = {
             'backend': backend,
             'parse_method': parse_method or self.parse_method,
-            'lang_list': lang or self.lang,  # 修改为 lang_list
-            'formula_enable': formula_enable if formula_enable is not None else self.formula_enable,  # 保持布尔值
-            'table_enable': table_enable if table_enable is not None else self.table_enable,  # 保持布尔值
-            'return_md': True,               # 布尔值
-            'return_middle_json': True,      # 修改为 return_middle_json，布尔值
-            'return_content_list': True,     # 布尔值
-            'return_images': True,           # 布尔值，获取原始图片数据
-            'output_dir': 'output'           # 临时输出目录
+            'lang_list': lang or self.lang,
+            'formula_enable': formula_enable if formula_enable is not None else self.formula_enable,
+            'table_enable': table_enable if table_enable is not None else self.table_enable,
+            'return_md': True,
+            'return_middle_json': True,
+            'return_images': True
         }
         
         # 添加特定后端参数，优先使用传入参数，否则使用适配器配置
-        if backend == 'vlm-sglang-client':
+        if backend == 'vlm-http-client':
             final_server_url = server_url or self.server_url
             if final_server_url:
                 data['server_url'] = final_server_url
-                logger.info(f"使用 server_url: {final_server_url}")
+                logger.info(f"使用 vlm-http-client server_url: {final_server_url}")
             else:
-                logger.warning("vlm-sglang-client 后端需要 server_url 参数，但未配置")
+                logger.warning("vlm-http-client 后端需要 server_url 参数，但未配置")
                 
         # 注意：pipeline 配置已经在上面设置了，不需要重复设置
         logger.info(f"使用配置: parse_method={data['parse_method']}, lang_list={data['lang_list']}, formula_enable={data['formula_enable']}, table_enable={data['table_enable']}")
@@ -262,7 +260,7 @@ def get_global_adapter() -> MinerUFastAPIAdapter:
             timeout = MINERU_CONFIG.fastapi.timeout
             
             # VLM 配置
-            server_url = MINERU_CONFIG.vlm.sglang.server_url
+            server_url = MINERU_CONFIG.vlm.http_client.server_url
             
             # Pipeline 配置
             parse_method = MINERU_CONFIG.pipeline.parse_method
@@ -278,8 +276,7 @@ def get_global_adapter() -> MinerUFastAPIAdapter:
             timeout = int(os.environ.get('MINERU_FASTAPI_TIMEOUT', '30'))
             
             # VLM 配置环境变量
-            server_url = os.environ.get('MINERU_VLM_SERVER_URL', 
-                                       os.environ.get('SGLANG_SERVER_URL'))
+            server_url = os.environ.get('MINERU_VLM_HTTP_SERVER_URL')
             
             # Pipeline 配置环境变量
             parse_method = os.environ.get('MINERU_PARSE_METHOD', 'auto')
@@ -320,7 +317,7 @@ def configure_adapter(base_url: str = None,
         current_url = MINERU_CONFIG.fastapi.url
         current_backend = MINERU_CONFIG.default_backend
         current_timeout = MINERU_CONFIG.fastapi.timeout
-        current_server_url = MINERU_CONFIG.vlm.sglang.server_url
+        current_server_url = MINERU_CONFIG.vlm.http_client.server_url
         current_parse_method = MINERU_CONFIG.pipeline.parse_method
         current_lang = MINERU_CONFIG.pipeline.lang
         current_formula_enable = MINERU_CONFIG.pipeline.formula_enable
@@ -330,8 +327,7 @@ def configure_adapter(base_url: str = None,
         current_url = os.environ.get('MINERU_FASTAPI_URL', 'http://localhost:8888')
         current_backend = os.environ.get('MINERU_FASTAPI_BACKEND', 'pipeline')
         current_timeout = int(os.environ.get('MINERU_FASTAPI_TIMEOUT', '30'))
-        current_server_url = os.environ.get('MINERU_VLM_SERVER_URL', 
-                                           os.environ.get('SGLANG_SERVER_URL'))
+        current_server_url = os.environ.get('MINERU_VLM_HTTP_SERVER_URL')
         current_parse_method = os.environ.get('MINERU_PARSE_METHOD', 'auto')
         current_lang = os.environ.get('MINERU_LANG', 'ch')
         current_formula_enable = os.environ.get('MINERU_FORMULA_ENABLE', 'true').lower() == 'true'
@@ -353,7 +349,11 @@ def configure_adapter(base_url: str = None,
 
 def test_adapter_connection(base_url: str = None) -> Dict[str, Any]:
     """测试适配器连接"""
-    test_url = base_url or os.environ.get('MINERU_FASTAPI_URL', 'http://localhost:8888')
+    if base_url:
+        test_url = base_url
+    else:
+        adapter = get_global_adapter()
+        test_url = adapter.base_url
     
     try:
         response = requests.get(f"{test_url.rstrip('/')}/docs", timeout=10)
