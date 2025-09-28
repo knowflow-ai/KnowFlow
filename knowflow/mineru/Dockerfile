@@ -1,38 +1,27 @@
-# 多阶段构建：先下载模型
-FROM mineru-vllm:latest as model-downloader
+# Use the official vllm image for gpu with Ampere architecture and above (Compute Capability>=8.0)
+# Compute Capability version query (https://developer.nvidia.com/cuda-gpus)
+FROM vllm/vllm-openai:v0.10.1.1
 
-# 安装下载工具
-RUN pip install --no-cache-dir \
-    tqdm \
-    requests \
-    huggingface-hub
+# Use the official vllm image for gpu with Turing architecture and below (Compute Capability<8.0)
+# FROM vllm/vllm-openai:v0.10.2
 
-# 复制下载脚本
-COPY download_models.py /opt/mineru/download_models.py
+# Install libgl for opencv support & Noto fonts for Chinese characters
+RUN apt-get update && \
+    apt-get install -y \
+        fonts-noto-core \
+        fonts-noto-cjk \
+        fontconfig \
+        libgl1 && \
+    fc-cache -fv && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# 创建模型目录
-RUN mkdir -p /root/.mineru/models \
-    && mkdir -p /root/.cache/huggingface/hub
+# Install mineru latest
+RUN python3 -m pip install -U 'mineru[core]' --break-system-packages && \
+    python3 -m pip cache purge
 
-# 在构建时下载所有模型（这会让镜像变大，但实现完全离线）
-RUN python /opt/mineru/download_models.py --type all --retry 3
+# Download models and update the configuration file
+RUN /bin/bash -c "mineru-models-download -s huggingface -m all"
 
-# 最终镜像
-FROM mineru-vllm:latest
-
-# 从第一阶段复制已下载的模型
-COPY --from=model-downloader /root/.mineru/models /root/.mineru/models
-COPY --from=model-downloader /root/.cache/huggingface/hub /root/.cache/huggingface/hub
-
-# 设置环境变量
-ENV MINERU_MODEL_SOURCE=local \
-    MINERU_MODELS_PRELOADED=true
-
-# 验证模型文件
-COPY download_models.py /opt/mineru/download_models.py
-RUN python /opt/mineru/download_models.py --verify-only && \
-    rm /opt/mineru/download_models.py
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/docs || exit 1
+# Set the entry point to activate the virtual environment and run the command line tool
+ENTRYPOINT ["/bin/bash", "-c", "export MINERU_MODEL_SOURCE=local && exec \"$@\"", "--"]

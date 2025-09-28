@@ -8,8 +8,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 # 镜像配置
-IMAGE_NAME="knowflow/mineru-api"
-IMAGE_TAG="2.5-offline"
+IMAGE_NAME="mineru-vllm"
+IMAGE_TAG="latest"
 PLATFORM="linux/amd64"
 
 # 颜色输出
@@ -96,7 +96,6 @@ echo -e "${GREEN}开始构建镜像...${NC}"
 docker buildx build \
     $BUILD_ARGS \
     -t "${IMAGE_NAME}:${IMAGE_TAG}" \
-    -t "${IMAGE_NAME}:latest" \
     -f Dockerfile \
     .
 
