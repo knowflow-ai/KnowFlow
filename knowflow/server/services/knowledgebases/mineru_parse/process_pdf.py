@@ -85,11 +85,14 @@ def _process_pdf_with_fastapi(pdf_path, update_progress):
     with open(md_file_path, 'w', encoding='utf-8') as f:
         f.write(md_content)
 
-    # 保存 middle_json 数据
+    # 保存 middle_json 数据（兼容字符串或对象）
     if 'middle_json' in doc_result:
         json_path = os.path.join(temp_dir, "result_middle.json")
+        middle_json_data = doc_result['middle_json']
+        if isinstance(middle_json_data, str):
+            middle_json_data = json.loads(middle_json_data)
         with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(doc_result['middle_json'], f, ensure_ascii=False, indent=2)
+            json.dump(middle_json_data, f, ensure_ascii=False, indent=2)
 
     # 保存图片
     images_dir = os.path.join(temp_dir, 'images')
