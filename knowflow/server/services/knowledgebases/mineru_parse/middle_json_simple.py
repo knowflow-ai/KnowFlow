@@ -55,37 +55,48 @@ class SimpleMiddleJsonConverter:
                 markdown_text = self._block_to_markdown(block)
                 if markdown_text:
                     # 特殊处理图片块，获取更精确的坐标
-                    if block['type'] == 'image' and 'blocks' in block:
+                    if block.get('type') == 'image' and 'blocks' in block:
+                        print(f"[IMG_PROCESS] Processing image block at page {block.get('page_idx', -1)}")
                         # 图片块可能产生多行（图片 + 标题）
                         text_lines = markdown_text.split('\n')
-                        line_idx = 0
 
-                        for sub_block in block['blocks']:
-                            if sub_block.get('type') == 'image_body' and line_idx < len(text_lines):
-                                # 图片行使用 image_body 的坐标
-                                line = text_lines[line_idx]
-                                if line.strip():
-                                    bbox = sub_block.get('bbox', block['bbox'])
-                                    coordinate_map[line_counter] = [
-                                        block['page_idx'],
-                                        bbox[0], bbox[2], bbox[1], bbox[3]
-                                    ]
-                                    markdown_lines.append(line)
-                                    line_counter += 1
-                                    line_idx += 1
+                        # 调试输出
+                        if len(text_lines) > 1:
+                            print(f"[IMG_DEBUG] 图片块产生了 {len(text_lines)} 行:")
+                            for i, line in enumerate(text_lines):
+                                print(f"  行{i}: {line[:80]}...")
+                            print(f"  子块数量: {len(block['blocks'])}")
+                            for sub in block['blocks']:
+                                print(f"    - {sub.get('type')}: bbox={sub.get('bbox')}")
 
-                            elif sub_block.get('type') == 'image_caption' and line_idx < len(text_lines):
-                                # 标题行使用 image_caption 的坐标
-                                line = text_lines[line_idx]
-                                if line.strip():
-                                    bbox = sub_block.get('bbox', block['bbox'])
-                                    coordinate_map[line_counter] = [
-                                        block['page_idx'],
-                                        bbox[0], bbox[2], bbox[1], bbox[3]
-                                    ]
-                                    markdown_lines.append(line)
-                                    line_counter += 1
-                                    line_idx += 1
+                        # 分别处理每行文本
+                        for i, line in enumerate(text_lines):
+                            if line.strip():
+                                # 默认使用主块坐标
+                                bbox = block['bbox']
+
+                                # 尝试使用更精确的坐标
+                                if i == 0 and line.startswith('![Image]'):
+                                    # 第一行是图片，查找 image_body
+                                    for sub_block in block['blocks']:
+                                        if sub_block.get('type') == 'image_body':
+                                            bbox = sub_block.get('bbox', block['bbox'])
+                                            print(f"[IMG_DEBUG] 使用 image_body 坐标: {bbox}")
+                                            break
+                                elif i == 1:
+                                    # 第二行可能是标题，查找 image_caption
+                                    for sub_block in block['blocks']:
+                                        if sub_block.get('type') == 'image_caption':
+                                            bbox = sub_block.get('bbox', block['bbox'])
+                                            print(f"[IMG_DEBUG] 使用 image_caption 坐标: {bbox}")
+                                            break
+
+                                coordinate_map[line_counter] = [
+                                    block['page_idx'],
+                                    bbox[0], bbox[2], bbox[1], bbox[3]
+                                ]
+                                markdown_lines.append(line)
+                                line_counter += 1
                     else:
                         # 其他类型的块，使用原来的逻辑
                         text_lines = markdown_text.split('\n')
@@ -163,13 +174,19 @@ class SimpleMiddleJsonConverter:
         if block_type == 'image' or (image_path and not text and block_type != 'table'):
             block_type = 'image'
 
-        return {
+        result = {
             'bbox': block['bbox'],
             'type': block_type,
             'text': text,
             'page_idx': page_idx,
             'image_path': image_path if block_type == 'image' else None
         }
+
+        # 保留原始的 blocks 数组，用于图片块的精确坐标
+        if block_type == 'image' and 'blocks' in block:
+            result['blocks'] = block['blocks']
+
+        return result
 
     def _extract_text(self, block: Dict) -> str:
         """提取文本内容"""
@@ -337,13 +354,19 @@ class SimpleMiddleJsonConverter:
         print(f"[COORD_DEBUG] 查询文本包含 {len(text_lines)} 行")
 
         # 输出详细信息用于调试
-        if "References" in text[:50] or "Figure" in text[:50]:
+        if "References" in text[:50] or "Figure" in text[:100]:
             block_type = "References 块" if "References" in text[:50] else "Figure 块"
             print(f"[COORD_DEBUG] 这是 {block_type}")
             print(f"[COORD_DEBUG] 文本前200字符: {text[:200]}...")
             print(f"[COORD_DEBUG] 分割后的行:")
             for i, line in enumerate(text_lines[:10]):
                 print(f"  行{i}: [{len(line)}字符] {line[:80]}...")
+
+            # 显示坐标映射中的相关内容
+            print(f"[COORD_DEBUG] 坐标映射中的键（最后20个）:")
+            for key in list(line_to_number.keys())[-20:]:
+                if "Figure" in key or "ATLASpix3 readout" in key:
+                    print(f"  键: {key[:80]}... -> 行号: {line_to_number[key]}")
 
         for idx, text_line in enumerate(text_lines):
             text_line = text_line.strip()
