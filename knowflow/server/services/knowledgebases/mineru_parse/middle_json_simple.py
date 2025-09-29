@@ -28,85 +28,14 @@ class SimpleMiddleJsonConverter:
         with open(middle_json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        markdown_lines = []
-        coordinate_map = {}  # {行号: 坐标}
-        line_counter = 0
-
-        # 统计信息（去除冗余调试打印）
-        total_images = 0
-        total_blocks = 0
-
+        block_pages = []
         for page_idx, page in enumerate(data['pdf_info']):
             blocks = self._extract_blocks_from_page(page, page_idx)
-            total_blocks += len(blocks)
-
-            # 统计这一页的图片
-            page_images = [b for b in blocks if b['type'] == 'image']
-            if page_images:
-                total_images += len(page_images)
-
             # 按y坐标排序
             blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
+            block_pages.append(blocks)
 
-            for block in blocks:
-                markdown_text = self._block_to_markdown(block)
-                if markdown_text:
-                    # 特殊处理图片块，获取更精确的坐标
-                    if block.get('type') == 'image' and 'blocks' in block:
-                        # 图片块处理
-                        # 图片块可能产生多行（图片 + 标题）
-                        text_lines = markdown_text.split('\n')
-
-                        # 去除冗余调试输出
-
-                        # 分别处理每行文本
-                        for i, line in enumerate(text_lines):
-                            if line.strip():
-                                # 默认使用主块坐标
-                                bbox = block['bbox']
-
-                                # 尝试使用更精确的坐标
-                                if i == 0 and (line.lstrip().startswith('<img') or line.startswith('![Image]')):
-                                    # 第一行是图片，查找 image_body
-                                    for sub_block in block['blocks']:
-                                        if sub_block.get('type') == 'image_body':
-                                            bbox = sub_block.get('bbox', block['bbox'])
-                                            # 使用 image_body 坐标
-                                            break
-                                elif i == 1:
-                                    # 第二行可能是标题，查找 image_caption
-                                    for sub_block in block['blocks']:
-                                        if sub_block.get('type') == 'image_caption':
-                                            bbox = sub_block.get('bbox', block['bbox'])
-                                            # 使用 image_caption 坐标
-                                            break
-
-                                coordinate_map[line_counter] = [
-                                    block['page_idx'],
-                                    bbox[0], bbox[2], bbox[1], bbox[3]
-                                ]
-                                markdown_lines.append(line)
-                                line_counter += 1
-                    else:
-                        # 其他类型的块，使用原来的逻辑
-                        text_lines = markdown_text.split('\n')
-                        for line in text_lines:
-                            if line.strip():
-                                coordinate_map[line_counter] = [
-                                    block['page_idx'],
-                                    block['bbox'][0],  # x_min -> x1
-                                    block['bbox'][2],  # x_max -> x2
-                                    block['bbox'][1],  # y_min -> y1
-                                    block['bbox'][3]   # y_max -> y2
-                                ]
-                                markdown_lines.append(line)
-                                line_counter += 1
-
-                    # 添加空行分隔块
-                    markdown_lines.append('')
-                    line_counter += 1
-
-        markdown_content = '\n'.join(markdown_lines)
+        markdown_content, coordinate_map = self.convert_block_pages_to_markdown(block_pages)
 
         # 可选统计（不打印）
 
@@ -125,6 +54,81 @@ class SimpleMiddleJsonConverter:
                 json.dump(coord_map_str_keys, f, ensure_ascii=False, indent=2)
 
         return markdown_content, coordinate_map
+
+    def convert_block_pages_to_markdown(self, block_pages: List[List[Dict]], output_md_path: Optional[str] = None) -> Tuple[str, Dict]:
+        """将预处理好的 block_pages 转换为 markdown 与坐标映射"""
+
+        markdown_lines, coordinate_map = self._build_markdown_from_block_pages(block_pages)
+        markdown_content = '\n'.join(markdown_lines)
+
+        if output_md_path:
+            with open(output_md_path, 'w', encoding='utf-8') as f:
+                f.write(markdown_content)
+
+            coord_map_str_keys = {str(k): v for k, v in coordinate_map.items()}
+            coord_file = output_md_path.replace('.md', '_coords.json')
+            with open(coord_file, 'w', encoding='utf-8') as f:
+                json.dump(coord_map_str_keys, f, ensure_ascii=False, indent=2)
+
+            self.coordinate_cache[output_md_path] = coord_map_str_keys
+
+        return markdown_content, coordinate_map
+
+    def _build_markdown_from_block_pages(self, block_pages: List[List[Dict]]) -> Tuple[List[str], Dict[int, List]]:
+        markdown_lines: List[str] = []
+        coordinate_map: Dict[int, List] = {}
+        line_counter = 0
+
+        for blocks in block_pages:
+            for block in blocks:
+                markdown_text = self._block_to_markdown(block)
+                if not markdown_text:
+                    continue
+
+                if block.get('type') == 'image' and block.get('blocks'):
+                    text_lines = markdown_text.split('\n')
+                    for i, line in enumerate(text_lines):
+                        markdown_lines.append(line)
+                        if line.strip():
+                            bbox = block['bbox']
+                            if i == 0 and (line.lstrip().startswith('<img') or line.startswith('![Image]')):
+                                for sub_block in block['blocks']:
+                                    if sub_block.get('type') == 'image_body':
+                                        bbox = sub_block.get('bbox', bbox)
+                                        break
+                            elif i == 1:
+                                for sub_block in block['blocks']:
+                                    if sub_block.get('type') == 'image_caption':
+                                        bbox = sub_block.get('bbox', bbox)
+                                        break
+
+                            coordinate_map[line_counter] = [
+                                block['page_idx'],
+                                bbox[0], bbox[2], bbox[1], bbox[3]
+                            ]
+                        line_counter += 1
+                else:
+                    text_lines = markdown_text.split('\n')
+                    for line in text_lines:
+                        markdown_lines.append(line)
+                        if line.strip():
+                            coordinate_map[line_counter] = [
+                                block['page_idx'],
+                                block['bbox'][0],
+                                block['bbox'][2],
+                                block['bbox'][1],
+                                block['bbox'][3]
+                            ]
+                        line_counter += 1
+
+                markdown_lines.append('')
+                line_counter += 1
+
+        while markdown_lines and markdown_lines[-1] == '':
+            markdown_lines.pop()
+            line_counter -= 1
+
+        return markdown_lines, coordinate_map
 
     def _extract_blocks_from_page(self, page: Dict, page_idx: int) -> List[Dict]:
         """从页面提取所有块"""
@@ -265,7 +269,13 @@ class SimpleMiddleJsonConverter:
 
         # 根据类型生成 markdown
         if block_type == 'title':
-            return f"# {text}"
+            level = block.get('level', 1)
+            try:
+                level = int(level)
+            except (TypeError, ValueError):
+                level = 1
+            level = max(1, min(level, 6))
+            return f"{'#' * level} {text}"
         elif block_type == 'table':
             return text  # HTML表格
         elif block_type == 'image':

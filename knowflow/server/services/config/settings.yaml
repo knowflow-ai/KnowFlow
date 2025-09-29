@@ -115,7 +115,7 @@ mineru:
   
   # 默认使用的后端类型
   # 选项: pipeline, vlm-http-client
-  default_backend: "vlm-http-client"
+  default_backend: "pipeline"
   
   # Pipeline 后端请求参数
   pipeline:
