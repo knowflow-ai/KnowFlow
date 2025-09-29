@@ -109,15 +109,26 @@ class SimpleMiddleJsonConverter:
                         line_counter += 1
                 else:
                     text_lines = markdown_text.split('\n')
+                    line_infos = block.get('line_infos', [])
+                    info_idx = 0
                     for line in text_lines:
                         markdown_lines.append(line)
                         if line.strip():
+                            if info_idx < len(line_infos):
+                                info = line_infos[info_idx]
+                                info_idx += 1
+                                bbox = info.get('bbox') or block['bbox']
+                                page_idx = info.get('page_idx', block['page_idx'])
+                            else:
+                                bbox = block['bbox']
+                                page_idx = block['page_idx']
+
                             coordinate_map[line_counter] = [
-                                block['page_idx'],
-                                block['bbox'][0],
-                                block['bbox'][2],
-                                block['bbox'][1],
-                                block['bbox'][3]
+                                page_idx,
+                                bbox[0],
+                                bbox[2],
+                                bbox[1],
+                                bbox[3]
                             ]
                         line_counter += 1
 
@@ -176,6 +187,11 @@ class SimpleMiddleJsonConverter:
         if block_type == 'image' and 'blocks' in block:
             result['blocks'] = block['blocks']
 
+        if block_type not in ('image', 'table'):
+            line_infos = self._collect_line_infos(block, page_idx)
+            if line_infos:
+                result['line_infos'] = line_infos
+
         return result
 
     def _extract_text(self, block: Dict) -> str:
@@ -231,6 +247,50 @@ class SimpleMiddleJsonConverter:
                 if line_text:
                     lines.append(line_text)
         return '\n'.join(lines)
+
+    def _collect_line_infos(self, block: Dict, default_page_idx: int) -> List[Dict]:
+        """提取行级坐标信息，支持跨页文本"""
+        line_infos: List[Dict] = []
+
+        for line in block.get('lines', []) or []:
+            spans = line.get('spans', [])
+            if not spans:
+                continue
+
+            line_text = ''.join(span.get('content', '') for span in spans).strip()
+            if not line_text:
+                continue
+
+            # 处理跨页标记，当前仅支持跨至下一页
+            page_offset = 0
+            for span in spans:
+                if span.get('cross_page'):
+                    page_offset = max(page_offset, 1)
+
+            page_idx = default_page_idx + page_offset
+
+            bbox = line.get('bbox')
+            if not bbox:
+                xs1, ys1, xs2, ys2 = [], [], [], []
+                for span in spans:
+                    span_bbox = span.get('bbox')
+                    if span_bbox:
+                        xs1.append(span_bbox[0])
+                        ys1.append(span_bbox[1])
+                        xs2.append(span_bbox[2])
+                        ys2.append(span_bbox[3])
+                if xs1:
+                    bbox = [min(xs1), min(ys1), max(xs2), max(ys2)]
+                else:
+                    bbox = block.get('bbox', [0, 0, 0, 0])
+
+            line_infos.append({
+                'text': line_text,
+                'bbox': bbox,
+                'page_idx': page_idx
+            })
+
+        return line_infos
 
     def _extract_image_path(self, block: Dict) -> Optional[str]:
         """提取图片路径（支持多种嵌套结构）"""

@@ -4,8 +4,11 @@ import os
 import tempfile
 import json
 import base64
+import shutil
+from datetime import datetime
 from .ragflow_build import create_ragflow_resources
 from .fastapi_adapter import get_global_adapter
+from ...config import APP_CONFIG
 
 # 聊天助手 Prompt 模板:
 #   请参考{knowledge}内容回答用户问题。
@@ -49,7 +52,35 @@ def _save_images_from_result(result, images_dir):
     return saved_count
 
 
-def _process_pdf_with_fastapi(pdf_path, update_progress):
+def _export_debug_outputs(doc_id, md_file_path, json_path):
+    """将解析结果保存到本地调试目录"""
+    if not getattr(APP_CONFIG, "dev_mode", False):
+        return
+
+    output_root = os.getenv("MINERU_DEBUG_OUTPUT_DIR", "tmp/mineru_debug") or "tmp/mineru_debug"
+    output_root = os.path.abspath(output_root)
+
+    os.makedirs(output_root, exist_ok=True)
+
+    raw_doc_id = doc_id or "unknown_doc"
+    safe_doc_id = ''.join(c if c.isalnum() or c in ('-', '_') else '_' for c in raw_doc_id)
+    if not safe_doc_id:
+        safe_doc_id = "unknown_doc"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    target_dir = os.path.join(output_root, f"{safe_doc_id}_{timestamp}")
+    os.makedirs(target_dir, exist_ok=True)
+
+    # 保存 Markdown
+    shutil.copy2(md_file_path, os.path.join(target_dir, os.path.basename(md_file_path)))
+
+    # 保存 middle.json（如果存在）
+    if json_path and os.path.exists(json_path):
+        shutil.copy2(json_path, os.path.join(target_dir, os.path.basename(json_path)))
+
+    print(f"[MinerU-DEBUG] 中间文件已保存到: {target_dir}")
+
+
+def _process_pdf_with_fastapi(pdf_path, update_progress, doc_id=None):
     """
     使用 FastAPI 处理 PDF 文件
     
@@ -72,8 +103,9 @@ def _process_pdf_with_fastapi(pdf_path, update_progress):
     )
     
     # 获取文档解析结果
-    doc_id = list(result['results'].keys())[0]
-    doc_result = result['results'][doc_id]
+    result_doc_id = list(result['results'].keys())[0]
+    doc_result = result['results'][result_doc_id]
+    effective_doc_id = doc_id or result_doc_id
 
     # 提取内容
     md_content = doc_result['md_content']
@@ -86,6 +118,7 @@ def _process_pdf_with_fastapi(pdf_path, update_progress):
         f.write(md_content)
 
     # 保存 middle_json 数据（兼容字符串或对象）
+    json_path = None
     if 'middle_json' in doc_result:
         json_path = os.path.join(temp_dir, "result_middle.json")
         middle_json_data = doc_result['middle_json']
@@ -97,6 +130,9 @@ def _process_pdf_with_fastapi(pdf_path, update_progress):
     # 保存图片
     images_dir = os.path.join(temp_dir, 'images')
     _save_images_from_result(doc_result, images_dir)
+
+    # 调试导出
+    _export_debug_outputs(effective_doc_id, md_file_path, json_path)
 
     return md_file_path
 
@@ -124,7 +160,7 @@ def process_pdf_entry(doc_id, pdf_path, kb_id, update_progress):
             update_progress(0.01, "PDF 处理模式: FastAPI")
             
         # 使用 FastAPI 处理
-        md_file_path = _process_pdf_with_fastapi(pdf_path, update_progress)
+        md_file_path = _process_pdf_with_fastapi(pdf_path, update_progress, doc_id=doc_id)
         
         # 处理图片目录（已在 _process_pdf_with_fastapi 中创建）
         images_dir = os.path.join(os.path.dirname(md_file_path), 'images')
