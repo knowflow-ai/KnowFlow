@@ -32,8 +32,21 @@ class SimpleMiddleJsonConverter:
         coordinate_map = {}  # {行号: 坐标}
         line_counter = 0
 
+        # 统计信息
+        total_images = 0
+        total_blocks = 0
+
         for page_idx, page in enumerate(data['pdf_info']):
             blocks = self._extract_blocks_from_page(page, page_idx)
+            total_blocks += len(blocks)
+
+            # 统计这一页的图片
+            page_images = [b for b in blocks if b['type'] == 'image']
+            if page_images:
+                total_images += len(page_images)
+                print(f"[DEBUG] 页面{page_idx}包含{len(page_images)}个图片块")
+                for img_block in page_images:
+                    print(f"  - 图片路径: {img_block.get('image_path', 'N/A')}")
 
             # 按y坐标排序
             blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
@@ -41,27 +54,64 @@ class SimpleMiddleJsonConverter:
             for block in blocks:
                 markdown_text = self._block_to_markdown(block)
                 if markdown_text:
-                    # 记录每一行的坐标
-                    text_lines = markdown_text.split('\n')
-                    for line in text_lines:
-                        if line.strip():  # 非空行
-                            # 适配前端格式: [page, x1, x2, y1, y2]
-                            # 其中 x1=x_min, x2=x_max, y1=y_min, y2=y_max
-                            coordinate_map[line_counter] = [
-                                block['page_idx'],
-                                block['bbox'][0],  # x_min -> x1
-                                block['bbox'][2],  # x_max -> x2
-                                block['bbox'][1],  # y_min -> y1
-                                block['bbox'][3]   # y_max -> y2
-                            ]
-                            markdown_lines.append(line)
-                            line_counter += 1
+                    # 特殊处理图片块，获取更精确的坐标
+                    if block['type'] == 'image' and 'blocks' in block:
+                        # 图片块可能产生多行（图片 + 标题）
+                        text_lines = markdown_text.split('\n')
+                        line_idx = 0
+
+                        for sub_block in block['blocks']:
+                            if sub_block.get('type') == 'image_body' and line_idx < len(text_lines):
+                                # 图片行使用 image_body 的坐标
+                                line = text_lines[line_idx]
+                                if line.strip():
+                                    bbox = sub_block.get('bbox', block['bbox'])
+                                    coordinate_map[line_counter] = [
+                                        block['page_idx'],
+                                        bbox[0], bbox[2], bbox[1], bbox[3]
+                                    ]
+                                    markdown_lines.append(line)
+                                    line_counter += 1
+                                    line_idx += 1
+
+                            elif sub_block.get('type') == 'image_caption' and line_idx < len(text_lines):
+                                # 标题行使用 image_caption 的坐标
+                                line = text_lines[line_idx]
+                                if line.strip():
+                                    bbox = sub_block.get('bbox', block['bbox'])
+                                    coordinate_map[line_counter] = [
+                                        block['page_idx'],
+                                        bbox[0], bbox[2], bbox[1], bbox[3]
+                                    ]
+                                    markdown_lines.append(line)
+                                    line_counter += 1
+                                    line_idx += 1
+                    else:
+                        # 其他类型的块，使用原来的逻辑
+                        text_lines = markdown_text.split('\n')
+                        for line in text_lines:
+                            if line.strip():
+                                coordinate_map[line_counter] = [
+                                    block['page_idx'],
+                                    block['bbox'][0],  # x_min -> x1
+                                    block['bbox'][2],  # x_max -> x2
+                                    block['bbox'][1],  # y_min -> y1
+                                    block['bbox'][3]   # y_max -> y2
+                                ]
+                                markdown_lines.append(line)
+                                line_counter += 1
 
                     # 添加空行分隔块
                     markdown_lines.append('')
                     line_counter += 1
 
         markdown_content = '\n'.join(markdown_lines)
+
+        # 输出统计
+        print(f"[DEBUG] Middle.json 转换统计:")
+        print(f"  - 总块数: {total_blocks}")
+        print(f"  - 图片块数: {total_images}")
+        print(f"  - 生成的markdown行数: {len(markdown_lines)}")
 
         # 保存 markdown 文件
         if output_md_path:
@@ -102,19 +152,53 @@ class SimpleMiddleJsonConverter:
         # 提取文本
         text = self._extract_text(block)
 
+        # 获取块类型
+        block_type = block.get('type', 'text')
+
+        # 检查是否包含图片路径
+        image_path = self._extract_image_path(block)
+
+        # 只有当块类型是 'image' 或没有文本内容时，才使用图片
+        # 表格即使有 image_path，也应该保持为表格
+        if block_type == 'image' or (image_path and not text and block_type != 'table'):
+            block_type = 'image'
+
         return {
             'bbox': block['bbox'],
-            'type': block.get('type', 'text'),
+            'type': block_type,
             'text': text,
             'page_idx': page_idx,
-            'image_path': self._extract_image_path(block) if block.get('type') == 'image' else None
+            'image_path': image_path if block_type == 'image' else None
         }
 
     def _extract_text(self, block: Dict) -> str:
         """提取文本内容"""
         # 处理表格
-        if block.get('type') == 'table' and 'html' in block:
-            return block['html']
+        if block.get('type') == 'table':
+            # 直接从 block 获取 HTML
+            if 'html' in block:
+                return block['html']
+
+            # 从嵌套结构获取 HTML (blocks[0].lines[0].spans[0].html)
+            if 'blocks' in block:
+                for sub_block in block['blocks']:
+                    if 'lines' in sub_block:
+                        for line in sub_block['lines']:
+                            if 'spans' in line:
+                                for span in line['spans']:
+                                    if 'html' in span:
+                                        return span['html']
+
+        # 处理图片（提取图片标题）
+        if block.get('type') == 'image' and 'blocks' in block:
+            # 查找 image_caption 子块
+            for sub_block in block['blocks']:
+                if sub_block.get('type') == 'image_caption':
+                    caption_text = self._extract_text_from_lines(sub_block)
+                    if caption_text:
+                        return caption_text
+            # 如果没有找到 caption，返回空
+            return ''
 
         # 处理列表
         if block.get('type') == 'list' and 'blocks' in block:
@@ -142,12 +226,12 @@ class SimpleMiddleJsonConverter:
         return '\n'.join(lines)
 
     def _extract_image_path(self, block: Dict) -> Optional[str]:
-        """提取图片路径"""
+        """提取图片路径（支持多种嵌套结构）"""
         # 直接从block获取
         if 'image_path' in block:
             return block['image_path']
 
-        # 从嵌套结构获取
+        # 从嵌套结构获取（支持 table 等类型）
         if 'blocks' in block:
             for sub_block in block['blocks']:
                 if 'lines' in sub_block:
@@ -156,7 +240,17 @@ class SimpleMiddleJsonConverter:
                             for span in line['spans']:
                                 if 'image_path' in span:
                                     return span['image_path']
+
+        # 从 lines 直接获取（某些格式）
+        if 'lines' in block:
+            for line in block['lines']:
+                if 'spans' in line:
+                    for span in line['spans']:
+                        if 'image_path' in span:
+                            return span['image_path']
+
         return None
+
 
     def _block_to_markdown(self, block: Dict) -> str:
         """转换块为 markdown 格式（不包含坐标注释）"""
@@ -172,6 +266,9 @@ class SimpleMiddleJsonConverter:
         elif block_type == 'table':
             return text  # HTML表格
         elif block_type == 'image':
+            result = []
+
+            # 添加图片
             path = block.get('image_path', 'missing_path')
             # 如果有 kb_id，转换为 minio 路径
             if self.kb_id and path and not path.startswith(('http://', 'https://', '/minio/')):
@@ -179,7 +276,13 @@ class SimpleMiddleJsonConverter:
                 import os
                 image_name = os.path.basename(path)
                 path = f"/minio/{self.kb_id}/{image_name}"
-            return f"![Image]({path})"
+            result.append(f"![Image]({path})")
+
+            # 添加图片标题（如果有）
+            if text:
+                result.append(text)
+
+            return '\n'.join(result) if result else ''
         elif block_type == 'formula':
             if not (text.startswith('$') and text.endswith('$')):
                 return f"${text}$"
@@ -230,7 +333,19 @@ class SimpleMiddleJsonConverter:
         coordinates = []
         text_lines = text.split('\n')
 
-        for text_line in text_lines:
+        # 调试：输出查询文本的行数
+        print(f"[COORD_DEBUG] 查询文本包含 {len(text_lines)} 行")
+
+        # 输出详细信息用于调试
+        if "References" in text[:50] or "Figure" in text[:50]:
+            block_type = "References 块" if "References" in text[:50] else "Figure 块"
+            print(f"[COORD_DEBUG] 这是 {block_type}")
+            print(f"[COORD_DEBUG] 文本前200字符: {text[:200]}...")
+            print(f"[COORD_DEBUG] 分割后的行:")
+            for i, line in enumerate(text_lines[:10]):
+                print(f"  行{i}: [{len(line)}字符] {line[:80]}...")
+
+        for idx, text_line in enumerate(text_lines):
             text_line = text_line.strip()
             if text_line:
                 # 查找这行在原始 markdown 中的行号
@@ -240,6 +355,31 @@ class SimpleMiddleJsonConverter:
                     coord = coord_map.get(str(line_no))
                     if coord and coord not in coordinates:
                         coordinates.append(coord)
+                        if "References" in text[:50]:
+                            print(f"[COORD_DEBUG] 行{idx} 精确匹配成功，行号: {line_no}")
+                else:
+                    # 如果精确匹配失败，尝试部分匹配（用于长文本行）
+                    found = False
+                    for md_line, md_line_no in line_to_number.items():
+                        # 处理列表项的匹配（去掉 "- " 前缀）
+                        md_line_clean = md_line[2:] if md_line.startswith('- ') else md_line
+
+                        if (text_line in md_line or md_line in text_line or
+                            text_line == md_line_clean or text_line in md_line_clean or md_line_clean in text_line):
+                            coord = coord_map.get(str(md_line_no))
+                            if coord and coord not in coordinates:
+                                coordinates.append(coord)
+                                found = True
+                                if "References" in text[:50]:
+                                    print(f"[COORD_DEBUG] 行{idx} 模糊匹配成功，行号: {md_line_no}")
+                                break
+
+                    if not found and "References" in text[:50]:
+                        print(f"[COORD_DEBUG] 行{idx} 未找到匹配: {text_line[:50]}...")
+                        # 显示可能的匹配
+                        for md_line, md_line_no in list(line_to_number.items())[-10:]:
+                            if "[" in text_line and "[" in md_line:
+                                print(f"  [COORD_DEBUG] 可能的匹配 行{md_line_no}: {md_line[:50]}...")
         return coordinates
 
 

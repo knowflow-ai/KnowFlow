@@ -275,6 +275,18 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
         if use_simple_method:
             print(f"✅ 检测到 middle.json，使用新的简化方法处理")
             print(f"📂 middle.json 路径: {middle_json_path}")
+
+            # 保存 middle.json 到 /tmp 用于调试
+            try:
+                import shutil
+                import time
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                debug_json_path = f"/tmp/debug_middle_{doc_id}_{kb_id}_{timestamp}.json"
+                shutil.copy(middle_json_path, debug_json_path)
+                print(f"📋 [DEBUG] middle.json 已保存到: {debug_json_path}")
+            except Exception as e:
+                print(f"⚠️ [DEBUG] 无法保存 middle.json: {str(e)}")
+
             # 使用新方法：从 middle.json 生成 markdown
             markdown_from_middle_path = md_file_path.replace('.md', '_from_middle.md')
             print(f"📝 生成 markdown 路径: {markdown_from_middle_path}")
@@ -301,12 +313,41 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
 
         # 保存原始markdown到本地用于调试
         try:
-            debug_md_path = f"/tmp/debug_markdown_{doc_id}_{kb_id}.md"
+            import re
+            import time
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            debug_md_path = f"/tmp/debug_markdown_{doc_id}_{kb_id}_{timestamp}.md"
             with open(debug_md_path, 'w', encoding='utf-8') as f:
                 f.write(enhanced_text)
             print(f"🔍 [DEBUG] 原始markdown已保存到: {debug_md_path}")
+
+            # 统计markdown内容
+            image_pattern = r'!\[.*?\]\((.*?)\)'
+            images = re.findall(image_pattern, enhanced_text)
+            print(f"📊 [DEBUG] Markdown统计:")
+            print(f"   - 总长度: {len(enhanced_text)} 字符")
+            print(f"   - 总行数: {len(enhanced_text.split(chr(10)))} 行")
+            print(f"   - 图片数: {len(images)} 个")
+            if images:
+                print(f"   - 图片列表:")
+                for i, img in enumerate(images[:5]):  # 只显示前5个
+                    print(f"     [{i+1}] {img}")
+                    if img.startswith('/minio/'):
+                        print(f"         ✅ MinIO路径格式正确")
+                    else:
+                        print(f"         ⚠️ 非MinIO路径: {img}")
+
+            # 如果使用了新的简化方法，也保存坐标文件路径
+            if coord_lookup_path:
+                print(f"📍 [DEBUG] 坐标查询文件: {coord_lookup_path}")
+                coord_file = coord_lookup_path.replace('.md', '_coords.json')
+                if os.path.exists(coord_file):
+                    import json
+                    with open(coord_file, 'r') as f:
+                        coords = json.load(f)
+                    print(f"   - 坐标映射数: {len(coords)} 个")
         except Exception as e:
-            pass
+            print(f"⚠️ [DEBUG] 保存调试文件失败: {str(e)}")
         
         # 传递分块配置给分块函数
         if chunking_config:
@@ -320,7 +361,41 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
             )
         else:
             chunks = split_markdown_to_chunks_configured(enhanced_text, chunk_token_num=256)
-        
+
+        # 打印分块后的统计信息
+        print(f"📦 [DEBUG] 分块完成:")
+        print(f"   - 总分块数: {len(chunks)}")
+
+        # 统计分块中的图片
+        total_chunk_images = 0
+        chunks_with_images = []
+        for i, chunk in enumerate(chunks):
+            chunk_images = re.findall(r'!\[.*?\]\((.*?)\)', chunk)
+            if chunk_images:
+                total_chunk_images += len(chunk_images)
+                chunks_with_images.append(i+1)
+                if i < 3:  # 只打印前3个
+                    print(f"   - 分块{i+1}包含{len(chunk_images)}个图片")
+
+        if chunks_with_images:
+            print(f"   - 包含图片的分块编号: {chunks_with_images[:10]}")  # 只显示前10个
+
+        if total_chunk_images == 0 and images:
+            print(f"   ⚠️ 警告: 原始markdown有{len(images)}个图片，但分块中未发现图片!")
+        elif total_chunk_images > 0:
+            print(f"   ✅ 分块中共保留了 {total_chunk_images} 个图片")
+
+        # 保存前几个分块用于调试
+        try:
+            for i, chunk in enumerate(chunks[:5]):  # 保存前5个分块
+                chunk_path = f"/tmp/debug_chunk_{doc_id}_{kb_id}_{timestamp}_{i+1}.md"
+                with open(chunk_path, 'w', encoding='utf-8') as f:
+                    f.write(chunk)
+                if i == 0:
+                    print(f"   📝 分块已保存到: /tmp/debug_chunk_{doc_id}_{kb_id}_{timestamp}_*.md")
+        except:
+            pass
+
         # 准备父子分块数据（如果使用了父子分块策略）
         parent_child_data = None
         is_parent_child = (chunking_config and 
