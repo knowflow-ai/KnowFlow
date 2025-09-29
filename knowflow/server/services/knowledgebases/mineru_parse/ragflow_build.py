@@ -3,10 +3,9 @@ import os
 import time
 import shutil
 import json
-from dotenv import load_dotenv
 from .minio_server import upload_directory_to_minio
 from .mineru_test import update_markdown_image_urls
-from .utils import split_markdown_to_chunks_configured, get_bbox_for_chunk, should_cleanup_temp_files
+from .utils import split_markdown_to_chunks_configured, should_cleanup_temp_files
 from .middle_json_simple import middle_json_to_markdown, get_chunk_coordinates
 from ..utils import _get_kb_tenant_id, _get_tenant_api_key, _validate_base_url
 from database import get_db_connection
@@ -121,62 +120,29 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
                     chunk_with_coord = chunks_with_coordinates[i]
                     if chunk_with_coord and chunk_with_coord.get('positions'):
                         chunk_data["positions"] = chunk_with_coord['positions']
-                        print(f"📍 chunk {original_index}: DOTS坐标 ({len(chunk_with_coord['positions'])} 个位置) + 索引排序 (page=1, top={original_index})")
                         position_found = True
                 
                 # 如果没有直接坐标，尝试获取坐标
                 if not position_found:
-                    # 优先使用新的简化方法
                     if coord_lookup_path:
                         try:
-                            print(f"🔍 [DEBUG] 使用新方法查询坐标，路径: {coord_lookup_path}")
-                            print(f"🔍 [DEBUG] 查询文本: {chunk.strip()[:50]}...")
-                            # 使用新方法查询坐标
                             coords = get_chunk_coordinates(coord_lookup_path, chunk.strip())
-                            print(f"🔍 [DEBUG] 查询结果: {len(coords) if coords else 0} 个坐标")
                             if coords:
-                                # 转换坐标格式为 RAGFlow 需要的格式
                                 positions = [[int(c[0]), c[1], c[2], c[3], c[4]] for c in coords]
                                 chunk_data["positions"] = positions
-                                print(f"📍 chunk {original_index}: 使用新方法找到精确坐标 ({len(positions)} 个位置) + 索引排序 (page=1, top={original_index})")
                                 position_found = True
-                            else:
-                                print(f"📍 chunk {original_index}: 新方法未找到坐标，使用索引排序 (page=1, top={original_index})")
-                        except Exception as e:
-                            import traceback
-                            print(f"📍 chunk {original_index}: 新方法查询异常 {e}，使用索引排序 (page=1, top={original_index})")
-                            traceback.print_exc()
-
-                    # 如果新方法没有找到，尝试旧方法（兼容性）
-                    elif md_file_path is not None:
-                        try:
-                            position_int_temp = get_bbox_for_chunk(md_file_path, chunk.strip())
-                            if position_int_temp is not None:
-                                # 有完整位置信息时，仅添加positions，不覆盖排序字段
-                                chunk_data["positions"] = position_int_temp
-                                print(f"📍 chunk {original_index}: 使用旧方法找到坐标 ({len(position_int_temp)} 个位置) + 索引排序 (page=1, top={original_index})")
-                                position_found = True
-                            else:
-                                print(f"📍 chunk {original_index}: 旧方法未找到坐标，使用索引排序 (page=1, top={original_index})")
-                        except Exception as pos_e:
-                            print(f"📍 chunk {original_index}: 旧方法坐标获取异常，使用索引排序 (page=1, top={original_index})")
+                        except Exception:
+                            pass
                 
                 # 如果都没有找到坐标
                 if not position_found:
-                    if md_file_path is None and chunks_with_coordinates is None:
-                        print(f"📍 chunk {original_index}: 无MD文件和坐标数据，使用索引排序 (page=1, top={original_index})")
-                    elif chunks_with_coordinates is None:
-                        print(f"📍 chunk {original_index}: 无坐标数据，使用索引排序 (page=1, top={original_index})")
-                    else:
-                        print(f"📍 chunk {original_index}: 坐标数据为空，使用索引排序 (page=1, top={original_index})")
+                    pass
                 
                 batch_chunks.append(chunk_data)
         
         if not batch_chunks:
             update_progress(0.95, "没有有效的chunks")
             return 0
-        
-        print(f"📦 准备调用增强的batch接口处理 {len(batch_chunks)} 个有效chunks")
         
         # 调用增强的batch接口
         import requests
@@ -195,15 +161,11 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
         # 如果有父子分块数据，添加到请求中
         if parent_child_data:
             request_data["parent_child_data"] = parent_child_data
-            print(f"🔗 [INFO] 添加父子分块数据到batch请求: {len(parent_child_data.get('parent_chunks', []))} 父分块, {len(parent_child_data.get('relationships', []))} 映射关系")
         
         # 调用增强的batch接口
         api_url = f"{base_url}/datasets/{doc.dataset_id}/documents/{doc.id}/chunks/batch"
-        print(f"🔗 发送增强batch请求到: {api_url}")
         
         response = requests.post(api_url, json=request_data, headers=headers)
-        
-        print(f"📥 增强batch接口响应状态码: {response.status_code}")
         
         if response.status_code == 200:
             try:
@@ -214,33 +176,22 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
                     added = data.get("total_added", 0)
                     failed = data.get("total_failed", 0)
                     
-                    print(f"✅ 增强batch接口处理完成: 成功 {added} 个，失败 {failed} 个")
-                    
-                    if parent_child_data:
-                        print(f"🔗 父子分块处理也已完成")
-                    
                     update_progress(0.95, f"batch处理完成: 成功 {added}/{len(batch_chunks)} chunks")
                     return added
                 else:
                     # 批量添加失败
                     error_msg = result.get("message", "Unknown error")
-                    print(f"❌ 增强batch接口失败: {error_msg}")
                     update_progress(0.95, f"batch处理失败: {error_msg}")
                     return 0
             except json.JSONDecodeError:
-                print(f"❌ 增强batch接口响应解析失败")
                 update_progress(0.95, "响应解析失败")
                 return 0
         else:
-            print(f"❌ 增强batch接口HTTP错误: {response.status_code}")
             update_progress(0.95, f"HTTP错误: {response.status_code}")
             return 0
         
     except Exception as e:
         update_progress(0.95, f"增强batch处理异常: {str(e)}")
-        print(f"❌ 增强batch处理异常: {e}")
-        import traceback
-        traceback.print_exc()
         return 0
 
 
@@ -273,81 +224,16 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
         use_simple_method = os.path.exists(middle_json_path)
 
         if use_simple_method:
-            print(f"✅ 检测到 middle.json，使用新的简化方法处理")
-            print(f"📂 middle.json 路径: {middle_json_path}")
-
-            # 保存 middle.json 到 /tmp 用于调试
-            try:
-                import shutil
-                import time
-                timestamp = time.strftime("%Y%m%d_%H%M%S")
-                debug_json_path = f"/tmp/debug_middle_{doc_id}_{kb_id}_{timestamp}.json"
-                shutil.copy(middle_json_path, debug_json_path)
-                print(f"📋 [DEBUG] middle.json 已保存到: {debug_json_path}")
-            except Exception as e:
-                print(f"⚠️ [DEBUG] 无法保存 middle.json: {str(e)}")
-
             # 使用新方法：从 middle.json 生成 markdown
             markdown_from_middle_path = md_file_path.replace('.md', '_from_middle.md')
-            print(f"📝 生成 markdown 路径: {markdown_from_middle_path}")
-            # 直接传入 kb_id，让 middle_json_to_markdown 处理图片路径
             enhanced_text = middle_json_to_markdown(middle_json_path, markdown_from_middle_path, kb_id=kb_id)
-            print(f"📄 生成的 markdown 长度: {len(enhanced_text)} 字符")
-            # 检查坐标文件是否生成
-            coord_file_path = markdown_from_middle_path.replace('.md', '_coords.json')
-            if os.path.exists(coord_file_path):
-                print(f"✅ 坐标文件已生成: {coord_file_path}")
-                import json
-                with open(coord_file_path, 'r') as f:
-                    coords_data = json.load(f)
-                    print(f"📍 坐标映射数量: {len(coords_data)}")
-            else:
-                print(f"❌ 坐标文件未生成: {coord_file_path}")
-            # 图片URL已在 middle_json_to_markdown 中处理，不需要再更新
-            # 保存用于坐标查询的路径
+            # 坐标查询基于新生成的 markdown
             coord_lookup_path = markdown_from_middle_path
         else:
             # 使用原方法
             enhanced_text = update_markdown_image_urls(md_file_path, kb_id)
             coord_lookup_path = None
-
-        # 保存原始markdown到本地用于调试
-        try:
-            import re
-            import time
-            timestamp = time.strftime("%Y%m%d_%H%M%S")
-            debug_md_path = f"/tmp/debug_markdown_{doc_id}_{kb_id}_{timestamp}.md"
-            with open(debug_md_path, 'w', encoding='utf-8') as f:
-                f.write(enhanced_text)
-            print(f"🔍 [DEBUG] 原始markdown已保存到: {debug_md_path}")
-
-            # 统计markdown内容
-            image_pattern = r'!\[.*?\]\((.*?)\)'
-            images = re.findall(image_pattern, enhanced_text)
-            print(f"📊 [DEBUG] Markdown统计:")
-            print(f"   - 总长度: {len(enhanced_text)} 字符")
-            print(f"   - 总行数: {len(enhanced_text.split(chr(10)))} 行")
-            print(f"   - 图片数: {len(images)} 个")
-            if images:
-                print(f"   - 图片列表:")
-                for i, img in enumerate(images[:5]):  # 只显示前5个
-                    print(f"     [{i+1}] {img}")
-                    if img.startswith('/minio/'):
-                        print(f"         ✅ MinIO路径格式正确")
-                    else:
-                        print(f"         ⚠️ 非MinIO路径: {img}")
-
-            # 如果使用了新的简化方法，也保存坐标文件路径
-            if coord_lookup_path:
-                print(f"📍 [DEBUG] 坐标查询文件: {coord_lookup_path}")
-                coord_file = coord_lookup_path.replace('.md', '_coords.json')
-                if os.path.exists(coord_file):
-                    import json
-                    with open(coord_file, 'r') as f:
-                        coords = json.load(f)
-                    print(f"   - 坐标映射数: {len(coords)} 个")
-        except Exception as e:
-            print(f"⚠️ [DEBUG] 保存调试文件失败: {str(e)}")
+        
         
         # 传递分块配置给分块函数
         if chunking_config:
@@ -362,40 +248,6 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
         else:
             chunks = split_markdown_to_chunks_configured(enhanced_text, chunk_token_num=256)
 
-        # 打印分块后的统计信息
-        print(f"📦 [DEBUG] 分块完成:")
-        print(f"   - 总分块数: {len(chunks)}")
-
-        # 统计分块中的图片
-        total_chunk_images = 0
-        chunks_with_images = []
-        for i, chunk in enumerate(chunks):
-            chunk_images = re.findall(r'!\[.*?\]\((.*?)\)', chunk)
-            if chunk_images:
-                total_chunk_images += len(chunk_images)
-                chunks_with_images.append(i+1)
-                if i < 3:  # 只打印前3个
-                    print(f"   - 分块{i+1}包含{len(chunk_images)}个图片")
-
-        if chunks_with_images:
-            print(f"   - 包含图片的分块编号: {chunks_with_images[:10]}")  # 只显示前10个
-
-        if total_chunk_images == 0 and images:
-            print(f"   ⚠️ 警告: 原始markdown有{len(images)}个图片，但分块中未发现图片!")
-        elif total_chunk_images > 0:
-            print(f"   ✅ 分块中共保留了 {total_chunk_images} 个图片")
-
-        # 保存前几个分块用于调试
-        try:
-            for i, chunk in enumerate(chunks[:5]):  # 保存前5个分块
-                chunk_path = f"/tmp/debug_chunk_{doc_id}_{kb_id}_{timestamp}_{i+1}.md"
-                with open(chunk_path, 'w', encoding='utf-8') as f:
-                    f.write(chunk)
-                if i == 0:
-                    print(f"   📝 分块已保存到: /tmp/debug_chunk_{doc_id}_{kb_id}_{timestamp}_*.md")
-        except:
-            pass
-
         # 准备父子分块数据（如果使用了父子分块策略）
         parent_child_data = None
         is_parent_child = (chunking_config and 
@@ -407,10 +259,6 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
             parent_child_result = get_last_parent_child_result()
             
             if parent_child_result:
-                print(f"🎯 [INFO] 检测到父子分块策略，将使用增强的batch接口处理")
-                print(f"  👨 父分块数: {parent_child_result.get('total_parents', 0)}")
-                print(f"  👶 子分块数: {parent_child_result.get('total_children', 0)}")
-                
                 # 准备父子分块数据
                 parent_child_data = {
                     'doc_id': doc_id,
@@ -435,12 +283,8 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
         return chunk_count
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-
         try:
             update_progress(1.0, f"处理过程中发生异常: {str(e)}")
-        except Exception as progress_e:
+        except Exception:
             pass
-        
         raise

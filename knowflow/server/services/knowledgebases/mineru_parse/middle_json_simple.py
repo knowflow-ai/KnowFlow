@@ -32,7 +32,7 @@ class SimpleMiddleJsonConverter:
         coordinate_map = {}  # {行号: 坐标}
         line_counter = 0
 
-        # 统计信息
+        # 统计信息（去除冗余调试打印）
         total_images = 0
         total_blocks = 0
 
@@ -44,9 +44,6 @@ class SimpleMiddleJsonConverter:
             page_images = [b for b in blocks if b['type'] == 'image']
             if page_images:
                 total_images += len(page_images)
-                print(f"[DEBUG] 页面{page_idx}包含{len(page_images)}个图片块")
-                for img_block in page_images:
-                    print(f"  - 图片路径: {img_block.get('image_path', 'N/A')}")
 
             # 按y坐标排序
             blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
@@ -56,18 +53,11 @@ class SimpleMiddleJsonConverter:
                 if markdown_text:
                     # 特殊处理图片块，获取更精确的坐标
                     if block.get('type') == 'image' and 'blocks' in block:
-                        print(f"[IMG_PROCESS] Processing image block at page {block.get('page_idx', -1)}")
+                        # 图片块处理
                         # 图片块可能产生多行（图片 + 标题）
                         text_lines = markdown_text.split('\n')
 
-                        # 调试输出
-                        if len(text_lines) > 1:
-                            print(f"[IMG_DEBUG] 图片块产生了 {len(text_lines)} 行:")
-                            for i, line in enumerate(text_lines):
-                                print(f"  行{i}: {line[:80]}...")
-                            print(f"  子块数量: {len(block['blocks'])}")
-                            for sub in block['blocks']:
-                                print(f"    - {sub.get('type')}: bbox={sub.get('bbox')}")
+                        # 去除冗余调试输出
 
                         # 分别处理每行文本
                         for i, line in enumerate(text_lines):
@@ -81,14 +71,14 @@ class SimpleMiddleJsonConverter:
                                     for sub_block in block['blocks']:
                                         if sub_block.get('type') == 'image_body':
                                             bbox = sub_block.get('bbox', block['bbox'])
-                                            print(f"[IMG_DEBUG] 使用 image_body 坐标: {bbox}")
+                                            # 使用 image_body 坐标
                                             break
                                 elif i == 1:
                                     # 第二行可能是标题，查找 image_caption
                                     for sub_block in block['blocks']:
                                         if sub_block.get('type') == 'image_caption':
                                             bbox = sub_block.get('bbox', block['bbox'])
-                                            print(f"[IMG_DEBUG] 使用 image_caption 坐标: {bbox}")
+                                            # 使用 image_caption 坐标
                                             break
 
                                 coordinate_map[line_counter] = [
@@ -118,11 +108,7 @@ class SimpleMiddleJsonConverter:
 
         markdown_content = '\n'.join(markdown_lines)
 
-        # 输出统计
-        print(f"[DEBUG] Middle.json 转换统计:")
-        print(f"  - 总块数: {total_blocks}")
-        print(f"  - 图片块数: {total_images}")
-        print(f"  - 生成的markdown行数: {len(markdown_lines)}")
+        # 可选统计（不打印）
 
         # 保存 markdown 文件
         if output_md_path:
@@ -350,23 +336,7 @@ class SimpleMiddleJsonConverter:
         coordinates = []
         text_lines = text.split('\n')
 
-        # 调试：输出查询文本的行数
-        print(f"[COORD_DEBUG] 查询文本包含 {len(text_lines)} 行")
-
-        # 输出详细信息用于调试
-        if "References" in text[:50] or "Figure" in text[:100]:
-            block_type = "References 块" if "References" in text[:50] else "Figure 块"
-            print(f"[COORD_DEBUG] 这是 {block_type}")
-            print(f"[COORD_DEBUG] 文本前200字符: {text[:200]}...")
-            print(f"[COORD_DEBUG] 分割后的行:")
-            for i, line in enumerate(text_lines[:10]):
-                print(f"  行{i}: [{len(line)}字符] {line[:80]}...")
-
-            # 显示坐标映射中的相关内容
-            print(f"[COORD_DEBUG] 坐标映射中的键（最后20个）:")
-            for key in list(line_to_number.keys())[-20:]:
-                if "Figure" in key or "ATLASpix3 readout" in key:
-                    print(f"  键: {key[:80]}... -> 行号: {line_to_number[key]}")
+        # 去除冗余坐标调试输出
 
         for idx, text_line in enumerate(text_lines):
             text_line = text_line.strip()
@@ -378,8 +348,6 @@ class SimpleMiddleJsonConverter:
                     coord = coord_map.get(str(line_no))
                     if coord and coord not in coordinates:
                         coordinates.append(coord)
-                        if "References" in text[:50]:
-                            print(f"[COORD_DEBUG] 行{idx} 精确匹配成功，行号: {line_no}")
                 else:
                     # 如果精确匹配失败，尝试部分匹配（用于长文本行）
                     found = False
@@ -393,16 +361,7 @@ class SimpleMiddleJsonConverter:
                             if coord and coord not in coordinates:
                                 coordinates.append(coord)
                                 found = True
-                                if "References" in text[:50]:
-                                    print(f"[COORD_DEBUG] 行{idx} 模糊匹配成功，行号: {md_line_no}")
                                 break
-
-                    if not found and "References" in text[:50]:
-                        print(f"[COORD_DEBUG] 行{idx} 未找到匹配: {text_line[:50]}...")
-                        # 显示可能的匹配
-                        for md_line, md_line_no in list(line_to_number.items())[-10:]:
-                            if "[" in text_line and "[" in md_line:
-                                print(f"  [COORD_DEBUG] 可能的匹配 行{md_line_no}: {md_line[:50]}...")
         return coordinates
 
 
