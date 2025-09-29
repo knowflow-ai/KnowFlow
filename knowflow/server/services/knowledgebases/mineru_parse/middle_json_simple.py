@@ -66,7 +66,7 @@ class SimpleMiddleJsonConverter:
                                 bbox = block['bbox']
 
                                 # 尝试使用更精确的坐标
-                                if i == 0 and line.startswith('![Image]'):
+                                if i == 0 and (line.lstrip().startswith('<img') or line.startswith('![Image]')):
                                     # 第一行是图片，查找 image_body
                                     for sub_block in block['blocks']:
                                         if sub_block.get('type') == 'image_body':
@@ -269,23 +269,18 @@ class SimpleMiddleJsonConverter:
         elif block_type == 'table':
             return text  # HTML表格
         elif block_type == 'image':
-            result = []
-
-            # 添加图片
+            # 生成 <img> 标签；将图片描述作为 alt，同时保留标题文本为下一行说明
             path = block.get('image_path', 'missing_path')
             # 如果有 kb_id，转换为 minio 路径
             if self.kb_id and path and not path.startswith(('http://', 'https://', '/minio/')):
-                # 只取文件名，生成 minio 路径
                 import os
                 image_name = os.path.basename(path)
                 path = f"/minio/{self.kb_id}/{image_name}"
-            result.append(f"![Image]({path})")
-
-            # 添加图片标题（如果有）
+            alt_text = (text or '图片').replace('"', "'")
+            lines = [f'<img src="{path}" style="max-width: 500px;max-height: 800px;" alt="{alt_text}">']
             if text:
-                result.append(text)
-
-            return '\n'.join(result) if result else ''
+                lines.append(text)
+            return '\n'.join(lines)
         elif block_type == 'formula':
             if not (text.startswith('$') and text.endswith('$')):
                 return f"${text}$"
