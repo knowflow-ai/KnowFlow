@@ -1949,3 +1949,6 @@ def _extract_ast_semantic_info(child_chunk, parent_chunk):
     }
     
     return semantic_info
+
+
+# 以下函数已被简化方案替代，请使用 middle_json_simple.py 和 use_middle_json.py

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from .minio_server import upload_directory_to_minio
 from .mineru_test import update_markdown_image_urls
 from .utils import split_markdown_to_chunks_configured, get_bbox_for_chunk, should_cleanup_temp_files
+from .middle_json_simple import middle_json_to_markdown, get_chunk_coordinates
 from ..utils import _get_kb_tenant_id, _get_tenant_api_key, _validate_base_url
 from database import get_db_connection
 
@@ -70,7 +71,7 @@ def _get_document_chunking_config(doc_id):
             conn.close()
 
 
-def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_to_index, update_progress, parent_child_data=None, chunks_with_coordinates=None):
+def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_to_index, update_progress, parent_child_data=None, chunks_with_coordinates=None, coord_lookup_path=None):
     """
     使用增强的batch接口处理分块（支持父子分块和坐标传递）
     
@@ -123,19 +124,42 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
                         print(f"📍 chunk {original_index}: DOTS坐标 ({len(chunk_with_coord['positions'])} 个位置) + 索引排序 (page=1, top={original_index})")
                         position_found = True
                 
-                # 如果没有直接坐标，尝试从md文件获取（MinerU情况）
-                if not position_found and md_file_path is not None:
-                    try:
-                        position_int_temp = get_bbox_for_chunk(md_file_path, chunk.strip())
-                        if position_int_temp is not None:
-                            # 有完整位置信息时，仅添加positions，不覆盖排序字段
-                            chunk_data["positions"] = position_int_temp
-                            print(f"📍 chunk {original_index}: 找到精确坐标 ({len(position_int_temp)} 个位置) + 索引排序 (page=1, top={original_index})")
-                            position_found = True
-                        else:
-                            print(f"📍 chunk {original_index}: 使用索引排序 (page=1, top={original_index})")
-                    except Exception as pos_e:
-                        print(f"📍 chunk {original_index}: 坐标获取异常，使用索引排序 (page=1, top={original_index})")
+                # 如果没有直接坐标，尝试获取坐标
+                if not position_found:
+                    # 优先使用新的简化方法
+                    if coord_lookup_path:
+                        try:
+                            print(f"🔍 [DEBUG] 使用新方法查询坐标，路径: {coord_lookup_path}")
+                            print(f"🔍 [DEBUG] 查询文本: {chunk.strip()[:50]}...")
+                            # 使用新方法查询坐标
+                            coords = get_chunk_coordinates(coord_lookup_path, chunk.strip())
+                            print(f"🔍 [DEBUG] 查询结果: {len(coords) if coords else 0} 个坐标")
+                            if coords:
+                                # 转换坐标格式为 RAGFlow 需要的格式
+                                positions = [[int(c[0]), c[1], c[2], c[3], c[4]] for c in coords]
+                                chunk_data["positions"] = positions
+                                print(f"📍 chunk {original_index}: 使用新方法找到精确坐标 ({len(positions)} 个位置) + 索引排序 (page=1, top={original_index})")
+                                position_found = True
+                            else:
+                                print(f"📍 chunk {original_index}: 新方法未找到坐标，使用索引排序 (page=1, top={original_index})")
+                        except Exception as e:
+                            import traceback
+                            print(f"📍 chunk {original_index}: 新方法查询异常 {e}，使用索引排序 (page=1, top={original_index})")
+                            traceback.print_exc()
+
+                    # 如果新方法没有找到，尝试旧方法（兼容性）
+                    elif md_file_path is not None:
+                        try:
+                            position_int_temp = get_bbox_for_chunk(md_file_path, chunk.strip())
+                            if position_int_temp is not None:
+                                # 有完整位置信息时，仅添加positions，不覆盖排序字段
+                                chunk_data["positions"] = position_int_temp
+                                print(f"📍 chunk {original_index}: 使用旧方法找到坐标 ({len(position_int_temp)} 个位置) + 索引排序 (page=1, top={original_index})")
+                                position_found = True
+                            else:
+                                print(f"📍 chunk {original_index}: 旧方法未找到坐标，使用索引排序 (page=1, top={original_index})")
+                        except Exception as pos_e:
+                            print(f"📍 chunk {original_index}: 旧方法坐标获取异常，使用索引排序 (page=1, top={original_index})")
                 
                 # 如果都没有找到坐标
                 if not position_found:
@@ -243,8 +267,37 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
 
         # 获取文档的分块配置
         chunking_config = _get_document_chunking_config(doc_id)
-        
-        enhanced_text = update_markdown_image_urls(md_file_path, kb_id)
+
+        # 检查是否有 middle.json 文件
+        middle_json_path = md_file_path.replace('.md', '_middle.json')
+        use_simple_method = os.path.exists(middle_json_path)
+
+        if use_simple_method:
+            print(f"✅ 检测到 middle.json，使用新的简化方法处理")
+            print(f"📂 middle.json 路径: {middle_json_path}")
+            # 使用新方法：从 middle.json 生成 markdown
+            markdown_from_middle_path = md_file_path.replace('.md', '_from_middle.md')
+            print(f"📝 生成 markdown 路径: {markdown_from_middle_path}")
+            # 直接传入 kb_id，让 middle_json_to_markdown 处理图片路径
+            enhanced_text = middle_json_to_markdown(middle_json_path, markdown_from_middle_path, kb_id=kb_id)
+            print(f"📄 生成的 markdown 长度: {len(enhanced_text)} 字符")
+            # 检查坐标文件是否生成
+            coord_file_path = markdown_from_middle_path.replace('.md', '_coords.json')
+            if os.path.exists(coord_file_path):
+                print(f"✅ 坐标文件已生成: {coord_file_path}")
+                import json
+                with open(coord_file_path, 'r') as f:
+                    coords_data = json.load(f)
+                    print(f"📍 坐标映射数量: {len(coords_data)}")
+            else:
+                print(f"❌ 坐标文件未生成: {coord_file_path}")
+            # 图片URL已在 middle_json_to_markdown 中处理，不需要再更新
+            # 保存用于坐标查询的路径
+            coord_lookup_path = markdown_from_middle_path
+        else:
+            # 使用原方法
+            enhanced_text = update_markdown_image_urls(md_file_path, kb_id)
+            coord_lookup_path = None
 
         # 保存原始markdown到本地用于调试
         try:
@@ -297,7 +350,8 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
         
         # 统一分块处理 - 优化后统一使用增强的batch接口（支持父子分块和标准分块）
         chunk_content_to_index = {chunk: i for i, chunk in enumerate(chunks)}
-        chunk_count = add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_to_index, update_progress, parent_child_data=parent_child_data)
+        # 传递坐标查询路径（如果使用新方法）
+        chunk_count = add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_to_index, update_progress, parent_child_data=parent_child_data, coord_lookup_path=coord_lookup_path)
         # 根据环境变量决定是否清理临时文件
         _cleanup_temp_files(md_file_path)
 
