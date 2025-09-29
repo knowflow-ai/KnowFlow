@@ -16,12 +16,14 @@ class UnifiedChunkingInterface:
     """统一的分块策略接口"""
     
     @staticmethod
-    def chunk_with_coordinates(markdown_content: str, 
+    def chunk_with_coordinates(markdown_content: str,
                               elements_data: List[Dict],
                               chunking_config: Optional[dict] = None,
                               coordinate_source: str = 'mineru',
                               doc_id: str = None,
-                              kb_id: str = None) -> Dict[str, Any]:
+                              kb_id: str = None,
+                              coordinate_map: Optional[Dict] = None,
+                              markdown_lines: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         统一的分块接口，支持不同坐标来源
         
@@ -32,6 +34,8 @@ class UnifiedChunkingInterface:
             coordinate_source: 坐标来源 ('dots' or 'mineru')
             doc_id: 文档ID（父子分块需要）
             kb_id: 知识库ID（父子分块需要）
+            coordinate_map: 行号到坐标的映射（DOTS场景）
+            markdown_lines: Markdown 行列表（DOTS场景）
             
         Returns:
             包含分块结果和坐标信息的字典
@@ -47,7 +51,10 @@ class UnifiedChunkingInterface:
             # 2. 根据坐标来源选择映射方法
             if coordinate_source == 'dots':
                 coordinates_result = UnifiedChunkingInterface._map_dots_coordinates(
-                    chunks_result, elements_data
+                    chunks_result,
+                    elements_data,
+                    coordinate_map=coordinate_map,
+                    markdown_lines=markdown_lines
                 )
             else:
                 coordinates_result = UnifiedChunkingInterface._map_mineru_coordinates(
@@ -134,8 +141,10 @@ class UnifiedChunkingInterface:
             raise
     
     @staticmethod
-    def _map_dots_coordinates(chunks_result: Dict[str, Any], 
-                             dots_elements: List[Dict]) -> Dict[str, Any]:
+    def _map_dots_coordinates(chunks_result: Dict[str, Any],
+                              dots_elements: List[Dict],
+                              coordinate_map: Optional[Dict] = None,
+                              markdown_lines: Optional[List[str]] = None) -> Dict[str, Any]:
         """映射DOTS坐标"""
         try:
             from .coordinate_mappers import DOTSCoordinateMapper
@@ -145,11 +154,32 @@ class UnifiedChunkingInterface:
             
             # 对于父子分块，使用子分块内容进行坐标映射
             if chunks_result.get('is_parent_child') and chunks_result.get('child_chunks'):
-                chunk_contents = [chunk['content'] for chunk in chunks_result['child_chunks']]
+                chunk_contents = []
+                for chunk in chunks_result['child_chunks']:
+                    if isinstance(chunk, dict):
+                        chunk_contents.append(chunk.get('content', ''))
+                    elif hasattr(chunk, 'content'):
+                        chunk_contents.append(getattr(chunk, 'content', ''))
+                    else:
+                        chunk_contents.append(str(chunk))
             else:
-                chunk_contents = chunks
+                chunk_contents = []
+                for chunk in chunks:
+                    if isinstance(chunk, str):
+                        chunk_contents.append(chunk)
+                    elif isinstance(chunk, dict):
+                        chunk_contents.append(chunk.get('content', ''))
+                    elif hasattr(chunk, 'content'):
+                        chunk_contents.append(getattr(chunk, 'content', ''))
+                    else:
+                        chunk_contents.append(str(chunk))
             
-            coordinates = mapper.map_chunks_to_coordinates(chunk_contents, dots_elements)
+            coordinates = mapper.map_chunks_to_coordinates(
+                chunk_contents,
+                dots_elements,
+                coordinate_map=coordinate_map,
+                markdown_lines=markdown_lines
+            )
             
             return {
                 'coordinates': coordinates,
