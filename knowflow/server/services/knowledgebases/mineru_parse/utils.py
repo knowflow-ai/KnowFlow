@@ -55,17 +55,28 @@ def should_cleanup_temp_files():
     return APP_CONFIG.cleanup_temp_files
 
 
-def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_tokens=10, **kwargs):
+def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_tokens=10, coordinate_map=None, **kwargs):
     """
     根据配置选择合适的分块方法的统一接口
-    
+
     支持的分块方法：
     - 'parent_child': 父子分块模式，基于Smart分块的双层结构
     - 'strict_regex': 严格按正则表达式分块（当配置启用时）
     - 'advanced': split_markdown_to_chunks_advanced (高级分块，混合策略)
     - 'smart': split_markdown_to_chunks_smart (智能分块，基于AST，默认)
     - 'basic': split_markdown_to_chunks (基础分块)
-    
+
+    Args:
+        txt: markdown文本
+        chunk_token_num: 分块token数
+        min_chunk_tokens: 最小分块token数
+        coordinate_map: 坐标映射 {line_number: [page, x1, x2, y1, y2]}，如果提供则返回带坐标的分块
+        **kwargs: 其他参数
+
+    Returns:
+        如果 coordinate_map=None: 返回字符串列表
+        如果提供 coordinate_map: 返回字典列表 [{"content": str, "coordinates": [[page, x1, x2, y1, y2], ...]}]
+
     可通过环境变量 CHUNK_METHOD 配置，支持的值：parent_child, advanced, smart, basic
     也可通过kwargs传入自定义配置：
     - chunking_config: 分块配置字典，包含strategy等字段
@@ -104,7 +115,7 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
         # 其他策略的处理
         if strategy == 'parent_child':
             print(f"  🎯 使用父子分块策略")
-            return split_markdown_to_chunks_parent_child(
+            chunks = split_markdown_to_chunks_parent_child(
                 txt,
                 chunk_token_num=chunk_token_num,
                 min_chunk_tokens=min_chunk_tokens,
@@ -112,13 +123,29 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
                 doc_id=kwargs.get('doc_id', 'unknown'),
                 kb_id=kwargs.get('kb_id', 'unknown')
             )
+            # 父子分块也支持坐标附加
+            if coordinate_map is not None:
+                print(f"📍 [DEBUG] 为父子分块附加坐标信息")
+                chunks = _attach_coordinates_to_parent_child_chunks(chunks, txt, coordinate_map)
+
+                # 重要：更新 _last_parent_child_result，添加坐标信息
+                global _last_parent_child_result
+                if _last_parent_child_result and isinstance(chunks, list):
+                    # chunks 是带坐标的字典列表
+                    # 更新 child_chunks 的坐标
+                    if len(chunks) == len(_last_parent_child_result.get('child_chunks', [])):
+                        for i, chunk_with_coord in enumerate(chunks):
+                            if isinstance(chunk_with_coord, dict) and 'coordinates' in chunk_with_coord:
+                                _last_parent_child_result['child_chunks'][i]['coordinates'] = chunk_with_coord['coordinates']
+                        print(f"✅ [DEBUG] 已更新 _last_parent_child_result 的坐标信息")
+            return chunks
         elif strategy == 'advanced':
             include_metadata = kwargs.pop('include_metadata', False)
             overlap_ratio = kwargs.pop('overlap_ratio', 0.0)
             print(f"  🎯 使用高级分块策略")
-            return split_markdown_to_chunks_advanced(
-                txt, 
-                chunk_token_num=chunk_token_num, 
+            chunks = split_markdown_to_chunks_advanced(
+                txt,
+                chunk_token_num=chunk_token_num,
                 min_chunk_tokens=min_chunk_tokens,
                 overlap_ratio=overlap_ratio,
                 include_metadata=include_metadata
@@ -128,57 +155,252 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
             regex_pattern = custom_chunking_config.get('regex_pattern', '')
             print(f"  🎯 使用正则分块策略, 模式: {regex_pattern}")
             if regex_pattern:
-                return split_markdown_to_chunks_strict_regex(
-                    txt, 
-                    chunk_token_num=chunk_token_num, 
-                    min_chunk_tokens=min_chunk_tokens, 
+                chunks = split_markdown_to_chunks_strict_regex(
+                    txt,
+                    chunk_token_num=chunk_token_num,
+                    min_chunk_tokens=min_chunk_tokens,
                     regex_pattern=regex_pattern
                 )
             else:
                 print(f"  ⚠️ 正则表达式为空，回退到智能分块")
                 # 如果没有正则表达式，回退到智能分块
-                return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
+                chunks = split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
 
         elif strategy == 'smart':
             print(f"  🎯 使用智能分块策略")
-            return split_markdown_to_chunks_smart(
-                txt, 
-                chunk_token_num=chunk_token_num, 
+            chunks = split_markdown_to_chunks_smart(
+                txt,
+                chunk_token_num=chunk_token_num,
                 min_chunk_tokens=min_chunk_tokens
             )
         elif strategy == 'basic':
             delimiter = custom_chunking_config.get('delimiter', "\n!?。；！？")
             print(f"  🎯 使用基础分块策略, 分隔符: {delimiter}")
-            return split_markdown_to_chunks(
-                txt, 
+            chunks = split_markdown_to_chunks(
+                txt,
                 chunk_token_num=chunk_token_num,
                 delimiter=delimiter
             )
+        else:
+            chunks = []
     else:
         print(f"🔄 [DEBUG] 使用默认配置 - 环境变量或回退到智能分块")
         # 原有的环境变量配置逻辑...
         method = get_configured_chunk_method()
         print(f"  📊 环境配置方法: {method}")
-        
+
         if method == 'advanced':
             include_metadata = kwargs.pop('include_metadata', False)
             overlap_ratio = kwargs.pop('overlap_ratio', 0.0)
-            return split_markdown_to_chunks_advanced(
-                txt, 
-                chunk_token_num=chunk_token_num, 
+            chunks = split_markdown_to_chunks_advanced(
+                txt,
+                chunk_token_num=chunk_token_num,
                 min_chunk_tokens=min_chunk_tokens,
                 overlap_ratio=overlap_ratio,
                 include_metadata=include_metadata
             )
         elif method == 'basic':
             delimiter = kwargs.pop('delimiter', "\n!?。；！？")
-            return split_markdown_to_chunks(
-                txt, 
+            chunks = split_markdown_to_chunks(
+                txt,
                 chunk_token_num=chunk_token_num,
                 delimiter=delimiter
             )
         else:  # 默认使用智能分块
-            return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
+            chunks = split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
+
+    # 统一处理坐标映射
+    if coordinate_map is not None:
+        print(f"📍 [DEBUG] 开始为 {len(chunks)} 个分块附加坐标信息")
+        return _attach_coordinates_to_chunks(chunks, txt, coordinate_map)
+    else:
+        return chunks
+
+
+def _attach_coordinates_to_parent_child_chunks(parent_child_data, markdown_text, coordinate_map):
+    """
+    为父子分块附加坐标信息
+
+    Args:
+        parent_child_data: 父子分块数据，可能是：
+            - 字典格式: {"parent_chunks": [...], "child_chunks": [...], "relationships": [...]}
+            - 列表格式: [chunk1, chunk2, ...] (简化版，只包含子分块)
+        markdown_text: 完整的markdown文本
+        coordinate_map: 坐标映射
+
+    Returns:
+        附加了坐标的父子分块数据（保持输入格式）
+    """
+    from typing import Dict, List
+
+    # 处理简化的列表格式（只有子分块）
+    if isinstance(parent_child_data, list):
+        # 提取内容（可能是字符串或字典）
+        contents = []
+        for item in parent_child_data:
+            if isinstance(item, dict):
+                contents.append(item.get('content', ''))
+            else:
+                contents.append(str(item))
+
+        # 附加坐标
+        chunks_with_coords = _attach_coordinates_to_chunks(contents, markdown_text, coordinate_map)
+
+        # 合并回原始结构
+        result = []
+        for i, item in enumerate(parent_child_data):
+            if isinstance(item, dict):
+                item_copy = item.copy()
+                if i < len(chunks_with_coords):
+                    item_copy['coordinates'] = chunks_with_coords[i].get('coordinates', [])
+                result.append(item_copy)
+            else:
+                # 字符串转为字典
+                if i < len(chunks_with_coords):
+                    result.append(chunks_with_coords[i])
+
+        return result
+
+    # 处理完整的字典格式
+    if isinstance(parent_child_data, dict):
+        # 提取父分块和子分块的内容
+        parent_contents = [p.get('content', '') if isinstance(p, dict) else str(p)
+                          for p in parent_child_data.get('parent_chunks', [])]
+        child_contents = [c.get('content', '') if isinstance(c, dict) else str(c)
+                         for c in parent_child_data.get('child_chunks', [])]
+
+        # 使用通用的坐标附加函数
+        parent_with_coords = _attach_coordinates_to_chunks(parent_contents, markdown_text, coordinate_map)
+        child_with_coords = _attach_coordinates_to_chunks(child_contents, markdown_text, coordinate_map)
+
+        # 将坐标信息合并回原始的父子分块结构
+        result = {
+            'parent_chunks': [],
+            'child_chunks': [],
+            'relationships': parent_child_data.get('relationships', [])
+        }
+
+        # 合并父分块
+        for i, parent in enumerate(parent_child_data.get('parent_chunks', [])):
+            if isinstance(parent, dict):
+                parent_copy = parent.copy()
+                if i < len(parent_with_coords):
+                    parent_copy['coordinates'] = parent_with_coords[i].get('coordinates', [])
+                result['parent_chunks'].append(parent_copy)
+
+        # 合并子分块
+        for i, child in enumerate(parent_child_data.get('child_chunks', [])):
+            if isinstance(child, dict):
+                child_copy = child.copy()
+                if i < len(child_with_coords):
+                    child_copy['coordinates'] = child_with_coords[i].get('coordinates', [])
+                result['child_chunks'].append(child_copy)
+
+        return result
+
+    # 未知格式，原样返回
+    return parent_child_data
+
+
+def _attach_coordinates_to_chunks(chunks, markdown_text, coordinate_map):
+    """
+    为分块附加坐标信息（方案A：基于行号的直接映射）
+
+    Args:
+        chunks: 字符串分块列表
+        markdown_text: 完整的markdown文本
+        coordinate_map: 坐标映射 {line_number: [page, x1, x2, y1, y2]}
+
+    Returns:
+        带坐标的分块列表 [{"content": str, "coordinates": [[page, x1, x2, y1, y2], ...]}]
+    """
+    from typing import Dict, List
+
+    # 标准化 coordinate_map 的键为整数
+    normalized_coord_map: Dict[int, List] = {}
+    for key, value in coordinate_map.items():
+        try:
+            idx = int(key)
+            normalized_coord_map[idx] = value
+        except (TypeError, ValueError):
+            continue
+
+    # 将markdown按行分割
+    md_lines = markdown_text.split('\n')
+
+    # 构建行文本到行号的映射（支持重复文本）
+    line_lookup: Dict[str, List[int]] = {}
+    for idx, line in enumerate(md_lines):
+        stripped = line.strip()
+        if stripped:
+            line_lookup.setdefault(stripped, []).append(idx)
+
+    # 为每个分块附加坐标
+    chunks_with_coords = []
+    used_indices = set()  # 记录已使用的行号
+
+    for chunk_idx, chunk in enumerate(chunks):
+        if not chunk or not chunk.strip():
+            continue
+
+        chunk_lines = chunk.split('\n')
+        chunk_coordinates = []
+
+        # 遍历分块中的每一行
+        for chunk_line in chunk_lines:
+            stripped_line = chunk_line.strip()
+            if not stripped_line:
+                continue
+
+            # 1. 精确匹配：查找所有候选行号，选择第一个未使用的
+            candidate_indices = line_lookup.get(stripped_line, [])
+            selected_idx = None
+
+            for line_idx in candidate_indices:
+                if line_idx not in used_indices:
+                    selected_idx = line_idx
+                    break
+
+            # 2. 如果精确匹配失败，尝试部分匹配（处理列表项或轻微差异）
+            if selected_idx is None:
+                for line_idx, md_line in enumerate(md_lines):
+                    if line_idx in used_indices:
+                        continue
+
+                    md_line_stripped = md_line.strip()
+                    if not md_line_stripped:
+                        continue
+
+                    # 去除列表前缀后再比较
+                    md_line_core = md_line_stripped
+                    if md_line_core.startswith(('- ', '* ', '• ', '· ')):
+                        md_line_core = md_line_core[2:].strip()
+
+                    chunk_core = stripped_line
+                    if chunk_core.startswith(('- ', '* ', '• ', '· ')):
+                        chunk_core = chunk_core[2:].strip()
+
+                    if (chunk_core and md_line_core and
+                            (chunk_core == md_line_core or
+                             chunk_core in md_line_core or
+                             md_line_core in chunk_core)):
+                        selected_idx = line_idx
+                        break
+
+            # 3. 记录坐标
+            if selected_idx is not None:
+                used_indices.add(selected_idx)
+                coord = normalized_coord_map.get(selected_idx)
+                if coord and coord not in chunk_coordinates:
+                    chunk_coordinates.append(coord)
+
+        # 添加带坐标的分块
+        chunks_with_coords.append({
+            'content': chunk,
+            'coordinates': chunk_coordinates
+        })
+
+    return chunks_with_coords
 
 
 def singleton(cls, *args, **kw):

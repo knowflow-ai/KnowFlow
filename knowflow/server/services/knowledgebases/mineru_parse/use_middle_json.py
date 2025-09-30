@@ -9,7 +9,7 @@
 """
 
 from typing import List, Dict, Any, Tuple
-from .middle_json_simple import middle_json_to_markdown, get_chunk_coordinates, reset_chunking_session
+from .middle_json_simple import middle_json_to_markdown
 
 
 def process_document_with_middle_json(middle_json_path: str,
@@ -31,9 +31,9 @@ def process_document_with_middle_json(middle_json_path: str,
         (分块列表带坐标, markdown内容)
     """
 
-    # 1. 将 middle.json 转换为 markdown（替代OCR markdown）
+    # 1. 将 middle.json 转换为 markdown（替代OCR markdown，方案A：同时获取coordinate_map）
     output_md_path = middle_json_path.replace('_middle.json', '_from_middle.md')
-    markdown_content = middle_json_to_markdown(middle_json_path, output_md_path)
+    markdown_content, coordinate_map = middle_json_to_markdown(middle_json_path, output_md_path)
 
     print(f"✅ 已将 middle.json 转换为 markdown: {output_md_path}")
 
@@ -43,66 +43,44 @@ def process_document_with_middle_json(middle_json_path: str,
     chunking_config = kwargs.get('chunking_config', {})
     chunking_config['strategy'] = chunk_method
 
+    # 2. 使用通用的Markdown分块方法（方案A：直接传入坐标）
     chunks = split_markdown_to_chunks_configured(
         markdown_content,
         chunk_token_num=chunk_token_num,
         min_chunk_tokens=min_chunk_tokens,
+        coordinate_map=coordinate_map,  # ← 方案A：直接传入坐标映射
         chunking_config=chunking_config,
         **kwargs
     )
 
-    # 3. 为每个分块添加坐标信息
-    # 重置分块会话，确保重复文本（如页眉）能正确按顺序匹配
-    reset_chunking_session(output_md_path)
-
+    # 3. 处理分块结果
+    # 如果使用了coordinate_map，chunks已经是带坐标的字典列表
     chunks_with_coords = []
 
     if isinstance(chunks, dict) and 'parent_chunks' in chunks:
-        # 父子分块格式
-        result = {
-            'parent_chunks': [],
-            'child_chunks': [],
-            'relationships': chunks.get('relationships', [])
-        }
-
-        # 处理父分块
-        for parent in chunks['parent_chunks']:
-            parent_text = parent.get('content', parent.get('text', ''))
-            coords = get_chunk_coordinates(output_md_path, parent_text)
-            parent['coordinates'] = coords
-            result['parent_chunks'].append(parent)
-
-        # 处理子分块
-        for child in chunks['child_chunks']:
-            child_text = child.get('content', child.get('text', ''))
-            coords = get_chunk_coordinates(output_md_path, child_text)
-            child['coordinates'] = coords
-            result['child_chunks'].append(child)
-
-        chunks_with_coords = result
+        # 父子分块格式（不支持coordinate_map，保持原样）
+        chunks_with_coords = chunks
 
     elif isinstance(chunks, list):
-        # 普通分块格式
-        for chunk in chunks:
-            if isinstance(chunk, dict):
-                chunk_text = chunk.get('content', chunk.get('text', ''))
-            else:
-                chunk_text = str(chunk)
+        if chunks and isinstance(chunks[0], dict) and 'coordinates' in chunks[0]:
+            # 已经是带坐标的字典列表（方案A）
+            chunks_with_coords = chunks
+            print(f"✅ 方案A：分块时已附加坐标，共 {len(chunks)} 个分块")
+        else:
+            # 字符串列表，转换为字典格式（无坐标）
+            for chunk in chunks:
+                if isinstance(chunk, dict):
+                    chunks_with_coords.append(chunk)
+                else:
+                    chunks_with_coords.append({
+                        'content': str(chunk),
+                        'coordinates': []
+                    })
+            print(f"⚠️  未使用坐标映射，{len(chunks)} 个分块无坐标信息")
+    else:
+        chunks_with_coords = chunks
 
-            # 查询坐标
-            coords = get_chunk_coordinates(output_md_path, chunk_text)
-
-            # 创建带坐标的分块
-            if isinstance(chunk, dict):
-                chunk['coordinates'] = coords
-                chunks_with_coords.append(chunk)
-            else:
-                chunks_with_coords.append({
-                    'content': chunk_text,
-                    'coordinates': coords
-                })
-
-    print(f"✅ 已为 {len(chunks_with_coords)} 个分块添加坐标信息")
+    print(f"✅ 分块完成：共 {len(chunks_with_coords) if isinstance(chunks_with_coords, list) else 'N/A'} 个分块")
 
     return chunks_with_coords, markdown_content
 

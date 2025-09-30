@@ -195,8 +195,18 @@ class RAGFlowIntegration:
     
     def _handle_standard_chunks(self, processor_result: Dict, update_progress: Callable) -> int:
         """处理标准分块 - 复用MinerU的batch API，包含坐标信息"""
-        
+
         chunks = processor_result.get('chunks', [])
+
+        # 调试：检查接收到的chunks格式
+        if chunks:
+            logger.info(f"🔍 [DOTS标准分块] chunks类型: {type(chunks)}, 长度: {len(chunks)}")
+            if isinstance(chunks[0], dict):
+                logger.info(f"🔍 [DOTS标准分块] 第一个chunk字段: {list(chunks[0].keys())}")
+                if 'positions' in chunks[0]:
+                    logger.info(f"🔍 [DOTS标准分块] 第一个chunk有positions: {len(chunks[0]['positions'])}个")
+                else:
+                    logger.warning(f"❌ [DOTS标准分块] 第一个chunk缺少positions字段！")
         
         # 提取分块内容和坐标信息
         chunks_content = []
@@ -207,16 +217,14 @@ class RAGFlowIntegration:
             if content:
                 chunks_content.append(content)
                 
-                # 构建包含坐标信息的分块数据
-                chunk_with_coord = {
-                    'content': content
-                }
-                
-                # 检查是否有坐标信息
+                # 构建包含坐标信息的分块数据（方案A：从统一分块接口获取）
+                chunk_with_coord = {'content': content}
+
+                # 检查是否有坐标信息（统一分块接口返回的是 'positions' 字段）
                 if chunk.get('positions'):
                     chunk_with_coord['positions'] = chunk['positions']
                     logger.debug(f"标准分块包含坐标: {len(chunk['positions'])}个位置")
-                
+
                 chunks_with_coordinates.append(chunk_with_coord)
         
         if not chunks_content:

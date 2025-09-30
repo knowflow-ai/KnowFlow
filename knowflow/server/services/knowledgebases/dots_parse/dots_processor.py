@@ -131,14 +131,14 @@ class DOTSProcessor:
         logger.info(f"文档处理完成，共 {len(all_elements)} 个元素，{len(document_results)} 页")
         return all_elements
     
-    def to_markdown(self, output_dir: str = None, debug_dir: Optional[str] = None) -> tuple:
+    def to_markdown(self, output_dir: str = None) -> tuple:
         """将所有元素转换为Markdown格式的文档，并保留坐标映射
-        
+
         Args:
             output_dir: 图片输出目录，可选
-            
+
         Returns:
-            tuple: (markdown_text, extracted_images_list)
+            tuple: (markdown_text, coordinate_map, extracted_images_list)
         """
         if not self.elements or not self.pages_data:
             return "", []
@@ -146,9 +146,7 @@ class DOTSProcessor:
         try:
             markdown_content, coordinate_map, extracted_images = self.converter.convert_pages_to_markdown_with_coordinates(
                 pages_data=self.pages_data,
-                output_dir=output_dir,
-                debug_dir=debug_dir,
-                debug_prefix=self.current_doc_id
+                output_dir=output_dir
             )
 
             # 持久化关键信息，供后续坐标映射使用
@@ -170,8 +168,7 @@ class DOTSProcessor:
     def generate_chunks_unified(self, chunking_config: Optional[dict] = None,
                                doc_id: str = None,
                                kb_id: str = None,
-                               output_dir: str = None,
-                               debug_dir: Optional[str] = None) -> Dict[str, Any]:
+                               output_dir: str = None) -> Dict[str, Any]:
         """统一的分块生成方法 - 完全复用MinerU分块策略
         
         Args:
@@ -191,8 +188,7 @@ class DOTSProcessor:
 
             # 1. 生成完整的Markdown文档
             markdown_content, coordinate_map, extracted_images = self.to_markdown(
-                output_dir=output_dir,
-                debug_dir=debug_dir,
+                output_dir=output_dir
             )
             if not markdown_content.strip():
                 logger.warning("完整Markdown内容为空")
@@ -307,14 +303,6 @@ class DOTSProcessor:
         try:
             # 更新缓存的markdown信息，确保坐标映射与最新内容保持一致
             self.update_markdown_cache(markdown_content)
-
-            if debug_dir:
-                debug_dir_path = Path(debug_dir)
-                debug_dir_path.mkdir(parents=True, exist_ok=True)
-                debug_md_path = debug_dir_path / f"{self.current_doc_id or 'dots'}_markdown.md"
-                debug_json_path = debug_dir_path / f"{self.current_doc_id or 'dots'}_coordinate_map.json"
-                debug_md_path.write_text(markdown_content, encoding='utf-8')
-                json.dump(coordinate_map, debug_json_path.open('w', encoding='utf-8'), ensure_ascii=False, indent=2)
 
             # 准备DOTS元素数据（向后兼容）
             dots_elements = self._prepare_dots_elements_for_unified_mapping()
