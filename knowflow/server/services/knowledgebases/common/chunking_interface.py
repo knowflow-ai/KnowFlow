@@ -147,59 +147,43 @@ class UnifiedChunkingInterface:
                               dots_elements: List[Dict],
                               coordinate_map: Optional[Dict] = None,
                               markdown_lines: Optional[List[str]] = None) -> Dict[str, Any]:
-        """映射DOTS坐标（方案A：优先使用已附加的坐标）"""
+        """映射DOTS坐标（从chunks中提取已附加的坐标）"""
         try:
             chunks = chunks_result['chunks']
 
-            logger.info(f"🔍 [DOTS坐标] chunks类型: {type(chunks)}, 长度: {len(chunks) if chunks else 0}")
-            if chunks and len(chunks) > 0:
-                first_chunk = chunks[0]
-                logger.info(f"🔍 [DOTS坐标] 第一个chunk类型: {type(first_chunk)}")
-                if isinstance(first_chunk, dict):
-                    logger.info(f"🔍 [DOTS坐标] 第一个chunk字段: {list(first_chunk.keys())}")
+            if not chunks:
+                return {
+                    'coordinates': [],
+                    'coordinate_source': 'dots',
+                    'has_coordinates': False
+                }
 
-            # 检查是否已经有坐标（方案A：分块时已附加）
-            if chunks and isinstance(chunks, list) and len(chunks) > 0:
-                first_chunk = chunks[0]
-                if isinstance(first_chunk, dict) and 'coordinates' in first_chunk:
-                    logger.info("✅ 方案A：DOTS chunks已包含坐标，直接提取")
-                    coordinates = []
-                    coords_count = 0
-                    for chunk in chunks:
-                        if isinstance(chunk, dict):
-                            chunk_coords = chunk.get('coordinates', [])
-                            # 转换为positions格式
-                            if chunk_coords:
-                                positions = [[int(c[0]), c[1], c[2], c[3], c[4]] for c in chunk_coords]
-                                coordinates.append(positions)
-                                coords_count += 1
-                            else:
-                                coordinates.append([])
-                        else:
-                            coordinates.append([])
+            # 提取已附加的坐标
+            coordinates = []
+            coords_count = 0
 
-                    logger.info(f"✅ DOTS方案A提取完成: {coords_count}/{len(chunks)} 个分块有坐标")
-                    return {
-                        'coordinates': coordinates,
-                        'coordinate_source': 'dots',
-                        'has_coordinates': coords_count > 0
-                    }
+            for chunk in chunks:
+                if isinstance(chunk, dict) and 'coordinates' in chunk:
+                    chunk_coords = chunk.get('coordinates', [])
+                    if chunk_coords:
+                        # 转换为positions格式: [page_idx, x1, x2, y1, y2]
+                        positions = [[int(c[0]), c[1], c[2], c[3], c[4]] for c in chunk_coords]
+                        coordinates.append(positions)
+                        coords_count += 1
+                    else:
+                        coordinates.append([])
+                else:
+                    coordinates.append([])
 
-            # 方案A失败：chunks未包含坐标
-            logger.error("❌ DOTS方案A失败：chunks未包含coordinates字段，无法进行坐标映射")
-            logger.error(f"   chunks数量: {len(chunks)}")
-            logger.error(f"   第一个chunk类型: {type(chunks[0]) if chunks else 'N/A'}")
-            if chunks and isinstance(chunks[0], dict):
-                logger.error(f"   第一个chunk字段: {list(chunks[0].keys())}")
-
+            logger.info(f"DOTS坐标提取完成: {coords_count}/{len(chunks)} 个分块有坐标")
             return {
-                'coordinates': [[] for _ in chunks],  # 返回空坐标列表
+                'coordinates': coordinates,
                 'coordinate_source': 'dots',
-                'has_coordinates': False
+                'has_coordinates': coords_count > 0
             }
-            
+
         except Exception as e:
-            logger.error(f"DOTS坐标映射失败: {e}")
+            logger.error(f"DOTS坐标提取失败: {e}")
             return {
                 'coordinates': [],
                 'coordinate_source': 'dots',
@@ -253,9 +237,8 @@ class UnifiedChunkingInterface:
         # 为分块添加坐标信息
         chunks_with_coords = []
         for i, chunk_content in enumerate(chunks):
-            # 处理方案A：chunk_content 可能是 {'content': '...', 'coordinates': [...]}
+            # 处理字典格式：{'content': '...', 'coordinates': [...]}
             if isinstance(chunk_content, dict):
-                # 方案A格式：已包含坐标
                 content = chunk_content.get('content', '')
                 existing_coords = chunk_content.get('coordinates', [])
 
@@ -265,9 +248,8 @@ class UnifiedChunkingInterface:
                     'chunking_strategy': chunks_result.get('chunking_strategy')
                 }
 
-                # 优先使用方案A的坐标
+                # 转换coordinates为positions格式
                 if existing_coords:
-                    # 转换为 positions 格式
                     positions = [[int(c[0]), c[1], c[2], c[3], c[4]] for c in existing_coords]
                     chunk_data['positions'] = positions
                     chunk_data['has_coordinates'] = True
@@ -277,14 +259,13 @@ class UnifiedChunkingInterface:
                 else:
                     chunk_data['has_coordinates'] = False
             else:
-                # 字符串格式（旧方案）
+                # 字符串格式（向后兼容）
                 chunk_data = {
                     'id': i,
                     'content': chunk_content.strip() if isinstance(chunk_content, str) else str(chunk_content),
                     'chunking_strategy': chunks_result.get('chunking_strategy')
                 }
 
-                # 添加坐标信息
                 if i < len(coordinates) and coordinates[i]:
                     chunk_data['positions'] = coordinates[i]
                     chunk_data['has_coordinates'] = True
@@ -292,14 +273,6 @@ class UnifiedChunkingInterface:
                     chunk_data['has_coordinates'] = False
 
             chunks_with_coords.append(chunk_data)
-
-        # 调试：检查最终的chunks格式
-        if chunks_with_coords:
-            logger.info(f"🔍 [合并结果] 第一个chunk字段: {list(chunks_with_coords[0].keys())}")
-            if 'positions' in chunks_with_coords[0]:
-                logger.info(f"🔍 [合并结果] 第一个chunk的positions: {len(chunks_with_coords[0]['positions'])}个位置")
-            coords_with_pos = sum(1 for c in chunks_with_coords if 'positions' in c and c.get('positions'))
-            logger.info(f"🔍 [合并结果] {coords_with_pos}/{len(chunks_with_coords)} 个chunks有positions字段")
 
         final_result['chunks'] = chunks_with_coords
         final_result['total_chunks'] = len(chunks_with_coords)
@@ -312,7 +285,6 @@ class UnifiedChunkingInterface:
             # 为子分块添加坐标信息
             child_chunks_with_coords = []
             for i, child_chunk in enumerate(child_chunks):
-                # 复制子分块对象或字典
                 if hasattr(child_chunk, '__dict__'):
                     # ChunkInfo对象
                     child_chunk_dict = {
@@ -324,47 +296,37 @@ class UnifiedChunkingInterface:
                         'metadata': child_chunk.metadata if hasattr(child_chunk, 'metadata') else {}
                     }
                 elif isinstance(child_chunk, dict):
-                    # 字典格式（可能是方案A格式）
                     child_chunk_dict = child_chunk.copy()
-
-                    # 检查是否有方案A的 'coordinates' 字段
+                    # 转换coordinates为positions格式
                     existing_coords = child_chunk_dict.pop('coordinates', None)
                     if existing_coords:
-                        # 转换为 positions 格式
                         positions = [[int(c[0]), c[1], c[2], c[3], c[4]] for c in existing_coords]
                         child_chunk_dict['positions'] = positions
                         child_chunk_dict['has_coordinates'] = True
-                        logger.debug(f"子分块{i} 使用方案A坐标: {len(positions)}个位置")
                 else:
-                    # 其他类型
                     child_chunk_dict = {'id': f"child_{i}", 'content': str(child_chunk)}
 
-                # 如果还没有坐标，尝试从 coordinates 数组添加
+                # 如果还没有坐标，尝试从coordinates数组添加
                 if 'positions' not in child_chunk_dict:
                     if i < len(coordinates) and coordinates[i]:
                         child_chunk_dict['positions'] = coordinates[i]
                         child_chunk_dict['has_coordinates'] = True
-                        logger.debug(f"子分块{i} 添加坐标: {len(coordinates[i])}个位置")
                     else:
                         child_chunk_dict['has_coordinates'] = False
-                        logger.debug(f"子分块{i} 无坐标信息")
 
                 child_chunks_with_coords.append(child_chunk_dict)
             
             final_result.update({
                 'is_parent_child': True,
                 'parent_chunks': chunks_result.get('parent_chunks', []),
-                'child_chunks': child_chunks_with_coords,  # 使用带坐标的子分块
+                'child_chunks': child_chunks_with_coords,
                 'relationships': chunks_result.get('relationships', []),
                 'total_parents': chunks_result.get('total_parents', 0),
                 'total_children': chunks_result.get('total_children', 0)
             })
-            
-            # 对于父子分块，chunks字段也包含子分块内容（用于向量化）
+
             coords_count = sum(1 for c in child_chunks_with_coords if c.get('has_coordinates', False))
-            logger.info(f"父子分块坐标合并完成: {final_result['total_parents']}父块, "
-                       f"{final_result['total_children']}子块, {coords_count}个子块有坐标")
-        else:
-            logger.info(f"普通分块坐标合并完成: {len(chunks_with_coords)}个分块")
+            logger.info(f"父子分块合并完成: {final_result['total_parents']}父块, "
+                       f"{final_result['total_children']}子块, {coords_count}个有坐标")
         
         return final_result

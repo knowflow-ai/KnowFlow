@@ -81,40 +81,17 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
     也可通过kwargs传入自定义配置：
     - chunking_config: 分块配置字典，包含strategy等字段
     """
-    # 添加调试打印
-    print("=" * 80)
-    print("🔍 [DEBUG] split_markdown_to_chunks_configured 调用参数:")
-    print(f"📝 文本长度: {len(txt) if txt else 0} 字符")
-    print(f"🔢 chunk_token_num: {chunk_token_num}")
-    print(f"🔢 min_chunk_tokens: {min_chunk_tokens}")
-    print(f"📋 kwargs 键值对:")
-    for key, value in kwargs.items():
-        if key == 'chunking_config' and isinstance(value, dict):
-            print(f"  📌 {key}:")
-            for sub_key, sub_value in value.items():
-                print(f"    🔸 {sub_key}: {sub_value}")
-        else:
-            print(f"  📌 {key}: {value}")
-    print("=" * 80)
     
     # 检查是否有自定义的分块配置（从文档配置传入）
     custom_chunking_config = kwargs.get('chunking_config', None)
     
     if custom_chunking_config:
-        print(f"🎯 [DEBUG] 使用自定义分块配置: {custom_chunking_config}")
         # 使用文档级别的分块配置
         strategy = custom_chunking_config.get('strategy', 'smart')
         chunk_token_num = custom_chunking_config.get('chunk_token_num', chunk_token_num)
         min_chunk_tokens = custom_chunking_config.get('min_chunk_tokens', min_chunk_tokens)
-        
-        print(f"🚀 [DEBUG] 最终分块参数:")
-        print(f"  📋 策略: {strategy}")
-        print(f"  🔢 分块大小: {chunk_token_num}")
-        print(f"  🔢 最小分块: {min_chunk_tokens}")
-        
-        # 其他策略的处理
+
         if strategy == 'parent_child':
-            print(f"  🎯 使用父子分块策略")
             chunks = split_markdown_to_chunks_parent_child(
                 txt,
                 chunk_token_num=chunk_token_num,
@@ -125,24 +102,19 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
             )
             # 父子分块也支持坐标附加
             if coordinate_map is not None:
-                print(f"📍 [DEBUG] 为父子分块附加坐标信息")
                 chunks = _attach_coordinates_to_parent_child_chunks(chunks, txt, coordinate_map)
 
-                # 重要：更新 _last_parent_child_result，添加坐标信息
+                # 更新 _last_parent_child_result，添加坐标信息
                 global _last_parent_child_result
                 if _last_parent_child_result and isinstance(chunks, list):
-                    # chunks 是带坐标的字典列表
-                    # 更新 child_chunks 的坐标
                     if len(chunks) == len(_last_parent_child_result.get('child_chunks', [])):
                         for i, chunk_with_coord in enumerate(chunks):
                             if isinstance(chunk_with_coord, dict) and 'coordinates' in chunk_with_coord:
                                 _last_parent_child_result['child_chunks'][i]['coordinates'] = chunk_with_coord['coordinates']
-                        print(f"✅ [DEBUG] 已更新 _last_parent_child_result 的坐标信息")
             return chunks
         elif strategy == 'advanced':
             include_metadata = kwargs.pop('include_metadata', False)
             overlap_ratio = kwargs.pop('overlap_ratio', 0.0)
-            print(f"  🎯 使用高级分块策略")
             chunks = split_markdown_to_chunks_advanced(
                 txt,
                 chunk_token_num=chunk_token_num,
@@ -153,7 +125,6 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
 
         elif strategy == 'strict_regex':
             regex_pattern = custom_chunking_config.get('regex_pattern', '')
-            print(f"  🎯 使用正则分块策略, 模式: {regex_pattern}")
             if regex_pattern:
                 chunks = split_markdown_to_chunks_strict_regex(
                     txt,
@@ -162,12 +133,9 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
                     regex_pattern=regex_pattern
                 )
             else:
-                print(f"  ⚠️ 正则表达式为空，回退到智能分块")
-                # 如果没有正则表达式，回退到智能分块
                 chunks = split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
 
         elif strategy == 'smart':
-            print(f"  🎯 使用智能分块策略")
             chunks = split_markdown_to_chunks_smart(
                 txt,
                 chunk_token_num=chunk_token_num,
@@ -175,7 +143,6 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
             )
         elif strategy == 'basic':
             delimiter = custom_chunking_config.get('delimiter', "\n!?。；！？")
-            print(f"  🎯 使用基础分块策略, 分隔符: {delimiter}")
             chunks = split_markdown_to_chunks(
                 txt,
                 chunk_token_num=chunk_token_num,
@@ -184,10 +151,8 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
         else:
             chunks = []
     else:
-        print(f"🔄 [DEBUG] 使用默认配置 - 环境变量或回退到智能分块")
-        # 原有的环境变量配置逻辑...
+        # 使用环境变量配置
         method = get_configured_chunk_method()
-        print(f"  📊 环境配置方法: {method}")
 
         if method == 'advanced':
             include_metadata = kwargs.pop('include_metadata', False)
@@ -211,7 +176,6 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
 
     # 统一处理坐标映射
     if coordinate_map is not None:
-        print(f"📍 [DEBUG] 开始为 {len(chunks)} 个分块附加坐标信息")
         return _attach_coordinates_to_chunks(chunks, txt, coordinate_map)
     else:
         return chunks
@@ -1432,11 +1396,10 @@ def split_markdown_to_chunks_strict_regex(txt, chunk_token_num=256, min_chunk_to
         return []
     
     if not regex_pattern or not regex_pattern.strip():
-        print(f"⚠️ [WARNING] 正则表达式为空，回退到智能分块")
+        logger.warning("正则表达式为空，回退到智能分块")
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
-    
+
     try:
-        print(f"🎯 [DEBUG] 使用自定义正则表达式进行分块: {regex_pattern}")
         
         # 使用更精确的方法：逐行处理，确保每个匹配都开始新分块
         # 优化正则表达式，只匹配行开头或前面只有空格的条文
@@ -1468,19 +1431,13 @@ def split_markdown_to_chunks_strict_regex(txt, chunk_token_num=256, min_chunk_to
         
         # 过滤和统计
         final_chunks = [chunk for chunk in chunks if chunk.strip()]
-        
-        print(f"📊 [DEBUG] 正则分块结果: {len(final_chunks)} 个分块")
-        if final_chunks:
-            token_counts = [num_tokens_from_string(chunk) for chunk in final_chunks]
-            print(f"📈 [DEBUG] Token分布: {min(token_counts)}-{max(token_counts)} (平均: {sum(token_counts)/len(token_counts):.1f})")
-        
         return final_chunks
-        
+
     except re.error as e:
-        print(f"❌ [ERROR] 自定义正则分块失败，正则表达式错误: {e}，回退到智能分块")
+        logger.error(f"正则分块失败，正则表达式错误: {e}，回退到智能分块")
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
     except Exception as e:
-        print(f"❌ [ERROR] 自定义正则分块发生异常: {e}，回退到智能分块")
+        logger.error(f"正则分块发生异常: {e}，回退到智能分块")
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
 
 
@@ -1509,13 +1466,7 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
     parent_config = parent_config or {}
     
     try:
-        print(f"🚀 [DEBUG] 本地处理父子分块（优化后无HTTP调用）")
-        print(f"  📝 文本长度: {len(txt)} 字符")
-        print(f"  📋 doc_id: {doc_id}, kb_id: {kb_id}")
-        print(f"  🔢 子分块大小: {chunk_token_num}")
-        print(f"  📊 父分块配置: {parent_config}")
-        
-        # 直接调用本地AST父子分块函数
+        # 调用本地AST父子分块函数
         parent_chunks, child_chunks, relationships = split_markdown_to_chunks_ast_parent_child(
             txt=txt,
             chunk_token_num=chunk_token_num,
@@ -1524,11 +1475,6 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
             doc_id=doc_id,
             kb_id=kb_id
         )
-        
-        print(f"📊 [DEBUG] 本地父子分块完成:")
-        print(f"  👨 父分块: {len(parent_chunks)} 个")
-        print(f"  👶 子分块: {len(child_chunks)} 个")
-        print(f"  🔗 关联关系: {len(relationships)} 个")
         
         # 构建详细结果供后续使用
         detailed_result = {
@@ -1559,15 +1505,12 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
         global _last_parent_child_result
         _last_parent_child_result = detailed_result
         
-        # 返回子分块内容列表（用于向量存储和前端显示）
+        # 返回子分块内容列表
         child_chunks_content = [chunk.content for chunk in child_chunks]
-        
-        print(f"✅ [DEBUG] 本地父子分块优化完成，返回 {len(child_chunks_content)} 个子分块内容")
-        
         return child_chunks_content
-        
+
     except Exception as e:
-        print(f"❌ [ERROR] 本地父子分块失败: {e}，回退到智能分块")
+        logger.error(f"父子分块失败: {e}，回退到智能分块")
         import traceback
         traceback.print_exc()
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
@@ -1652,16 +1595,11 @@ def split_markdown_to_chunks_ast_parent_child(txt, chunk_token_num=256, min_chun
         relationships = _create_ast_relationships(
             child_chunks, parent_chunks, enhanced_nodes, doc_id, kb_id
         )
-        
-        print(f"🎯 [AST] 创建父子分块完成:")
-        print(f"  👨 父分块: {len(parent_chunks)} 个")
-        print(f"  👶 子分块: {len(child_chunks)} 个") 
-        print(f"  🔗 关联关系: {len(relationships)} 个")
-        
+
         return parent_chunks, child_chunks, relationships
-        
+
     except Exception as e:
-        print(f"❌ [ERROR] AST父子分块失败: {e}")
+        logger.error(f"AST父子分块失败: {e}")
         import traceback
         traceback.print_exc()
         return [], [], []
