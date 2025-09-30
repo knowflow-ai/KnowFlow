@@ -9,7 +9,7 @@
 """
 
 from typing import List, Dict, Any, Tuple
-from .middle_json_simple import middle_json_to_markdown, get_chunk_coordinates
+from .middle_json_simple import middle_json_to_markdown, get_chunk_coordinates, reset_chunking_session
 
 
 def process_document_with_middle_json(middle_json_path: str,
@@ -52,6 +52,9 @@ def process_document_with_middle_json(middle_json_path: str,
     )
 
     # 3. 为每个分块添加坐标信息
+    # 重置分块会话，确保重复文本（如页眉）能正确按顺序匹配
+    reset_chunking_session(output_md_path)
+
     chunks_with_coords = []
 
     if isinstance(chunks, dict) and 'parent_chunks' in chunks:

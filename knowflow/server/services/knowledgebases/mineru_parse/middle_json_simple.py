@@ -18,6 +18,10 @@ class SimpleMiddleJsonConverter:
         self.coordinate_cache = {}
         self.kb_id = kb_id  # 知识库ID，用于生成图片URL
 
+        # 分块会话状态：记录已使用的行号，避免重复匹配（解决页眉重复问题）
+        # {md_file_path: set of used line indices}
+        self._chunking_sessions: Dict[str, set] = {}
+
     def convert_to_markdown(self, middle_json_path: str, output_md_path: Optional[str] = None, kb_id: Optional[str] = None) -> Tuple[str, Dict]:
         """
         将 middle.json 转换为普通 markdown，同时保存坐标映射
@@ -393,17 +397,22 @@ class SimpleMiddleJsonConverter:
         else:
             return text
 
-    def get_coordinates_for_text(self, md_file_path: str, text: str) -> List[List[float]]:
+    def get_coordinates_for_text(self, md_file_path: str, text: str, reset_session: bool = False) -> List[List[float]]:
         """
         获取文本对应的坐标（用于分块后查询坐标）
 
         Args:
             md_file_path: markdown 文件路径
             text: 要查询的文本
+            reset_session: 是否重置分块会话（开始新的分块批次时设为True）
 
         Returns:
             坐标列表
         """
+        # 重置会话状态（开始新的分块批次）
+        if reset_session:
+            self._chunking_sessions[md_file_path] = set()
+
         # 从缓存或文件加载坐标映射
         if md_file_path not in self.coordinate_cache:
             coord_file = md_file_path.replace('.md', '_coords.json')
@@ -423,43 +432,62 @@ class SimpleMiddleJsonConverter:
             md_content = f.read()
             md_lines = md_content.split('\n')
 
-        # 创建行内容到行号的映射
+        # 创建行内容到行号列表的映射（支持重复文本）
         # 注意：这里需要匹配保存时的逻辑，包括空行也要计数
-        line_to_number = {}
+        line_to_numbers: Dict[str, List[int]] = {}
         for i, line in enumerate(md_lines):
-            if line.strip():  # 非空行才记录映射，但行号使用实际的行索引
-                line_to_number[line.strip()] = i
+            stripped = line.strip()
+            if stripped:  # 非空行才记录映射
+                line_to_numbers.setdefault(stripped, []).append(i)
 
-        # 查找匹配的行和坐标
+        # 获取或创建此文件的会话状态
+        if md_file_path not in self._chunking_sessions:
+            self._chunking_sessions[md_file_path] = set()
+        used_indices = self._chunking_sessions[md_file_path]
+
+        # 查找匹配的行和坐标（顺序匹配，避免重复）
         coordinates = []
         text_lines = text.split('\n')
 
-        # 去除冗余坐标调试输出
-
         for idx, text_line in enumerate(text_lines):
             text_line = text_line.strip()
-            if text_line:
-                # 查找这行在原始 markdown 中的行号
-                line_no = line_to_number.get(text_line)
-                if line_no is not None:
-                    # 注意：坐标映射的key是字符串
-                    coord = coord_map.get(str(line_no))
-                    if coord and coord not in coordinates:
-                        coordinates.append(coord)
-                else:
-                    # 如果精确匹配失败，尝试部分匹配（用于长文本行）
-                    found = False
-                    for md_line, md_line_no in line_to_number.items():
-                        # 处理列表项的匹配（去掉 "- " 前缀）
-                        md_line_clean = md_line[2:] if md_line.startswith('- ') else md_line
+            if not text_line:
+                continue
 
-                        if (text_line in md_line or md_line in text_line or
-                            text_line == md_line_clean or text_line in md_line_clean or md_line_clean in text_line):
-                            coord = coord_map.get(str(md_line_no))
-                            if coord and coord not in coordinates:
-                                coordinates.append(coord)
-                                found = True
-                                break
+            # 1. 精确匹配：查找所有候选行号，选择第一个未使用的
+            candidate_indices = line_to_numbers.get(text_line, [])
+            selected_idx = None
+
+            for line_idx in candidate_indices:
+                if line_idx not in used_indices:
+                    selected_idx = line_idx
+                    break
+
+            # 2. 如果精确匹配失败，尝试部分匹配（用于长文本行和列表项）
+            if selected_idx is None:
+                for line_idx, md_line in enumerate(md_lines):
+                    if line_idx in used_indices:
+                        continue
+
+                    md_line_stripped = md_line.strip()
+                    if not md_line_stripped:
+                        continue
+
+                    # 处理列表项的匹配（去掉 "- " 前缀）
+                    md_line_clean = md_line_stripped[2:] if md_line_stripped.startswith('- ') else md_line_stripped
+                    text_line_clean = text_line[2:] if text_line.startswith('- ') else text_line
+
+                    if (text_line_clean in md_line_clean or md_line_clean in text_line_clean):
+                        selected_idx = line_idx
+                        break
+
+            # 3. 记录坐标
+            if selected_idx is not None:
+                used_indices.add(selected_idx)
+                coord = coord_map.get(str(selected_idx))
+                if coord and coord not in coordinates:
+                    coordinates.append(coord)
+
         return coordinates
 
 
@@ -487,10 +515,24 @@ def middle_json_to_markdown(middle_json_path: str, output_md_path: str, kb_id: O
     return markdown_content
 
 
-def get_chunk_coordinates(md_file_path: str, chunk_text: str) -> List[List[float]]:
+def get_chunk_coordinates(md_file_path: str, chunk_text: str, reset_session: bool = False) -> List[List[float]]:
     """
     获取分块的坐标信息
 
     在分块完成后调用此函数获取每个分块对应的坐标
+
+    Args:
+        md_file_path: markdown 文件路径
+        chunk_text: 分块文本内容
+        reset_session: 是否重置会话（处理第一个分块时设为True）
     """
-    return _converter.get_coordinates_for_text(md_file_path, chunk_text)
+    return _converter.get_coordinates_for_text(md_file_path, chunk_text, reset_session=reset_session)
+
+
+def reset_chunking_session(md_file_path: str):
+    """
+    重置指定文件的分块会话
+
+    在开始处理一个新的分块批次前调用，确保重复文本（如页眉）能正确匹配
+    """
+    _converter._chunking_sessions[md_file_path] = set()

@@ -6,7 +6,7 @@ import json
 from .minio_server import upload_directory_to_minio
 from .mineru_test import update_markdown_image_urls
 from .utils import split_markdown_to_chunks_configured, should_cleanup_temp_files
-from .middle_json_simple import middle_json_to_markdown, get_chunk_coordinates
+from .middle_json_simple import middle_json_to_markdown, get_chunk_coordinates, reset_chunking_session
 from ..utils import _get_kb_tenant_id, _get_tenant_api_key, _validate_base_url
 from database import get_db_connection
 
@@ -95,6 +95,10 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
     update_progress(0.8, "开始批量添加chunks到文档（使用增强batch接口）...")
     
     try:
+        # 重置分块会话，确保重复文本（如页眉）能正确按顺序匹配
+        if coord_lookup_path:
+            reset_chunking_session(coord_lookup_path)
+
         # 准备批量数据，包含位置信息
         batch_chunks = []
         for i, chunk in enumerate(chunks):
