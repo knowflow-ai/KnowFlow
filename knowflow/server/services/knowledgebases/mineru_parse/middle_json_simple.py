@@ -86,21 +86,53 @@ class SimpleMiddleJsonConverter:
                     continue
 
                 if block.get('type') == 'image' and block.get('blocks'):
+                    # 从 caption 子块中提取行级坐标
+                    caption_line_bboxes = []
+                    for sub_block in block['blocks']:
+                        if sub_block.get('type') == 'image_caption' and 'lines' in sub_block:
+                            for line in sub_block['lines']:
+                                spans = line.get('spans', [])
+                                if not spans:
+                                    continue
+
+                                # 获取该行的bbox
+                                line_bbox = line.get('bbox')
+                                if not line_bbox:
+                                    # 如果没有line bbox，从spans合并
+                                    xs1, ys1, xs2, ys2 = [], [], [], []
+                                    for span in spans:
+                                        span_bbox = span.get('bbox')
+                                        if span_bbox:
+                                            xs1.append(span_bbox[0])
+                                            ys1.append(span_bbox[1])
+                                            xs2.append(span_bbox[2])
+                                            ys2.append(span_bbox[3])
+                                    if xs1:
+                                        line_bbox = [min(xs1), min(ys1), max(xs2), max(ys2)]
+                                    else:
+                                        line_bbox = sub_block.get('bbox', block['bbox'])
+
+                                caption_line_bboxes.append(line_bbox)
+                            break
+
                     text_lines = markdown_text.split('\n')
+                    caption_line_idx = 0  # caption文本行索引
+
                     for i, line in enumerate(text_lines):
                         markdown_lines.append(line)
                         if line.strip():
                             bbox = block['bbox']
+
+                            # 第一行：<img> 标签，使用 image_body 的bbox
                             if i == 0 and (line.lstrip().startswith('<img') or line.startswith('![Image]')):
                                 for sub_block in block['blocks']:
                                     if sub_block.get('type') == 'image_body':
                                         bbox = sub_block.get('bbox', bbox)
                                         break
-                            elif i == 1:
-                                for sub_block in block['blocks']:
-                                    if sub_block.get('type') == 'image_caption':
-                                        bbox = sub_block.get('bbox', bbox)
-                                        break
+                            # 后续行：caption文本，使用对应行的精确bbox
+                            elif i > 0 and caption_line_idx < len(caption_line_bboxes):
+                                bbox = caption_line_bboxes[caption_line_idx]
+                                caption_line_idx += 1
 
                             coordinate_map[line_counter] = [
                                 block['page_idx'],
@@ -346,7 +378,8 @@ class SimpleMiddleJsonConverter:
                 import os
                 image_name = os.path.basename(path)
                 path = f"/minio/{self.kb_id}/{image_name}"
-            alt_text = (text or '图片').replace('"', "'")
+            # 将多行 caption 合并为单行用于 alt 属性
+            alt_text = (text or '图片').replace('\n', ' ').replace('"', "'")
             lines = [f'<img src="{path}" style="max-width: 500px;max-height: 800px;" alt="{alt_text}">']
             if text:
                 lines.append(text)
