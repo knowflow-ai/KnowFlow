@@ -371,7 +371,39 @@ def parse_document(doc_id):
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         return response
-        
+
+    from database import get_db_connection
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT kb_id FROM document WHERE id = %s", (doc_id,))
+    doc_result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not doc_result:
+        return error_response('文档不存在', code=404)
+
+    kb_id = doc_result['kb_id']
+
+    # 检查用户是否有知识库的写权限
+    current_user_id = getattr(g, 'current_user_id', None)
+    if current_user_id:
+        # 使用 RBAC 权限检查
+        from services.rbac.permission_service import permission_service
+        from models.rbac_models import ResourceType, PermissionType
+
+        permission_check = permission_service.check_permission(
+            user_id=current_user_id,
+            resource_type=ResourceType.KNOWLEDGEBASE,
+            resource_id=kb_id,
+            permission_type=PermissionType.WRITE,
+            tenant_id='default'
+        )
+
+        if not permission_check.has_permission:
+            return error_response('权限不足，请联系管理员添加知识库写权限', code=109)
+
+    # 检查用户对知识库的写权限
     try:
         # 立即更新文档状态为"正在解析"，确保UI及时响应
         from services.knowledgebases.document_parser import _update_document_progress

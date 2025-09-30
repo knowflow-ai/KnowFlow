@@ -198,9 +198,7 @@ def check_rbac_permission(user_id, resource_type, resource_id, permission_type, 
             from flask_login import current_user
             if hasattr(current_user, 'email') and current_user.email:
                 # 根据邮箱查找真实的用户ID
-                import mysql.connector
                 from database import get_db_connection
-                
                 db = get_db_connection()
                 cursor = db.cursor()
                 cursor.execute("SELECT id FROM user WHERE email = %s", (current_user.email,))
