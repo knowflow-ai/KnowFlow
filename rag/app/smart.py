@@ -19,25 +19,25 @@ Smart Chunking Method
 
 基于 MinerU middle.json 的智能分块解析方法。
 
+流程：
+1. MinerU Parser 调用 KnowFlow Server 解析 PDF，返回 markdown + coordinate_map
+2. 从 markdown 中提取纯文本和坐标映射
+3. 调用 KnowFlow Server 的智能分块服务，根据 token 限制进行分块
+4. 返回带坐标的分块结果
+
 特点：
-1. 使用 MinerU 解析 PDF，获取精确的文档结构和坐标
-2. 调用 KnowFlow Server 的智能分块服务进行高质量分块
-3. 保留精确的坐标信息用于文档定位
+- 保留完整的文档格式（标题、列表、表格、图片）
+- 精确的行级别坐标映射，支持文档定位
+- 智能分块，支持多种分块策略（smart/advanced/parent_child）
 """
 
 import logging
 import os
 import re
-import json
 import copy
 import requests
-from io import BytesIO
-from timeit import default_timer as timer
 
-from api.db import LLMType
-from api.db.services.llm_service import LLMBundle
 from deepdoc.parser import MinerUParser
-from deepdoc.parser.pdf_parser import PlainParser
 from rag.nlp import rag_tokenizer, tokenize
 
 
@@ -46,7 +46,10 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     """
     Smart Chunking - 智能分块方法
 
-    该方法使用 MinerU 解析 PDF，然后调用 KnowFlow Server 的智能分块服务。
+    流程：
+    1. MinerU 解析 PDF → markdown + coordinate_map
+    2. 提取纯文本和坐标映射
+    3. 调用智能分块服务 → 带坐标的分块结果
 
     Args:
         filename: 文件路径或文件名
@@ -66,7 +69,6 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             "chunk_token_num": 256,
             "min_chunk_tokens": 10,
             "chunking_strategy": "smart",  # smart/advanced/parent_child
-            "layout_recognize": "MinerU"   # 默认使用 MinerU
         })
 
     doc = {
@@ -79,39 +81,23 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     if not re.search(r"\.pdf$", filename, re.IGNORECASE):
         raise NotImplementedError("Smart chunking only supports PDF files")
 
-    layout_recognizer = parser_config.get("layout_recognize", "MinerU")
     callback(0.1, "Start to parse.")
+    logging.info("Using MinerU parser for smart chunking")
+    callback(0.2, "Parsing with MinerU...")
 
-    # 检查是否使用 MinerU 解析
-    if layout_recognizer not in ["MinerU", "DOTS"]:
-        # 如果不是 MinerU/DOTS，降级到 Plain Text
-        logging.warning(f"Smart chunking requires MinerU or DOTS, but got {layout_recognizer}. Falling back to PlainParser.")
-        pdf_parser = PlainParser()
-        sections, tables = pdf_parser(filename if not binary else binary,
-                                     from_page=from_page, to_page=to_page, callback=callback)
+    # 提取 kb_id（用于生成图片链接）
+    kb_id = kwargs.get('kb_id', '') or kwargs.get('knowledgebase_id', '')
 
-        # 简单合并文本
-        markdown_text = '\n\n'.join([text for text, _ in sections])
-        coordinate_map = None
+    pdf_parser = MinerUParser()
+    sections, tables = pdf_parser(filename if not binary else binary,
+                                 from_page=from_page, to_page=to_page,
+                                 kb_id=kb_id)
 
-    else:
-        # 使用 MinerU 解析
-        logging.info(f"Using {layout_recognizer} parser for smart chunking")
-        callback(0.2, f"Parsing with {layout_recognizer}...")
+    callback(0.5, "MinerU parsing finished.")
 
-        # 提取 kb_id（用于生成图片链接）
-        kb_id = kwargs.get('kb_id', '') or kwargs.get('knowledgebase_id', '')
-
-        pdf_parser = MinerUParser()
-        sections, tables = pdf_parser(filename if not binary else binary,
-                                     from_page=from_page, to_page=to_page,
-                                     kb_id=kb_id)
-
-        callback(0.5, f"{layout_recognizer} parsing finished.")
-
-        # 从 sections 中提取文本和坐标映射
-        # sections 格式: [(text_with_tags, position_tag), ...]
-        markdown_text, coordinate_map = _extract_text_and_coordinates(sections)
+    # 从 sections 中提取文本和坐标映射
+    # sections 格式: [(text_with_tags, position_tag), ...]
+    markdown_text, coordinate_map = _extract_text_and_coordinates(sections)
 
     callback(0.6, "Calling smart chunking service...")
 
@@ -171,47 +157,37 @@ def _extract_text_and_coordinates(sections):
 
     Args:
         sections: [(text_with_tags, position_tag), ...]
+        每个 section 对应 markdown 的一行，格式: @@page\tx0\tx1\ty0\ty1##text
 
     Returns:
         (markdown_text, coordinate_map)
         coordinate_map: {line_number: [page, x1, x2, y1, y2]}
     """
-    import re
-
     lines = []
     coordinate_map = {}
-    line_number = 0
 
     pattern = r'@@(\d+)\t([\d.]+)\t([\d.]+)\t([\d.]+)\t([\d.]+)##'
 
-    for text_with_tag, _ in sections:
-        # 提取所有位置标签
-        matches = list(re.finditer(pattern, text_with_tag))
+    for line_idx, (text_with_tag, _) in enumerate(sections):
+        # 提取位置标签
+        match = re.search(pattern, text_with_tag)
 
         # 移除位置标签，获取纯文本
         clean_text = re.sub(pattern, '', text_with_tag)
+        lines.append(clean_text)
 
-        # 按行分割
-        text_lines = clean_text.split('\n')
+        # 记录坐标（如果有的话）
+        if match and clean_text.strip():
+            page_num = int(match.group(1))
+            x0 = float(match.group(2))
+            x1 = float(match.group(3))
+            top = float(match.group(4))
+            bottom = float(match.group(5))
 
-        for line in text_lines:
-            if line.strip():
-                # 为每一行记录坐标（使用该块的第一个坐标）
-                if matches:
-                    match = matches[0]
-                    page_num = int(match.group(1))
-                    x0 = float(match.group(2))
-                    x1 = float(match.group(3))
-                    top = float(match.group(4))
-                    bottom = float(match.group(5))
-
-                    coordinate_map[line_number] = [page_num, x0, x1, top, bottom]
-
-            lines.append(line)
-            line_number += 1
+            coordinate_map[line_idx] = [page_num, x0, x1, top, bottom]
 
     markdown_text = '\n'.join(lines)
-    return markdown_text, coordinate_map if coordinate_map else None
+    return markdown_text, coordinate_map
 
 
 def _call_smart_chunk_service(markdown_text, coordinate_map, chunking_config, doc_id, kb_id):

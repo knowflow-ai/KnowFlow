@@ -16,6 +16,8 @@
 
 import logging
 import os
+import re
+import json
 from io import BytesIO
 from typing import List, Tuple
 import requests
@@ -74,7 +76,6 @@ class MinerUParser:
             data = {
                 'from_page': from_page,
                 'to_page': to_page,
-                'return_format': 'ragflow_boxes',  # 返回 RAGFlow boxes 格式
             }
 
             # 传递 kb_id（用于生成图片相对路径）
@@ -100,30 +101,62 @@ class MinerUParser:
             if 'error' in result:
                 raise RuntimeError(f"MinerU parsing failed: {result['error']}")
 
-            boxes = result.get('boxes', [])
+            # API 返回 markdown 和 coordinate_map
+            markdown_text = result.get('markdown', '')
+            coordinate_map = result.get('coordinate_map', {})
+
+            if not markdown_text:
+                raise RuntimeError("MinerU API did not return markdown")
+
+            # 开发模式：保存调试文件（如果 API 返回了 middle_json 说明开启了 dev_mode）
+            dev_mode = 'middle_json' in result
+            if dev_mode:
+                # 获取项目根目录（deepdoc/parser/ -> ../../）
+                project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                debug_dir = os.path.join(project_root, 'tmp', 'mineru_debug')
+                os.makedirs(debug_dir, exist_ok=True)
+
+                import time
+                timestamp = int(time.time())
+
+                # 保存 middle_json（如果 API 返回了）
+                if 'middle_json' in result:
+                    middle_json_file = os.path.join(debug_dir, f'{timestamp}_{file_name}_middle.json')
+                    with open(middle_json_file, 'w', encoding='utf-8') as f:
+                        json.dump(result['middle_json'], f, ensure_ascii=False, indent=2)
+                    logging.info(f"[DEV] Saved middle.json to: {middle_json_file}")
+
+                # 保存生成的 markdown
+                markdown_file = os.path.join(debug_dir, f'{timestamp}_{file_name}_markdown.md')
+                with open(markdown_file, 'w', encoding='utf-8') as f:
+                    f.write(markdown_text)
+                logging.info(f"[DEV] Saved markdown to: {markdown_file}")
+
+                # 保存 coordinate_map
+                if coordinate_map:
+                    coord_file = os.path.join(debug_dir, f'{timestamp}_{file_name}_coordinate_map.json')
+                    with open(coord_file, 'w', encoding='utf-8') as f:
+                        json.dump(coordinate_map, f, ensure_ascii=False, indent=2)
+                    logging.info(f"[DEV] Saved coordinate_map to: {coord_file}")
 
             # 转换为 RAGFlow 格式: [(text_with_tag, position_tag), ...]
+            # 为 markdown 每行附加坐标标签
             lines = []
-            for box in boxes:
-                text = box.get('text', '').strip()
-                if not text:
-                    continue
+            markdown_lines = markdown_text.split('\n')
 
-                # text 已经在 API 中完成格式化（标题有 #，列表有 -）
+            for line_idx, text in enumerate(markdown_lines):
+                # coordinate_map 的 key 是字符串格式的行号
+                coords = coordinate_map.get(str(line_idx)) or coordinate_map.get(line_idx)
 
-                # 生成 position_tag
-                # 格式: @@page-seq\tleft\tright\ttop\tbottom##
-                page_num = box.get('page_number', 0)
-                x0 = box.get('x0', 0)
-                x1 = box.get('x1', 0)
-                top = box.get('top', 0)
-                bottom = box.get('bottom', 0)
+                if coords and len(coords) >= 5:
+                    # coords 格式: [page_idx, x0, x1, y0, y1]
+                    page_num, x0, x1, y0, y1 = coords[0], coords[1], coords[2], coords[3], coords[4]
+                    position_tag = f"@@{page_num}\t{x0:.1f}\t{x1:.1f}\t{y0:.1f}\t{y1:.1f}##"
+                else:
+                    # 没有坐标的行（空行等）
+                    position_tag = "@@0\t0.0\t0.0\t0.0\t0.0##"
 
-                position_tag = f"@@{page_num}\t{x0:.1f}\t{x1:.1f}\t{top:.1f}\t{bottom:.1f}##"
-
-                # 将位置标签嵌入到文本中，供 smart.py 提取坐标
                 text_with_tag = f"{position_tag}{text}"
-
                 lines.append((text_with_tag, position_tag))
 
             logging.info(f"MinerU parsed {len(lines)} text blocks from PDF")
@@ -154,7 +187,6 @@ class MinerUParser:
             return None, []
 
         # 提取所有位置标签
-        import re
         pattern = r'@@(\d+)\t([\d.]+)\t([\d.]+)\t([\d.]+)\t([\d.]+)##'
         matches = re.findall(pattern, ck)
 
@@ -176,5 +208,4 @@ class MinerUParser:
     @staticmethod
     def remove_tag(txt):
         """移除位置标签"""
-        import re
         return re.sub(r"@@[^#]+##", "", txt)

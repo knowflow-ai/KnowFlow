@@ -77,8 +77,8 @@ def parse_with_mineru():
         if isinstance(middle_json_data, str):
             middle_json_data = json.loads(middle_json_data)
 
-        # 转换为 RAGFlow boxes 格式
-        boxes = _convert_to_ragflow_boxes(middle_json_data, from_page, to_page, kb_id)
+        # 转换为 RAGFlow boxes 格式，同时获取 markdown 和 coordinate_map
+        boxes, markdown_text, coordinate_map = _convert_to_ragflow_boxes(middle_json_data, from_page, to_page, kb_id)
 
         # 上传图片到 MinIO（参照 process_pdf.py 逻辑）
         if kb_id and 'images' in doc_result and doc_result['images']:
@@ -131,10 +131,17 @@ def parse_with_mineru():
         # 返回结果
         response = {
             'success': True,
-            'boxes': boxes,
-            'page_count': len(set(box['page_number'] for box in boxes)),
+            'boxes': boxes,  # 保持兼容性
+            'markdown': markdown_text,  # 新增：完整 markdown
+            'coordinate_map': coordinate_map,  # 新增：坐标映射
+            'page_count': len(set(box['page_number'] for box in boxes)) if boxes else 0,
             'total_blocks': len(boxes)
         }
+
+        # 开发模式：返回 middle_json
+        from services.config import APP_CONFIG
+        if APP_CONFIG.dev_mode:
+            response['middle_json'] = middle_json_data
 
         logging.info(f"MinerU parsed {len(boxes)} blocks from {response['page_count']} pages")
         return jsonify(response), 200
@@ -146,9 +153,10 @@ def parse_with_mineru():
 
 def _convert_to_ragflow_boxes(middle_json, from_page, to_page, kb_id=''):
     """
-    将 MinerU middle.json 转换为 RAGFlow boxes 格式
+    将 MinerU middle.json 转换为 markdown + coordinate_map
 
-    直接复用 middle_json_simple.py 的完整逻辑，避免重复实现和遗漏
+    使用 SimpleMiddleJsonConverter 生成标准 markdown 和坐标映射。
+    boxes 格式仅用于向后兼容。
 
     Args:
         middle_json: MinerU 的 middle.json 数据
@@ -157,7 +165,7 @@ def _convert_to_ragflow_boxes(middle_json, from_page, to_page, kb_id=''):
         kb_id: 知识库ID，用于生成图片路径
 
     Returns:
-        List[dict]: RAGFlow boxes 格式的列表
+        Tuple[List[dict], str, dict]: (boxes列表[兼容], markdown文本, coordinate_map)
     """
     try:
         from services.knowledgebases.mineru_parse.middle_json_simple import SimpleMiddleJsonConverter
@@ -184,36 +192,51 @@ def _convert_to_ragflow_boxes(middle_json, from_page, to_page, kb_id=''):
             blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
             block_pages.append(blocks)
 
-        # 使用 converter 的核心方法生成 markdown 和坐标映射
+        # 生成 markdown 和坐标映射（核心功能）
         markdown_lines, coordinate_map = converter._build_markdown_from_block_pages(block_pages)
+        markdown_text = '\n'.join(markdown_lines)
 
-        # 将 markdown_lines 和 coordinate_map 转换为 boxes 格式
-        boxes = []
-        for line_idx, line_text in enumerate(markdown_lines):
-            if not line_text.strip():
-                continue
+        # 生成 boxes 格式（向后兼容，实际使用 markdown + coordinate_map）
+        boxes = _build_boxes_for_compatibility(markdown_lines, coordinate_map)
 
-            # 获取该行的坐标
-            coords = coordinate_map.get(line_idx)
-            if not coords:
-                continue
-
-            # coords 格式: [page_idx, x0, x1, y0, y1]
-            page_number = coords[0]
-            x0, x1, y0, y1 = coords[1], coords[2], coords[3], coords[4]
-
-            boxes.append({
-                'text': line_text,
-                'x0': float(x0),
-                'x1': float(x1),
-                'top': float(y0),
-                'bottom': float(y1),
-                'page_number': page_number,
-                'layout_type': 'text'  # 统一为 text，后续可根据内容判断
-            })
-
-        return boxes
+        return boxes, markdown_text, coordinate_map
 
     except Exception as e:
-        logging.exception(f"Failed to convert middle.json to boxes: {e}")
-        return []
+        logging.exception(f"Failed to convert middle.json to markdown: {e}")
+        return [], '', {}
+
+
+def _build_boxes_for_compatibility(markdown_lines, coordinate_map):
+    """
+    从 markdown_lines 和 coordinate_map 生成 boxes 格式（向后兼容）
+
+    Args:
+        markdown_lines: markdown 行列表
+        coordinate_map: 坐标映射 {line_idx: [page, x0, x1, y0, y1]}
+
+    Returns:
+        List[dict]: boxes 列表
+    """
+    boxes = []
+    for line_idx, line_text in enumerate(markdown_lines):
+        # 跳过空行
+        if not line_text.strip():
+            continue
+
+        # 获取该行的坐标
+        coords = coordinate_map.get(line_idx)
+        if not coords or len(coords) < 5:
+            continue
+
+        # coords 格式: [page_idx, x0, x1, y0, y1]
+        boxes.append({
+            'text': line_text,
+            'x0': float(coords[1]),
+            'x1': float(coords[2]),
+            'top': float(coords[3]),
+            'bottom': float(coords[4]),
+            'page_number': coords[0],
+            'layout_type': 'text'
+        })
+
+    return boxes
