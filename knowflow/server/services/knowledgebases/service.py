@@ -691,7 +691,7 @@ class KnowledgebaseService:
                 current_date = current_datetime.strftime("%Y-%m-%d %H:%M:%S")  # 格式化日期字符串
 
                 # 获取知识库的parser_id和parser_config，如果没有则使用默认值
-                kb_parser_id = kb.get("parser_id", "mineru")
+                kb_parser_id = kb.get("parser_id", "naive")
                 kb_parser_config = kb.get("parser_config")
                 if isinstance(kb_parser_config, str):
                     try:

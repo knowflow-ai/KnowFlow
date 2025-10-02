@@ -80,6 +80,5 @@ export enum DocumentParserType {
   Email = 'email',
   Tag = 'tag',
   KnowledgeGraph = 'knowledge_graph',
-  MinerU = 'mineru',
-  DOTS = 'dots',
+  Smart = 'smart',
 }

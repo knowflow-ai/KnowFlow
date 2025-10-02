@@ -172,7 +172,7 @@ def perform_parse(doc_id, doc_info, file_info):
             update_progress(0.2, "OCR开始")
 
             # === 选择解析引擎 ===
-            parser_id = doc_info.get('parser_id', 'mineru')
+            parser_id = doc_info.get('parser_id', 'naive')
             selected_engine = _get_parser_engine(parser_id, parser_config)
             print(f"[Parser-INFO] 选择的解析引擎: {selected_engine}")
 
@@ -202,7 +202,7 @@ def perform_parse(doc_id, doc_info, file_info):
             final_message = "表格解析完成"
         else:
             # 根据使用的解析引擎生成相应的完成消息
-            parser_id = doc_info.get('parser_id', 'mineru')
+            parser_id = doc_info.get('parser_id', 'naive')
             engine_name = _get_parser_engine(parser_id, parser_config).upper()
             final_message = f"{engine_name} 文档解析完成"
 

@@ -94,8 +94,7 @@ class ParserType(StrEnum):
     EMAIL = "email"
     KG = "knowledge_graph"
     TAG = "tag"
-    MINERU = "mineru"
-    DOTS = "dots"
+    SMART = "smart"
 
 
 class FileSource(StrEnum):
