@@ -99,9 +99,13 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         logging.info(f"Using {layout_recognizer} parser for smart chunking")
         callback(0.2, f"Parsing with {layout_recognizer}...")
 
+        # 提取 kb_id（用于生成图片链接）
+        kb_id = kwargs.get('kb_id', '') or kwargs.get('knowledgebase_id', '')
+
         pdf_parser = MinerUParser()
         sections, tables = pdf_parser(filename if not binary else binary,
-                                     from_page=from_page, to_page=to_page)
+                                     from_page=from_page, to_page=to_page,
+                                     kb_id=kb_id)
 
         callback(0.5, f"{layout_recognizer} parsing finished.")
 

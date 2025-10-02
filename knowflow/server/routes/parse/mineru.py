@@ -5,6 +5,7 @@ import os
 import json
 import logging
 import tempfile
+import base64
 from flask import request, jsonify
 from . import parse_bp
 from services.knowledgebases.mineru_parse.fastapi_adapter import get_global_adapter
@@ -50,7 +51,7 @@ def parse_with_mineru():
         # 获取参数
         from_page = int(request.form.get('from_page', 0))
         to_page = int(request.form.get('to_page', 100000))
-        return_format = request.form.get('return_format', 'ragflow_boxes')
+        kb_id = request.form.get('kb_id', '')
 
         # 保存上传的文件到临时目录
         temp_dir = tempfile.mkdtemp()
@@ -64,7 +65,7 @@ def parse_with_mineru():
         result = adapter.process_file(
             file_path=temp_pdf_path,
             return_middle_json=True,
-            return_images=False  # 暂不返回图片，减少数据传输
+            return_images=True  # 需要返回图片
         )
 
         # 获取解析结果
@@ -77,7 +78,48 @@ def parse_with_mineru():
             middle_json_data = json.loads(middle_json_data)
 
         # 转换为 RAGFlow boxes 格式
-        boxes = _convert_to_ragflow_boxes(middle_json_data, from_page, to_page)
+        boxes = _convert_to_ragflow_boxes(middle_json_data, from_page, to_page, kb_id)
+
+        # 上传图片到 MinIO（参照 process_pdf.py 逻辑）
+        if kb_id and 'images' in doc_result and doc_result['images']:
+            try:
+                from services.knowledgebases.mineru_parse.minio_server import upload_directory_to_minio
+
+                # 创建临时目录保存图片
+                images_dir = tempfile.mkdtemp(prefix='mineru_images_')
+                logging.info(f"Saving images to temporary directory: {images_dir}")
+
+                # 保存图片到临时目录（参照 process_pdf.py:_save_images_from_result）
+                saved_count = 0
+                for image_name, image_data in doc_result['images'].items():
+                    try:
+                        # 提取 base64 数据
+                        if image_data.startswith('data:image/'):
+                            base64_data = image_data.split(',', 1)[1]
+                        else:
+                            base64_data = image_data
+
+                        # 解码并保存图片
+                        image_bytes = base64.b64decode(base64_data)
+                        image_path = os.path.join(images_dir, image_name)
+
+                        with open(image_path, 'wb') as f:
+                            f.write(image_bytes)
+
+                        saved_count += 1
+                    except Exception as e:
+                        logging.warning(f"Failed to save image {image_name}: {e}")
+
+                logging.info(f"Saved {saved_count} images to {images_dir}")
+
+                # 上传到 MinIO
+                if saved_count > 0:
+                    logging.info(f"Uploading {saved_count} images to MinIO bucket {kb_id}")
+                    upload_directory_to_minio(kb_id, images_dir)
+                    logging.info(f"Images uploaded successfully")
+
+            except Exception as e:
+                logging.warning(f"Failed to process images: {e}")
 
         # 清理临时文件
         try:
@@ -102,102 +144,76 @@ def parse_with_mineru():
         return jsonify({'error': str(e)}), 500
 
 
-def _convert_to_ragflow_boxes(middle_json, from_page, to_page):
+def _convert_to_ragflow_boxes(middle_json, from_page, to_page, kb_id=''):
     """
     将 MinerU middle.json 转换为 RAGFlow boxes 格式
+
+    直接复用 middle_json_simple.py 的完整逻辑，避免重复实现和遗漏
 
     Args:
         middle_json: MinerU 的 middle.json 数据
         from_page: 起始页码
         to_page: 结束页码
+        kb_id: 知识库ID，用于生成图片路径
 
     Returns:
         List[dict]: RAGFlow boxes 格式的列表
     """
-    boxes = []
+    try:
+        from services.knowledgebases.mineru_parse.middle_json_simple import SimpleMiddleJsonConverter
 
-    if not middle_json or 'pdf_info' not in middle_json:
-        logging.warning("Invalid middle.json structure")
+        # 创建转换器实例
+        converter = SimpleMiddleJsonConverter(kb_id=kb_id)
+
+        # 提取页面范围内的 block_pages
+        if not middle_json or 'pdf_info' not in middle_json:
+            logging.warning("Invalid middle.json structure")
+            return []
+
+        pdf_info = middle_json['pdf_info']
+        block_pages = []
+
+        for page_idx, page_data in enumerate(pdf_info):
+            # 跳过不在范围内的页
+            if page_idx < from_page or page_idx >= to_page:
+                continue
+
+            # 提取并处理块（复用 converter._extract_blocks_from_page）
+            blocks = converter._extract_blocks_from_page(page_data, page_idx)
+            # 按 y 坐标排序
+            blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
+            block_pages.append(blocks)
+
+        # 使用 converter 的核心方法生成 markdown 和坐标映射
+        markdown_lines, coordinate_map = converter._build_markdown_from_block_pages(block_pages)
+
+        # 将 markdown_lines 和 coordinate_map 转换为 boxes 格式
+        boxes = []
+        for line_idx, line_text in enumerate(markdown_lines):
+            if not line_text.strip():
+                continue
+
+            # 获取该行的坐标
+            coords = coordinate_map.get(line_idx)
+            if not coords:
+                continue
+
+            # coords 格式: [page_idx, x0, x1, y0, y1]
+            page_number = coords[0]
+            x0, x1, y0, y1 = coords[1], coords[2], coords[3], coords[4]
+
+            boxes.append({
+                'text': line_text,
+                'x0': float(x0),
+                'x1': float(x1),
+                'top': float(y0),
+                'bottom': float(y1),
+                'page_number': page_number,
+                'layout_type': 'text'  # 统一为 text，后续可根据内容判断
+            })
+
         return boxes
 
-    pdf_info = middle_json['pdf_info']
-
-    for page_idx, page_data in enumerate(pdf_info):
-        # 跳过不在范围内的页
-        if page_idx < from_page or page_idx >= to_page:
-            continue
-
-        page_number = page_idx
-
-        # 处理布局块（优先使用 para_blocks，其次使用 preproc_blocks）
-        # VLM 模式使用 para_blocks，Pipeline 模式使用 preproc_blocks
-        blocks_data = page_data.get('para_blocks') or page_data.get('preproc_blocks', [])
-        for block in blocks_data:
-            box = _convert_block_to_box(block, page_number)
-            if box:
-                boxes.append(box)
-
-    return boxes
-
-
-def _convert_block_to_box(block, page_number):
-    """
-    将 MinerU block 转换为 RAGFlow box
-
-    Args:
-        block: MinerU block 数据
-        page_number: 页码
-
-    Returns:
-        dict: RAGFlow box 格式
-    """
-    try:
-        # 提取文本
-        text = ''
-
-        # 方式1: 从 lines/spans 结构提取（VLM 和 Pipeline 模式）
-        text_lines = block.get('lines', [])
-        if text_lines:
-            text = '\n'.join([
-                ''.join([span.get('content', span.get('text', '')) for span in line.get('spans', [])])
-                for line in text_lines
-            ]).strip()
-
-        # 方式2: 直接从 text 字段获取（某些简化格式）
-        if not text and 'text' in block:
-            text = block['text'].strip()
-
-        # 如果没有文本内容，跳过此块
-        if not text:
-            return None
-
-        # 提取坐标（72 DPI PDF 坐标）
-        bbox = block.get('bbox', [0, 0, 0, 0])
-        x0, y0, x1, y1 = bbox
-
-        # 确定布局类型
-        block_type = block.get('type', 'text')
-        layout_type_map = {
-            'text': 'text',
-            'title': 'title',
-            'table': 'table',
-            'image': 'figure',
-            'figure': 'figure'
-        }
-        layout_type = layout_type_map.get(block_type.lower(), 'text')
-
-        box = {
-            'text': text,
-            'x0': float(x0),
-            'x1': float(x1),
-            'top': float(y0),
-            'bottom': float(y1),
-            'page_number': page_number,
-            'layout_type': layout_type
-        }
-
-        return box
-
     except Exception as e:
-        logging.warning(f"Failed to convert block to box: {e}")
-        return None
+        logging.exception(f"Failed to convert middle.json to boxes: {e}")
+        return []

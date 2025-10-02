@@ -74,8 +74,12 @@ class MinerUParser:
             data = {
                 'from_page': from_page,
                 'to_page': to_page,
-                'return_format': 'ragflow_boxes'  # 返回 RAGFlow boxes 格式
+                'return_format': 'ragflow_boxes',  # 返回 RAGFlow boxes 格式
             }
+
+            # 传递 kb_id（用于生成图片相对路径）
+            kb_id = kwargs.get('kb_id') or kwargs.get('knowledgebase_id') or ''
+            data['kb_id'] = kb_id  # 总是传递，即使为空
 
             logging.info(f"Calling MinerU API: {api_url}")
             response = requests.post(
@@ -98,12 +102,14 @@ class MinerUParser:
 
             boxes = result.get('boxes', [])
 
-            # 转换为 RAGFlow 格式: [(text, position_tag), ...]
+            # 转换为 RAGFlow 格式: [(text_with_tag, position_tag), ...]
             lines = []
             for box in boxes:
                 text = box.get('text', '').strip()
                 if not text:
                     continue
+
+                # text 已经在 API 中完成格式化（标题有 #，列表有 -）
 
                 # 生成 position_tag
                 # 格式: @@page-seq\tleft\tright\ttop\tbottom##
@@ -115,7 +121,10 @@ class MinerUParser:
 
                 position_tag = f"@@{page_num}\t{x0:.1f}\t{x1:.1f}\t{top:.1f}\t{bottom:.1f}##"
 
-                lines.append((text, position_tag))
+                # 将位置标签嵌入到文本中，供 smart.py 提取坐标
+                text_with_tag = f"{position_tag}{text}"
+
+                lines.append((text_with_tag, position_tag))
 
             logging.info(f"MinerU parsed {len(lines)} text blocks from PDF")
             return lines, []
