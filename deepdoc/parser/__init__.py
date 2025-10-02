@@ -20,6 +20,7 @@ from .html_parser import RAGFlowHtmlParser as HtmlParser
 from .json_parser import RAGFlowJsonParser as JsonParser
 from .markdown_parser import MarkdownElementExtractor
 from .markdown_parser import RAGFlowMarkdownParser as MarkdownParser
+from .mineru_parser import MinerUParser
 from .pdf_parser import PlainParser
 from .pdf_parser import RAGFlowPdfParser as PdfParser
 from .ppt_parser import RAGFlowPptParser as PptParser
@@ -28,6 +29,7 @@ from .txt_parser import RAGFlowTxtParser as TxtParser
 __all__ = [
     "PdfParser",
     "PlainParser",
+    "MinerUParser",
     "DocxParser",
     "ExcelParser",
     "PptParser",

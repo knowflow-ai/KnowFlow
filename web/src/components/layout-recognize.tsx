@@ -15,8 +15,17 @@ const LayoutRecognize = () => {
   const allOptions = useSelectLlmOptionsByModelType();
 
   const options = useMemo(() => {
-    const list = [DocumentType.DeepDOC, DocumentType.PlainText].map((x) => ({
-      label: x === DocumentType.PlainText ? t(camelCase(x)) : 'DeepDoc',
+    const list = [
+      DocumentType.DeepDOC,
+      DocumentType.PlainText,
+      'MinerU', // 新增 MinerU 选项
+    ].map((x) => ({
+      label:
+        x === DocumentType.PlainText
+          ? t(camelCase(x))
+          : x === 'MinerU'
+            ? 'MinerU'
+            : 'DeepDoc',
       value: x,
     }));
 

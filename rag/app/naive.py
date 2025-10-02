@@ -30,7 +30,7 @@ from tika import parser
 
 from api.db import LLMType
 from api.db.services.llm_service import LLMBundle
-from deepdoc.parser import DocxParser, ExcelParser, HtmlParser, JsonParser, MarkdownElementExtractor, MarkdownParser, PdfParser, TxtParser
+from deepdoc.parser import DocxParser, ExcelParser, HtmlParser, JsonParser, MarkdownElementExtractor, MarkdownParser, MinerUParser, PdfParser, TxtParser
 from deepdoc.parser.figure_parser import VisionFigureParser, vision_figure_parser_figure_data_wrapper
 from deepdoc.parser.pdf_parser import PlainParser, VisionParser
 from rag.nlp import concat_img, find_codec, naive_merge, naive_merge_with_images, naive_merge_docx, rag_tokenizer, tokenize_chunks, tokenize_chunks_with_images, tokenize_table
@@ -449,7 +449,16 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             layout_recognizer = "DeepDOC" if layout_recognizer else "Plain Text"
         callback(0.1, "Start to parse.")
 
-        if layout_recognizer == "DeepDOC":
+        if layout_recognizer == "MinerU":
+            # 使用 MinerU 解析器
+            logging.info("Using MinerU parser for PDF")
+            callback(0.2, "Parsing with MinerU...")
+            pdf_parser = MinerUParser()
+            sections, tables = pdf_parser(filename if not binary else binary, from_page=from_page, to_page=to_page)
+            res = tokenize_table(tables, doc, is_english)
+            callback(0.8, "MinerU parsing finished.")
+
+        elif layout_recognizer == "DeepDOC":
             pdf_parser = Pdf()
 
             try:
