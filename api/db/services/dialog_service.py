@@ -186,11 +186,29 @@ def parent_child_retrieval(query, embd_mdl, tenant_ids, kb_ids, page, top_n, sim
                     )
 
                     if parent_chunk_data:
+                        parent_content = parent_chunk_data.get("content_with_weight", "")
                         logging.info(f"Successfully retrieved parent chunk {parent_id} from separate index {parent_index} for child {child_chunk_id}")
+
+                        # 保存父分块内容到本地文件用于调试
+                        try:
+                            import os
+                            debug_dir = "/tmp/parent_chunks_debug"
+                            os.makedirs(debug_dir, exist_ok=True)
+                            with open(f"{debug_dir}/{parent_id}.txt", "w", encoding="utf-8") as f:
+                                f.write(f"Parent ID: {parent_id}\n")
+                                f.write(f"Child ID: {child_chunk_id}\n")
+                                f.write(f"Doc ID: {mapping.doc_id}\n")
+                                f.write(f"Similarity: {chunk.get('similarity', 0.5)}\n")
+                                f.write(f"\n{'='*80}\nCONTENT:\n{'='*80}\n\n")
+                                f.write(parent_content)
+                            logging.info(f"Saved parent chunk content to {debug_dir}/{parent_id}.txt")
+                        except Exception as e:
+                            logging.warning(f"Failed to save parent chunk debug file: {e}")
+
                         # 成功获取父分块，替换默认的子分块
                         current_chunk_result = {
                             "id": parent_id,
-                            "content_with_weight": parent_chunk_data.get("content_with_weight", ""),
+                            "content_with_weight": parent_content,
                             "content_ltks": parent_chunk_data.get("content_ltks", ""),  # 添加缺失的字段
                             "doc_id": mapping.doc_id,
                             "docnm_kwd": parent_chunk_data.get("docnm_kwd", ""),

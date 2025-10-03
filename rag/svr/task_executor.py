@@ -511,38 +511,41 @@ async def process_parent_child_chunks(standard_chunks, task, parent_config, prog
         
         # 合并所有标准分块的文本内容
         full_text = "\n\n".join([chunk.get("content_with_weight", "") for chunk in standard_chunks])
-        
-        # 使用现有的智能分块作为子分块
-        child_chunks_content = []
+
+        # 使用现有的智能分块作为子分块（保留完整的chunk信息包括坐标）
+        valid_standard_chunks = []
         for chunk in standard_chunks:
             if chunk.get("content_with_weight", "").strip():
-                child_chunks_content.append(chunk["content_with_weight"])
-        
+                valid_standard_chunks.append(chunk)
+
         # 构建父分块
         parent_chunks = []
         child_chunks = []
         current_parent_content = []
         current_parent_tokens = 0
         current_child_ids = []
+        current_parent_positions = []  # 收集父分块的坐标
         parent_order = 0
-        
+
         parent_chunk_size = parent_config.get('parent_chunk_size', 1024)
-        
-        for i, child_content in enumerate(child_chunks_content):
+
+        for i, original_chunk in enumerate(valid_standard_chunks):
+            child_content = original_chunk.get("content_with_weight", "")
             child_id = f"{task['doc_id']}_child_{i:04d}_{hashlib.md5(child_content.encode('utf-8')).hexdigest()[:8]}"
             child_tokens = num_tokens_from_string(child_content)
-            
-            # 构建子分块数据结构（保持与标准分块兼容）
-            child_chunk_data = {
-                "doc_id": task["doc_id"],
-                "kb_id": str(task["kb_id"]),
-                "id": child_id,
-                "content_with_weight": child_content,
-                "content_ltks": rag_tokenizer.tokenize(child_content),
-                "create_time": str(datetime.now()).replace("T", " ")[:19],
-                "create_timestamp_flt": datetime.now().timestamp(),
-            }
-            child_chunk_data["content_sm_ltks"] = rag_tokenizer.fine_grained_tokenize(child_chunk_data["content_ltks"])
+
+            # 构建子分块数据结构（复制原始chunk的所有字段，类似 build_chunks 的 d.update(chunk)）
+            child_chunk_data = copy.deepcopy(original_chunk)
+
+            # 覆盖必要的字段
+            child_chunk_data["doc_id"] = task["doc_id"]
+            child_chunk_data["kb_id"] = str(task["kb_id"])
+            child_chunk_data["id"] = child_id
+            child_chunk_data["create_time"] = str(datetime.now()).replace("T", " ")[:19]
+            child_chunk_data["create_timestamp_flt"] = datetime.now().timestamp()
+            child_chunk_data["docnm_kwd"] = task["name"]
+            child_chunk_data["title_tks"] = rag_tokenizer.tokenize(task["name"])
+
             child_chunks.append(child_chunk_data)
             
             # 检查是否需要创建新的父分块
@@ -550,7 +553,7 @@ async def process_parent_child_chunks(standard_chunks, task, parent_config, prog
                 # 创建父分块
                 parent_content = "\n\n".join(current_parent_content).strip()
                 parent_id = f"{task['doc_id']}_parent_{parent_order:04d}_{hashlib.md5(parent_content.encode('utf-8')).hexdigest()[:8]}"
-                
+
                 parent_chunk_data = {
                     "doc_id": task["doc_id"],
                     "kb_id": str(task["kb_id"]),
@@ -563,27 +566,37 @@ async def process_parent_child_chunks(standard_chunks, task, parent_config, prog
                     "title_tks": rag_tokenizer.tokenize(task["name"]),
                 }
                 parent_chunk_data["content_sm_ltks"] = rag_tokenizer.fine_grained_tokenize(parent_chunk_data["content_ltks"])
+
+                # 合并所有子分块的坐标到父分块
+                if current_parent_positions:
+                    parent_chunk_data["positions"] = current_parent_positions
+
                 parent_chunks.append(parent_chunk_data)
-                
+
                 # 保存父子关系到数据库
                 await save_parent_child_relationships(parent_id, current_child_ids, task)
-                
+
                 # 重置状态
                 current_parent_content = []
                 current_parent_tokens = 0
                 current_child_ids = []
+                current_parent_positions = []
                 parent_order += 1
-            
+
             # 添加到当前父分块
             current_parent_content.append(child_content)
             current_parent_tokens += child_tokens
             current_child_ids.append(child_id)
+
+            # 收集子分块的坐标到父分块
+            if "positions" in original_chunk and original_chunk["positions"]:
+                current_parent_positions.extend(original_chunk["positions"])
         
         # 处理最后一个父分块
         if current_parent_content:
             parent_content = "\n\n".join(current_parent_content).strip()
             parent_id = f"{task['doc_id']}_parent_{parent_order:04d}_{hashlib.md5(parent_content.encode('utf-8')).hexdigest()[:8]}"
-            
+
             parent_chunk_data = {
                 "doc_id": task["doc_id"],
                 "kb_id": str(task["kb_id"]),
@@ -596,19 +609,26 @@ async def process_parent_child_chunks(standard_chunks, task, parent_config, prog
                 "title_tks": rag_tokenizer.tokenize(task["name"]),
             }
             parent_chunk_data["content_sm_ltks"] = rag_tokenizer.fine_grained_tokenize(parent_chunk_data["content_ltks"])
+
+            # 合并所有子分块的坐标到父分块
+            if current_parent_positions:
+                parent_chunk_data["positions"] = current_parent_positions
+
             parent_chunks.append(parent_chunk_data)
-            
+
             # 保存父子关系到数据库
             await save_parent_child_relationships(parent_id, current_child_ids, task)
-        
-        # 根据检索模式决定返回什么用于向量存储
-        retrieval_mode = parent_config.get('retrieval_mode', 'parent')
-        if retrieval_mode == 'parent':
-            progress_callback(msg="Generated {} parent chunks for vector storage".format(len(parent_chunks)))
-            return parent_chunks  # 父分块用于向量存储和检索
-        else:
-            progress_callback(msg="Generated {} child chunks for vector storage".format(len(child_chunks)))
-            return child_chunks   # 子分块用于向量存储，但可通过关系获取父分块
+
+        # 父子分块设计：总是存储子分块到标准ES索引用于检索
+        # 父分块存储到单独的 _parent 索引，不参与向量检索
+        # 检索时：ES返回子分块 → 通过ParentChildMapping查找 → 获取父分块内容
+
+        # 将父分块存储到单独的ES索引（复用batch_chunk_app.py的逻辑）
+        await index_parents_to_separate_elasticsearch(parent_chunks, task)
+
+        progress_callback(msg="Generated {} child chunks for vector storage, {} parent chunks saved separately".format(
+            len(child_chunks), len(parent_chunks)))
+        return child_chunks  # 总是返回子分块用于向量存储和检索
         
     except Exception as e:
         logging.exception(f"Process parent-child chunks failed: {e}")
@@ -627,9 +647,80 @@ async def save_parent_child_relationships(parent_id, child_ids, task):
                 kb_id=task["kb_id"],
                 relevance_score=100
             )
-        
+
     except Exception as e:
         logging.warning(f"Failed to save parent-child relationships: {e}")
+        # 不阻断主流程，继续执行
+
+
+async def index_parents_to_separate_elasticsearch(parent_chunks, task):
+    """
+    将父分块索引到专门的ES索引，与子分块分离
+    复制自 api/apps/sdk/batch_chunk_app.py::_index_parents_to_separate_elasticsearch_in_ragflow
+    """
+    try:
+        if not parent_chunks:
+            return
+
+        from datetime import datetime
+        from rag.nlp import search
+        from rag.nlp import rag_tokenizer
+        from api.db.services.document_service import DocumentService
+
+        doc_id = task["doc_id"]
+        kb_id = task["kb_id"]
+        tenant_id = task["tenant_id"]
+
+        # 获取文档信息
+        doc = DocumentService.query(id=doc_id, kb_id=kb_id)
+        doc_name = doc[0].name if doc else task.get("name", "unknown")
+
+        # 构建专门的父分块索引名（与子分块索引分离）
+        parent_index_name = f"{search.index_name(tenant_id)}_parent"
+
+        logging.info(f"[Parent-ES] Saving {len(parent_chunks)} parent chunks to separate index: {parent_index_name}")
+
+        # 索引父分块到专门的索引
+        for i, parent_chunk in enumerate(parent_chunks):
+            parent_id = parent_chunk.get("id")
+            content = parent_chunk.get("content_with_weight", "")
+
+            # 使用 rag_tokenizer 进行分词处理
+            content_ltks = rag_tokenizer.tokenize(content)
+
+            # 构建父分块文档结构（遵循RAGFlow ES文档结构，但存储在单独索引）
+            doc_body = {
+                "id": parent_id,  # 必须包含id字段
+                "content_ltks": content_ltks,  # 使用rag_tokenizer分词
+                "content_with_weight": content,
+                "content_sm_ltks": rag_tokenizer.fine_grained_tokenize(content_ltks),  # 细粒度分词
+                "docnm_kwd": doc_name,
+                "doc_id": doc_id,
+                "kb_id": kb_id,
+                "important_kwd": [],
+                "important_tks": rag_tokenizer.tokenize(""),  # 空的重要关键词tokens
+                "question_kwd": [],
+                "question_tks": rag_tokenizer.tokenize(""),  # 空的问题tokens
+                "img_id": "",
+                "positions": parent_chunk.get("positions", []),
+                "page_num_int": [1],  # 使用数组格式
+                "top_int": i,  # 使用索引作为排序字段
+                "chunk_type": "parent",  # 标记为父分块
+                "create_time": str(datetime.now()).replace("T", " ")[:19],
+                "create_timestamp_flt": datetime.now().timestamp()
+            }
+
+            # 索引到专门的父分块ES索引（与子分块索引分离）
+            settings.docStoreConn.insert([doc_body], parent_index_name, kb_id)
+
+        logging.info(f"[Parent-ES] Successfully saved {len(parent_chunks)} parent chunks to {parent_index_name}")
+        logging.info(f"  [Parent-ES] Parent chunks stored in {parent_index_name}, not in main retrieval")
+        logging.info(f"  [Parent-ES] Child chunks stored in {search.index_name(tenant_id)}, used for retrieval")
+
+    except Exception as e:
+        logging.error(f"[Parent-Child] Parent chunk ES indexing failed: {e}")
+        import traceback
+        traceback.print_exc()
         # 不阻断主流程，继续执行
 
 
