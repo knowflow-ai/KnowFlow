@@ -13,10 +13,11 @@ from pathlib import Path
 class SimpleMiddleJsonConverter:
     """简化的 middle.json 转换器"""
 
-    def __init__(self, kb_id: Optional[str] = None):
+    def __init__(self, kb_id: Optional[str] = None, merge_text_lines: bool = False):
         # 坐标缓存: {md_file_path: {line_number: [page_idx, x1, y1, x2, y2]}}
         self.coordinate_cache = {}
         self.kb_id = kb_id  # 知识库ID，用于生成图片URL
+        self.merge_text_lines = merge_text_lines  # 是否合并 text/title 的多行（用于 general 分块）
 
     def convert_to_markdown(self, middle_json_path: str, output_md_path: Optional[str] = None, kb_id: Optional[str] = None) -> Tuple[str, Dict]:
         """
@@ -140,29 +141,44 @@ class SimpleMiddleJsonConverter:
                             ]
                         line_counter += 1
                 else:
-                    text_lines = markdown_text.split('\n')
-                    line_infos = block.get('line_infos', [])
-                    info_idx = 0
-                    for line in text_lines:
-                        markdown_lines.append(line)
-                        if line.strip():
-                            if info_idx < len(line_infos):
-                                info = line_infos[info_idx]
-                                info_idx += 1
-                                bbox = info.get('bbox') or block['bbox']
-                                page_idx = info.get('page_idx', block['page_idx'])
-                            else:
-                                bbox = block['bbox']
-                                page_idx = block['page_idx']
-
+                    # 根据 merge_text_lines 参数决定如何处理 text/title
+                    if block.get('type') in ('text', 'title') and self.merge_text_lines:
+                        # 整块处理，使用 block 级别的坐标（用于 general 分块）
+                        markdown_lines.append(markdown_text)
+                        if markdown_text.strip():
                             coordinate_map[line_counter] = [
-                                page_idx,
-                                bbox[0],
-                                bbox[2],
-                                bbox[1],
-                                bbox[3]
+                                block['page_idx'],
+                                block['bbox'][0],
+                                block['bbox'][2],
+                                block['bbox'][1],
+                                block['bbox'][3]
                             ]
                         line_counter += 1
+                    else:
+                        # 逐行处理（用于 smart 分块或其他类型）
+                        text_lines = markdown_text.split('\n')
+                        line_infos = block.get('line_infos', [])
+                        info_idx = 0
+                        for line in text_lines:
+                            markdown_lines.append(line)
+                            if line.strip():
+                                if info_idx < len(line_infos):
+                                    info = line_infos[info_idx]
+                                    info_idx += 1
+                                    bbox = info.get('bbox') or block['bbox']
+                                    page_idx = info.get('page_idx', block['page_idx'])
+                                else:
+                                    bbox = block['bbox']
+                                    page_idx = block['page_idx']
+
+                                coordinate_map[line_counter] = [
+                                    page_idx,
+                                    bbox[0],
+                                    bbox[2],
+                                    bbox[1],
+                                    bbox[3]
+                                ]
+                            line_counter += 1
 
                 markdown_lines.append('')
                 line_counter += 1
@@ -193,11 +209,16 @@ class SimpleMiddleJsonConverter:
 
     def _process_block(self, block: Dict, page_idx: int) -> Dict:
         """处理单个块"""
-        # 提取文本
-        text = self._extract_text(block)
-
         # 获取块类型
         block_type = block.get('type', 'text')
+
+        # 根据 merge_text_lines 参数决定是否合并 text/title 的多行
+        if block_type in ('text', 'title') and self.merge_text_lines:
+            # 合并多行（用于 general 分块，避免断句）
+            text = self._extract_text_from_lines(block, merge_lines=True)
+        else:
+            # 保留多行（用于 smart 分块，精确匹配坐标）
+            text = self._extract_text(block)
 
         # 检查是否包含图片路径
         image_path = self._extract_image_path(block)
@@ -219,10 +240,14 @@ class SimpleMiddleJsonConverter:
         if block_type == 'image' and 'blocks' in block:
             result['blocks'] = block['blocks']
 
+        # 根据 merge_text_lines 决定是否生成 line_infos
+        # merge_text_lines=True: text/title 不生成 line_infos（已合并为整块）
+        # merge_text_lines=False: text/title 也生成 line_infos（保留逐行坐标）
         if block_type not in ('image', 'table'):
-            line_infos = self._collect_line_infos(block, page_idx)
-            if line_infos:
-                result['line_infos'] = line_infos
+            if not (block_type in ('text', 'title') and self.merge_text_lines):
+                line_infos = self._collect_line_infos(block, page_idx)
+                if line_infos:
+                    result['line_infos'] = line_infos
 
         return result
 
@@ -267,8 +292,14 @@ class SimpleMiddleJsonConverter:
         # 普通文本
         return self._extract_text_from_lines(block)
 
-    def _extract_text_from_lines(self, block: Dict) -> str:
-        """从 lines 结构提取文本"""
+    def _extract_text_from_lines(self, block: Dict, merge_lines: bool = False) -> str:
+        """
+        从 lines 结构提取文本
+
+        Args:
+            block: 文本块
+            merge_lines: 是否合并多行（用于 text/title 类型）
+        """
         if 'lines' not in block:
             return block.get('text', '')
 
@@ -278,7 +309,12 @@ class SimpleMiddleJsonConverter:
                 line_text = ''.join(span.get('content', '') for span in line['spans'])
                 if line_text:
                     lines.append(line_text)
-        return '\n'.join(lines)
+
+        if merge_lines:
+            # 对于 text/title 类型，合并多行（PDF 排版导致的自动换行）
+            return ''.join(lines)
+        else:
+            return '\n'.join(lines)
 
     def _collect_line_infos(self, block: Dict, default_page_idx: int) -> List[Dict]:
         """提取行级坐标信息，支持跨页文本"""

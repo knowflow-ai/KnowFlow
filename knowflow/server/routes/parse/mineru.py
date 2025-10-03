@@ -78,7 +78,9 @@ def parse_with_mineru():
             middle_json_data = json.loads(middle_json_data)
 
         # 转换为 RAGFlow boxes 格式，同时获取 markdown 和 coordinate_map
-        boxes, markdown_text, coordinate_map = _convert_to_ragflow_boxes(middle_json_data, from_page, to_page, kb_id)
+        boxes, markdown_text, coordinate_map = _convert_to_ragflow_boxes(
+            middle_json_data, from_page, to_page, kb_id
+        )
 
         # 上传图片到 MinIO（参照 process_pdf.py 逻辑）
         if kb_id and 'images' in doc_result and doc_result['images']:
@@ -153,10 +155,9 @@ def parse_with_mineru():
 
 def _convert_to_ragflow_boxes(middle_json, from_page, to_page, kb_id=''):
     """
-    将 MinerU middle.json 转换为 markdown + coordinate_map
-
-    使用 SimpleMiddleJsonConverter 生成标准 markdown 和坐标映射。
-    boxes 格式仅用于向后兼容。
+    将 MinerU middle.json 转换为两种格式：
+    1. boxes: 语义块级别（用于 general 分块）
+    2. markdown + coordinate_map: 逐行级别（用于 smart 分块）
 
     Args:
         middle_json: MinerU 的 middle.json 数据
@@ -165,59 +166,69 @@ def _convert_to_ragflow_boxes(middle_json, from_page, to_page, kb_id=''):
         kb_id: 知识库ID，用于生成图片路径
 
     Returns:
-        Tuple[List[dict], str, dict]: (boxes列表[兼容], markdown文本, coordinate_map)
+        Tuple[List[dict], str, dict]: (语义块boxes, markdown文本, coordinate_map)
     """
     try:
         from services.knowledgebases.mineru_parse.middle_json_simple import SimpleMiddleJsonConverter
 
-        # 创建转换器实例
-        converter = SimpleMiddleJsonConverter(kb_id=kb_id)
-
-        # 提取页面范围内的 block_pages
+        # 检查数据有效性
         if not middle_json or 'pdf_info' not in middle_json:
             logging.warning("Invalid middle.json structure")
-            return []
+            return [], '', {}
 
         pdf_info = middle_json['pdf_info']
-        block_pages = []
+
+        # 1. 提取语义块级别的 markdown（用于 general 分块）
+        converter_for_semantic = SimpleMiddleJsonConverter(kb_id=kb_id, merge_text_lines=True)
+        block_pages_semantic = []
 
         for page_idx, page_data in enumerate(pdf_info):
-            # 跳过不在范围内的页
             if page_idx < from_page or page_idx >= to_page:
                 continue
-
-            # 提取并处理块（复用 converter._extract_blocks_from_page）
-            blocks = converter._extract_blocks_from_page(page_data, page_idx)
-            # 按 y 坐标排序
+            blocks = converter_for_semantic._extract_blocks_from_page(page_data, page_idx)
             blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
-            block_pages.append(blocks)
+            block_pages_semantic.append(blocks)
 
-        # 生成 markdown 和坐标映射（核心功能）
-        markdown_lines, coordinate_map = converter._build_markdown_from_block_pages(block_pages)
-        markdown_text = '\n'.join(markdown_lines)
+        markdown_lines_semantic, coordinate_map_semantic = converter_for_semantic._build_markdown_from_block_pages(block_pages_semantic)
 
-        # 生成 boxes 格式（向后兼容，实际使用 markdown + coordinate_map）
-        boxes = _build_boxes_for_compatibility(markdown_lines, coordinate_map)
+        # 2. 提取逐行级别的 markdown（用于 smart 分块）
+        converter_for_line = SimpleMiddleJsonConverter(kb_id=kb_id, merge_text_lines=False)
+        block_pages_line = []
 
-        return boxes, markdown_text, coordinate_map
+        for page_idx, page_data in enumerate(pdf_info):
+            if page_idx < from_page or page_idx >= to_page:
+                continue
+            blocks = converter_for_line._extract_blocks_from_page(page_data, page_idx)
+            blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
+            block_pages_line.append(blocks)
+
+        markdown_lines_line, coordinate_map_line = converter_for_line._build_markdown_from_block_pages(block_pages_line)
+        markdown_text = '\n'.join(markdown_lines_line)
+
+        # 3. 生成语义块级别的 boxes（从格式化的 markdown 生成）
+        boxes = _build_semantic_boxes_from_markdown(markdown_lines_semantic, coordinate_map_semantic)
+
+        logging.info(f"Generated {len(boxes)} semantic blocks and {len(markdown_lines_line)} markdown lines")
+        return boxes, markdown_text, coordinate_map_line
 
     except Exception as e:
         logging.exception(f"Failed to convert middle.json to markdown: {e}")
         return [], '', {}
 
 
-def _build_boxes_for_compatibility(markdown_lines, coordinate_map):
+def _build_semantic_boxes_from_markdown(markdown_lines, coordinate_map):
     """
-    从 markdown_lines 和 coordinate_map 生成 boxes 格式（向后兼容）
+    从格式化的 markdown 生成语义块级别的 boxes（用于 general 分块）
 
     Args:
-        markdown_lines: markdown 行列表
+        markdown_lines: 格式化的 markdown 行列表（包含 #、表格HTML等）
         coordinate_map: 坐标映射 {line_idx: [page, x0, x1, y0, y1]}
 
     Returns:
-        List[dict]: boxes 列表
+        List[dict]: 语义块级别的 boxes 列表
     """
     boxes = []
+
     for line_idx, line_text in enumerate(markdown_lines):
         # 跳过空行
         if not line_text.strip():
@@ -229,6 +240,18 @@ def _build_boxes_for_compatibility(markdown_lines, coordinate_map):
             continue
 
         # coords 格式: [page_idx, x0, x1, y0, y1]
+        # 判断块类型（基于 markdown 格式）
+        layout_type = 'text'
+        stripped = line_text.strip()
+        if stripped.startswith('#'):
+            layout_type = 'title'
+        elif stripped.startswith('<table'):
+            layout_type = 'table'
+        elif stripped.startswith('<img'):
+            layout_type = 'image'
+        elif stripped.startswith('-') or stripped.startswith('*'):
+            layout_type = 'list'
+
         boxes.append({
             'text': line_text,
             'x0': float(coords[1]),
@@ -236,7 +259,7 @@ def _build_boxes_for_compatibility(markdown_lines, coordinate_map):
             'top': float(coords[3]),
             'bottom': float(coords[4]),
             'page_number': coords[0],
-            'layout_type': 'text'
+            'layout_type': layout_type
         })
 
     return boxes

@@ -450,11 +450,17 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         callback(0.1, "Start to parse.")
 
         if layout_recognizer == "MinerU":
-            # 使用 MinerU 解析器
-            logging.info("Using MinerU parser for PDF")
+            # 使用 MinerU 解析器（语义块级别）
+            logging.info("Using MinerU parser for PDF (semantic blocks)")
             callback(0.2, "Parsing with MinerU...")
             pdf_parser = MinerUParser()
-            sections, tables = pdf_parser(filename if not binary else binary, from_page=from_page, to_page=to_page)
+            sections, tables = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',  # 使用语义块（preproc_blocks），不断句
+                **kwargs
+            )
             res = tokenize_table(tables, doc, is_english)
             callback(0.8, "MinerU parsing finished.")
 

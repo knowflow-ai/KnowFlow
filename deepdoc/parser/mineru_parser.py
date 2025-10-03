@@ -43,6 +43,7 @@ class MinerUParser:
         filename,
         from_page=0,
         to_page=100000,
+        chunk_level='line',
         **kwargs
     ) -> Tuple[List[Tuple[str, str]], List]:
         """
@@ -52,6 +53,9 @@ class MinerUParser:
             filename: PDF 文件路径或二进制数据
             from_page: 起始页码
             to_page: 结束页码
+            chunk_level: 分块级别
+                - 'semantic': 语义块级别（text/title 块不断句，用于 general 分块）
+                - 'line': 逐行级别（保留所有行，用于 smart 分块）
             **kwargs: 额外参数
 
         Returns:
@@ -82,7 +86,7 @@ class MinerUParser:
             kb_id = kwargs.get('kb_id') or kwargs.get('knowledgebase_id') or ''
             data['kb_id'] = kb_id  # 总是传递，即使为空
 
-            logging.info(f"Calling MinerU API: {api_url}")
+            logging.info(f"Calling MinerU API: {api_url} (chunk_level={chunk_level})")
             response = requests.post(
                 api_url,
                 files=files,
@@ -101,12 +105,13 @@ class MinerUParser:
             if 'error' in result:
                 raise RuntimeError(f"MinerU parsing failed: {result['error']}")
 
-            # API 返回 markdown 和 coordinate_map
+            # API 返回 boxes（语义块）、markdown 和 coordinate_map
+            boxes = result.get('boxes', [])
             markdown_text = result.get('markdown', '')
             coordinate_map = result.get('coordinate_map', {})
 
-            if not markdown_text:
-                raise RuntimeError("MinerU API did not return markdown")
+            if not boxes and not markdown_text:
+                raise RuntimeError("MinerU API did not return valid data")
 
             # 开发模式：保存调试文件（如果 API 返回了 middle_json 说明开启了 dev_mode）
             dev_mode = 'middle_json' in result
@@ -140,27 +145,63 @@ class MinerUParser:
                     logging.info(f"[DEV] Saved coordinate_map to: {coord_file}")
 
             # 转换为 RAGFlow 格式: [(text_with_tag, position_tag), ...]
-            # 为 markdown 每行附加坐标标签
-            lines = []
-            markdown_lines = markdown_text.split('\n')
+            sections = []
+            tables = []
 
-            for line_idx, text in enumerate(markdown_lines):
-                # coordinate_map 的 key 是字符串格式的行号
-                coords = coordinate_map.get(str(line_idx)) or coordinate_map.get(line_idx)
+            if chunk_level == 'semantic':
+                # 语义块级别：使用 boxes（直接从 preproc_blocks 提取）
+                # 将表格和文本分离，避免表格被 naive_merge 割裂
+                logging.info("Using semantic blocks (preproc_blocks) from MinerU")
 
-                if coords and len(coords) >= 5:
-                    # coords 格式: [page_idx, x0, x1, y0, y1]
-                    page_num, x0, x1, y0, y1 = coords[0], coords[1], coords[2], coords[3], coords[4]
-                    position_tag = f"@@{page_num}\t{x0:.1f}\t{x1:.1f}\t{y0:.1f}\t{y1:.1f}##"
-                else:
-                    # 没有坐标的行（空行等）
-                    position_tag = "@@0\t0.0\t0.0\t0.0\t0.0##"
+                for box in boxes:
+                    text = box.get('text', '').strip()
+                    if not text:
+                        continue
 
-                text_with_tag = f"{position_tag}{text}"
-                lines.append((text_with_tag, position_tag))
+                    page_num = box.get('page_number', 0)
+                    x0 = box.get('x0', 0.0)
+                    x1 = box.get('x1', 0.0)
+                    top = box.get('top', 0.0)
+                    bottom = box.get('bottom', 0.0)
+                    layout_type = box.get('layout_type', 'text')
 
-            logging.info(f"MinerU parsed {len(lines)} text blocks from PDF")
-            return lines, []
+                    # 分离表格和图片（参照 DeepDOC pdf_parser.py:636-667）
+                    if layout_type in ('table', 'image'):
+                        # 表格/图片格式: ((img, html), [[page, x0, x1, top, bottom]])
+                        # img 设为 None，html 为表格的文本内容
+                        # 坐标是列表的列表，因为表格可能跨多个区域
+                        coord = [page_num, x0, x1, top, bottom]
+                        tables.append(((None, text), [coord]))
+                    else:
+                        # 文本/标题/列表：作为普通 section
+                        # 末尾添加换行符，避免 naive_merge 拼接时连在一起
+                        position_tag = f"@@{page_num}\t{x0:.1f}\t{x1:.1f}\t{top:.1f}\t{bottom:.1f}##"
+                        text_with_tag = f"{position_tag}{text}\n"
+                        sections.append((text_with_tag, position_tag))
+
+                logging.info(f"MinerU parsed {len(sections)} text sections and {len(tables)} tables from PDF")
+                return sections, tables
+
+            else:
+                # 逐行级别：使用 markdown + coordinate_map（用于 smart 分块）
+                logging.info("Using line-based markdown from MinerU")
+                markdown_lines = markdown_text.split('\n')
+
+                for line_idx, text in enumerate(markdown_lines):
+                    coords = coordinate_map.get(str(line_idx)) or coordinate_map.get(line_idx)
+
+                    if coords and len(coords) >= 5:
+                        page_num, x0, x1, y0, y1 = coords[0], coords[1], coords[2], coords[3], coords[4]
+                        position_tag = f"@@{page_num}\t{x0:.1f}\t{x1:.1f}\t{y0:.1f}\t{y1:.1f}##"
+                    else:
+                        position_tag = "@@0\t0.0\t0.0\t0.0\t0.0##"
+
+                    # markdown 已经包含换行结构，保持原样
+                    text_with_tag = f"{position_tag}{text}"
+                    sections.append((text_with_tag, position_tag))
+
+                logging.info(f"MinerU parsed {len(sections)} lines from PDF")
+                return sections, []
 
         except requests.exceptions.Timeout:
             logging.error(f"MinerU API timeout after {self.timeout}s")
