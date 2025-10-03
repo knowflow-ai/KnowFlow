@@ -81,4 +81,7 @@ export enum DocumentParserType {
   Tag = 'tag',
   KnowledgeGraph = 'knowledge_graph',
   Smart = 'smart',
+  Regex = 'regex',
+  ParentChild = 'parent_child',
+  Title = 'title',
 }

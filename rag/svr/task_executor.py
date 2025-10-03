@@ -58,7 +58,7 @@ from api import settings
 from api.versions import get_ragflow_version
 from api.db.db_models import close_connection
 from rag.app import laws, paper, presentation, manual, qa, table, book, resume, picture, naive, one, audio, \
-    email, tag, smart
+    email, tag, smart, regex, parent_child, title
 from rag.nlp import search, rag_tokenizer
 from rag.raptor import RecursiveAbstractiveProcessing4TreeOrganizedRetrieval as Raptor
 from rag.settings import DOC_MAXIMUM_SIZE, DOC_BULK_SIZE, EMBEDDING_BATCH_SIZE, SVR_CONSUMER_GROUP_NAME, get_svr_queue_name, get_svr_queue_names, print_rag_settings, TAG_FLD, PAGERANK_FLD
@@ -94,7 +94,10 @@ FACTORY = {
     ParserType.EMAIL.value: email,
     ParserType.KG.value: naive,
     ParserType.TAG.value: tag,
-    ParserType.SMART.value: smart
+    ParserType.SMART.value: smart,
+    ParserType.REGEX.value: regex,
+    ParserType.PARENT_CHILD.value: parent_child,
+    ParserType.TITLE.value: title
 }
 
 UNACKED_ITERATOR = None
@@ -440,25 +443,14 @@ def init_kb(row, vector_size: int):
 
 
 def check_parent_child_enabled(parser_config: dict, parser_id: str | None = None) -> bool:
-    """检查是否启用父子分块：同时校验分块策略与解析器类型。
+    """检查是否启用父子分块
 
-    规则：
-    - 需要 chunking_config.strategy == 'parent_child'
-    - 且解析器 parser_id 必须是 mineru 或 dots（大小写不敏感）
+    检查逻辑：直接判断 parser_id == 'parent_child'
     """
-    if not parser_config:
+    if parser_id is None:
         return False
 
-    try:
-        chunking_config = parser_config.get('chunking_config', {})
-        strategy = chunking_config.get('strategy', 'smart')
-        if strategy != 'parent_child':
-            return False
-        if parser_id is None:
-            return False
-        return str(parser_id).lower() in ("mineru", "dots")
-    except Exception:
-        return False
+    return str(parser_id).lower() == 'parent_child'
 
 
 async def build_parent_child_chunks(task, progress_callback):

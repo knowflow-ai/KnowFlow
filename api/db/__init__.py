@@ -95,6 +95,9 @@ class ParserType(StrEnum):
     KG = "knowledge_graph"
     TAG = "tag"
     SMART = "smart"
+    REGEX = "regex"
+    PARENT_CHILD = "parent_child"
+    TITLE = "title"
 
 
 class FileSource(StrEnum):

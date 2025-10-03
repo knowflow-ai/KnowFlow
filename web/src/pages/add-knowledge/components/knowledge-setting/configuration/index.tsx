@@ -19,13 +19,16 @@ import { ManualConfiguration } from './manual';
 import { NaiveConfiguration } from './naive';
 import { OneConfiguration } from './one';
 import { PaperConfiguration } from './paper';
+import { ParentChildConfiguration } from './parent_child';
 import { PictureConfiguration } from './picture';
 import { PresentationConfiguration } from './presentation';
 import { QAConfiguration } from './qa';
+import { RegexConfiguration } from './regex';
 import { ResumeConfiguration } from './resume';
 import { SmartConfiguration } from './smart';
 import { TableConfiguration } from './table';
 import { TagConfiguration } from './tag';
+import { TitleConfiguration } from './title';
 
 import styles from '../index.less';
 
@@ -48,6 +51,9 @@ const ConfigurationComponentMap = {
   [DocumentParserType.Tag]: TagConfiguration,
   [DocumentParserType.KnowledgeGraph]: KnowledgeGraphConfiguration,
   [DocumentParserType.Smart]: SmartConfiguration,
+  [DocumentParserType.Regex]: RegexConfiguration,
+  [DocumentParserType.ParentChild]: ParentChildConfiguration,
+  [DocumentParserType.Title]: TitleConfiguration,
 };
 
 function EmptyComponent() {

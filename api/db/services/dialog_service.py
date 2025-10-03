@@ -54,40 +54,29 @@ from rag.utils.tavily_conn import Tavily
 
 
 def check_kb_parent_child_enabled(kb_ids):
-    """检查知识库中是否有使用父子分块策略的文档"""
+    """检查知识库中是否有使用父子分块方法的文档
+
+    检查逻辑：查找 parser_id == 'parent_child' 的文档
+    """
     if not PARENT_CHILD_AVAILABLE:
         return False, []
-    
+
     enabled_kbs = []
     try:
-        from api.db.services.document_service import DocumentService
-        
+        from api.db.db_models import Document
+
         for kb_id in kb_ids:
-            # 查询该知识库下是否有使用parent_child策略的文档
-            # 使用原始数据库查询代替DocumentService.get_by_kb_id
-            from api.db.db_models import Document
+            # 查询该知识库下是否有使用 parent_child 解析方法的文档
             documents = Document.select().where(Document.kb_id == kb_id)
-            
+
             for doc in documents:
-                if doc.parser_config:
-                    try:
-                        import json
-                        if isinstance(doc.parser_config, str):
-                            parser_config = json.loads(doc.parser_config)
-                        else:
-                            parser_config = doc.parser_config
-                        
-                        chunking_config = parser_config.get('chunking_config', {})
-                        strategy = chunking_config.get('strategy', 'smart')
-                        
-                        if strategy == 'parent_child':
-                            enabled_kbs.append(kb_id)
-                            break  # 该知识库有父子分块文档，跳出内层循环
-                    except:
-                        continue
-    except:
-        pass
-    
+                # 检查文档的解析方法 (parser_id)
+                if doc.parser_id and str(doc.parser_id).lower() == 'parent_child':
+                    enabled_kbs.append(kb_id)
+                    break  # 该知识库有父子分块文档，跳出内层循环
+    except Exception as e:
+        logging.warning(f"Failed to check parent_child enabled for kb_ids {kb_ids}: {e}")
+
     return len(enabled_kbs) > 0, enabled_kbs
 
 
