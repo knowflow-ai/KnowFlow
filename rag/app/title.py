@@ -33,13 +33,11 @@ Title-based Chunking Method
 """
 
 import logging
-import os
-import re
 import copy
-import requests
 
 from deepdoc.parser import MinerUParser
-from rag.nlp import rag_tokenizer, tokenize
+from rag.nlp import rag_tokenizer, tokenize, add_positions
+from rag.app.parser_utils import extract_text_and_coordinates, call_chunking_service
 
 
 def chunk(filename, binary=None, from_page=0, to_page=100000,
@@ -70,6 +68,7 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             "chunk_token_num": 512,
             "min_chunk_tokens": 10,
             "include_metadata": True,  # 包含标题元数据
+            "split_level": 3,  # H1/H2/H3 作为分割边界
         })
 
     doc = {
@@ -97,23 +96,24 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     callback(0.5, "MinerU parsing finished.")
 
     # 从 sections 中提取文本和坐标映射
-    markdown_text, coordinate_map = _extract_text_and_coordinates(sections)
+    markdown_text, coordinate_map = extract_text_and_coordinates(sections)
 
     callback(0.6, "Calling title-based chunking service...")
 
-    # 调用 KnowFlow Server 的高级分块服务（包含标题识别）
+    # 调用 KnowFlow Server 的标题分块服务
     try:
-        chunks_with_positions = _call_chunking_service(
-            markdown_text=markdown_text,
-            coordinate_map=coordinate_map,
-            chunking_config={
-                'strategy': 'advanced',  # 使用 advanced 策略（包含标题处理）
+        chunks_with_positions = call_chunking_service(
+            markdown_text, coordinate_map,
+            {
+                'strategy': 'title',  # 使用 title 策略（严格按标题分割）
                 'chunk_token_num': int(parser_config.get('chunk_token_num', 512)),
                 'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10)),
-                'include_metadata': bool(parser_config.get('include_metadata', True))
+                'include_metadata': bool(parser_config.get('include_metadata', True)),
+                'split_level': int(parser_config.get('split_level', 3))
             },
-            doc_id=kwargs.get('doc_id', 'unknown'),
-            kb_id=kwargs.get('kb_id', 'unknown')
+            kwargs.get('doc_id', 'unknown'),
+            kwargs.get('kb_id', 'unknown'),
+            kwargs.get('tenant_id', 'unknown')
         )
 
         callback(0.9, "Title-based chunking completed.")
@@ -139,7 +139,6 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
 
         # 添加坐标信息
         if positions:
-            from rag.nlp import add_positions
             add_positions(d, positions)
 
         # Tokenize
@@ -150,108 +149,6 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     callback(1.0, f"Completed: {len(res)} chunks")
 
     return res
-
-
-def _extract_text_and_coordinates(sections):
-    """
-    从 MinerU sections 中提取纯文本和坐标映射
-
-    Args:
-        sections: [(text_with_tags, position_tag), ...]
-        每个 section 对应 markdown 的一行，格式: @@page\tx0\tx1\ty0\ty1##text
-
-    Returns:
-        (markdown_text, coordinate_map)
-        coordinate_map: {line_number: [page, x1, x2, y1, y2]}
-    """
-    lines = []
-    coordinate_map = {}
-
-    pattern = r'@@(\d+)\t([\d.]+)\t([\d.]+)\t([\d.]+)\t([\d.]+)##'
-
-    for line_idx, (text_with_tag, _) in enumerate(sections):
-        # 提取位置标签
-        match = re.search(pattern, text_with_tag)
-
-        # 移除位置标签，获取纯文本
-        clean_text = re.sub(pattern, '', text_with_tag)
-        lines.append(clean_text)
-
-        # 记录坐标（如果有的话）
-        if match and clean_text.strip():
-            page_num = int(match.group(1))
-            x0 = float(match.group(2))
-            x1 = float(match.group(3))
-            top = float(match.group(4))
-            bottom = float(match.group(5))
-
-            coordinate_map[line_idx] = [page_num, x0, x1, top, bottom]
-
-    markdown_text = '\n'.join(lines)
-    return markdown_text, coordinate_map
-
-
-def _call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_id, kb_id):
-    """
-    调用 KnowFlow Server 的通用分块服务
-
-    Args:
-        markdown_text: markdown 文本
-        coordinate_map: 坐标映射
-        chunking_config: 分块配置
-        doc_id: 文档ID
-        kb_id: 知识库ID
-
-    Returns:
-        List[dict]: [{"content": str, "positions": [[page, x1, x2, y1, y2], ...]}, ...]
-    """
-    knowflow_server_url = os.getenv('KNOWFLOW_SERVER_URL', 'http://localhost:5000')
-    api_url = f"{knowflow_server_url}/api/parse/smart_chunk"
-
-    # 准备请求数据
-    request_data = {
-        'markdown_text': markdown_text,
-        'chunking_config': chunking_config,
-        'doc_id': doc_id,
-        'kb_id': kb_id
-    }
-
-    # 添加坐标映射（如果有）
-    if coordinate_map:
-        # 将键转换为字符串（JSON 要求）
-        request_data['coordinate_map'] = {str(k): v for k, v in coordinate_map.items()}
-
-    try:
-        response = requests.post(
-            api_url,
-            json=request_data,
-            timeout=300  # 5分钟超时
-        )
-
-        if response.status_code != 200:
-            error_msg = f"Chunking API error: {response.status_code} - {response.text}"
-            logging.error(error_msg)
-            raise RuntimeError(error_msg)
-
-        result = response.json()
-
-        if not result.get('success'):
-            error_msg = f"Chunking failed: {result.get('error', 'Unknown error')}"
-            logging.error(error_msg)
-            raise RuntimeError(error_msg)
-
-        chunks = result.get('chunks', [])
-        logging.info(f"Chunking service returned {len(chunks)} chunks")
-
-        return chunks
-
-    except requests.exceptions.Timeout:
-        raise RuntimeError("Chunking service timeout (>300s)")
-    except requests.exceptions.ConnectionError as e:
-        raise RuntimeError(f"Cannot connect to KnowFlow Server at {knowflow_server_url}: {e}")
-    except Exception as e:
-        logging.exception(f"Chunking service failed: {e}")
-        raise
 
 
 if __name__ == "__main__":

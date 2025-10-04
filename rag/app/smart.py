@@ -31,14 +31,7 @@ Smart Chunking Method
 - 智能分块，支持多种分块策略（smart/advanced/parent_child）
 """
 
-import logging
-import os
-import re
-import copy
-import requests
-
-from deepdoc.parser import MinerUParser
-from rag.nlp import rag_tokenizer, tokenize
+from rag.app.parser_utils import mineru_chunk_pipeline
 
 
 def chunk(filename, binary=None, from_page=0, to_page=100000,
@@ -63,193 +56,34 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     Returns:
         List[dict]: 分块结果列表
     """
-
     parser_config = kwargs.get(
         "parser_config", {
             "chunk_token_num": 256,
             "min_chunk_tokens": 10,
         })
 
-    doc = {
-        "docnm_kwd": filename,
-        "title_tks": rag_tokenizer.tokenize(re.sub(r"\.[a-zA-Z]+$", "", filename))
-    }
-    doc["title_sm_tks"] = rag_tokenizer.fine_grained_tokenize(doc["title_tks"])
-
-    # 只支持 PDF 文件
-    if not re.search(r"\.pdf$", filename, re.IGNORECASE):
-        raise NotImplementedError("Smart chunking only supports PDF files")
-
-    callback(0.1, "Start to parse.")
-    logging.info("Using MinerU parser for smart chunking")
-    callback(0.2, "Parsing with MinerU...")
-
-    # 提取 kb_id（用于生成图片链接）
-    kb_id = kwargs.get('kb_id', '') or kwargs.get('knowledgebase_id', '')
-
-    pdf_parser = MinerUParser()
-    sections, tables = pdf_parser(filename if not binary else binary,
-                                 from_page=from_page, to_page=to_page,
-                                 kb_id=kb_id)
-
-    callback(0.5, "MinerU parsing finished.")
-
-    # 从 sections 中提取文本和坐标映射
-    # sections 格式: [(text_with_tags, position_tag), ...]
-    markdown_text, coordinate_map = _extract_text_and_coordinates(sections)
-
-    callback(0.6, "Calling smart chunking service...")
-
-    # 调用 KnowFlow Server 的智能分块服务
-    try:
-        chunks_with_positions = _call_smart_chunk_service(
-            markdown_text=markdown_text,
-            coordinate_map=coordinate_map,
-            chunking_config={
-                'strategy': 'smart',  # 固定为 smart 策略
-                'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
-                'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10))
-            },
-            doc_id=kwargs.get('doc_id', 'unknown'),
-            kb_id=kwargs.get('kb_id', 'unknown')
-        )
-
-        callback(0.9, "Smart chunking completed.")
-
-    except Exception as e:
-        logging.error(f"Smart chunking service failed: {e}")
-        callback(0.9, f"Smart chunking failed: {e}")
-        raise
-
-    # 转换为 RAGFlow 格式
-    is_english = lang.lower() == "english"
-    res = []
-
-    for chunk_data in chunks_with_positions:
-        d = copy.deepcopy(doc)
-
-        # 提取文本和坐标
-        chunk_text = chunk_data.get('content', '')
-        positions = chunk_data.get('positions', [])
-
-        if not chunk_text.strip():
-            continue
-
-        # 添加坐标信息
-        if positions:
-            from rag.nlp import add_positions
-            add_positions(d, positions)
-
-        # Tokenize
-        tokenize(d, chunk_text, is_english)
-        res.append(d)
-
-    logging.info(f"Smart chunking completed: {len(res)} chunks created")
-    callback(1.0, f"Completed: {len(res)} chunks")
-
-    return res
-
-
-def _extract_text_and_coordinates(sections):
-    """
-    从 MinerU sections 中提取纯文本和坐标映射
-
-    Args:
-        sections: [(text_with_tags, position_tag), ...]
-        每个 section 对应 markdown 的一行，格式: @@page\tx0\tx1\ty0\ty1##text
-
-    Returns:
-        (markdown_text, coordinate_map)
-        coordinate_map: {line_number: [page, x1, x2, y1, y2]}
-    """
-    lines = []
-    coordinate_map = {}
-
-    pattern = r'@@(\d+)\t([\d.]+)\t([\d.]+)\t([\d.]+)\t([\d.]+)##'
-
-    for line_idx, (text_with_tag, _) in enumerate(sections):
-        # 提取位置标签
-        match = re.search(pattern, text_with_tag)
-
-        # 移除位置标签，获取纯文本
-        clean_text = re.sub(pattern, '', text_with_tag)
-        lines.append(clean_text)
-
-        # 记录坐标（如果有的话）
-        if match and clean_text.strip():
-            page_num = int(match.group(1))
-            x0 = float(match.group(2))
-            x1 = float(match.group(3))
-            top = float(match.group(4))
-            bottom = float(match.group(5))
-
-            coordinate_map[line_idx] = [page_num, x0, x1, top, bottom]
-
-    markdown_text = '\n'.join(lines)
-    return markdown_text, coordinate_map
-
-
-def _call_smart_chunk_service(markdown_text, coordinate_map, chunking_config, doc_id, kb_id):
-    """
-    调用 KnowFlow Server 的智能分块服务
-
-    Args:
-        markdown_text: markdown 文本
-        coordinate_map: 坐标映射
-        chunking_config: 分块配置
-        doc_id: 文档ID
-        kb_id: 知识库ID
-
-    Returns:
-        List[dict]: [{"content": str, "positions": [[page, x1, x2, y1, y2], ...]}, ...]
-    """
-    knowflow_server_url = os.getenv('KNOWFLOW_SERVER_URL', 'http://localhost:5000')
-    api_url = f"{knowflow_server_url}/api/parse/smart_chunk"
-
-    # 准备请求数据
-    request_data = {
-        'markdown_text': markdown_text,
-        'chunking_config': chunking_config,
-        'doc_id': doc_id,
-        'kb_id': kb_id
+    # 构建分块配置
+    chunking_config = {
+        'strategy': 'smart',
+        'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
+        'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10))
     }
 
-    # 添加坐标映射（如果有）
-    if coordinate_map:
-        # 将键转换为字符串（JSON 要求）
-        request_data['coordinate_map'] = {str(k): v for k, v in coordinate_map.items()}
-
-    try:
-        response = requests.post(
-            api_url,
-            json=request_data,
-            timeout=300  # 5分钟超时
-        )
-
-        if response.status_code != 200:
-            error_msg = f"Smart chunk API error: {response.status_code} - {response.text}"
-            logging.error(error_msg)
-            raise RuntimeError(error_msg)
-
-        result = response.json()
-
-        if not result.get('success'):
-            error_msg = f"Smart chunking failed: {result.get('error', 'Unknown error')}"
-            logging.error(error_msg)
-            raise RuntimeError(error_msg)
-
-        chunks = result.get('chunks', [])
-        logging.info(f"Smart chunking service returned {len(chunks)} chunks")
-
-        return chunks
-
-    except requests.exceptions.Timeout:
-        raise RuntimeError("Smart chunking service timeout (>300s)")
-    except requests.exceptions.ConnectionError as e:
-        raise RuntimeError(f"Cannot connect to KnowFlow Server at {knowflow_server_url}: {e}")
-    except Exception as e:
-        logging.exception(f"Smart chunking service failed: {e}")
-        raise
+    # 使用通用流程
+    return mineru_chunk_pipeline(
+        filename=filename,
+        binary=binary,
+        from_page=from_page,
+        to_page=to_page,
+        lang=lang,
+        callback=callback,
+        strategy='smart',
+        parser_config=chunking_config,
+        doc_id=kwargs.get('doc_id', 'unknown'),
+        kb_id=kwargs.get('kb_id', '') or kwargs.get('knowledgebase_id', ''),
+        tenant_id=kwargs.get('tenant_id', 'unknown'),
+        strategy_name="Smart"
+    )
 
 
 if __name__ == "__main__":

@@ -115,6 +115,17 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
                             if isinstance(chunk_with_coord, dict) and 'coordinates' in chunk_with_coord:
                                 _last_parent_child_result['child_chunks'][i]['coordinates'] = chunk_with_coord['coordinates']
             return chunks
+        elif strategy == 'title':
+            include_metadata = kwargs.pop('include_metadata', False)
+            split_level = custom_chunking_config.get('split_level', 3)
+            chunks = split_markdown_to_chunks_title(
+                txt,
+                chunk_token_num=chunk_token_num,
+                min_chunk_tokens=min_chunk_tokens,
+                split_level=split_level,
+                include_metadata=include_metadata
+            )
+
         elif strategy == 'advanced':
             include_metadata = kwargs.pop('include_metadata', False)
             overlap_ratio = kwargs.pop('overlap_ratio', 0.0)
@@ -868,7 +879,75 @@ def _finalize_ast_chunk(chunk_parts, context_stack):
     return chunk_content
 
 
-def split_markdown_to_chunks_advanced(txt, chunk_token_num=256, min_chunk_tokens=10, 
+def split_markdown_to_chunks_title(txt, chunk_token_num=256, min_chunk_tokens=10,
+                                   split_level=3, include_metadata=False):
+    """
+    基于标题层级的严格分块方法
+
+    特点：
+    1. 严格按照指定的标题级别分割（H1/H2/H3 等）
+    2. 不进行大小控制（不合并小块，不分割大块）
+    3. 保持标题层级上下文
+    4. 适合结构清晰、标题规范的文档
+
+    Args:
+        txt: markdown 文本
+        chunk_token_num: 目标分块 token 数（仅用于参考）
+        min_chunk_tokens: 最小分块 token 数（仅用于参考）
+        split_level: 分割的最大标题级别 (1-6), 默认3表示在H1/H2/H3处分割
+        include_metadata: 是否包含元数据
+
+    Returns:
+        分块列表（字符串或字典）
+    """
+    if not MARKDOWN_IT_AVAILABLE:
+        return split_markdown_to_chunks(txt, chunk_token_num)
+
+    if not txt or not txt.strip():
+        return []
+
+    # 配置分割的标题级别
+    headers_to_split_on = list(range(1, split_level + 1))  # [1, 2, 3] for split_level=3
+
+    # 初始化 markdown-it 解析器
+    md = MarkdownIt("commonmark", {"breaks": True, "html": True})
+    md.enable(['table'])
+
+    try:
+        # 解析为 AST
+        tokens = md.parse(txt)
+        tree = SyntaxTreeNode(tokens)
+
+        # 提取所有节点和标题信息
+        nodes_with_headers = _extract_nodes_with_header_info(tree, headers_to_split_on)
+
+        # 基于标题层级进行分块（严格分割，不做大小调整）
+        chunks = _split_by_header_levels(nodes_with_headers, headers_to_split_on)
+
+        # 生成最终分块内容
+        final_chunks = []
+        for chunk_info in chunks:
+            content = _render_header_chunk(chunk_info)
+            if content.strip():
+                if include_metadata:
+                    chunk_data = {
+                        'content': content,
+                        'metadata': chunk_info.get('headers', {}),
+                        'token_count': num_tokens_from_string(content),
+                        'chunk_type': 'title_based'
+                    }
+                    final_chunks.append(chunk_data)
+                else:
+                    final_chunks.append(content)
+
+        return final_chunks
+
+    except Exception as e:
+        logging.error(f"Title-based chunking failed: {e}, falling back to smart chunking")
+        return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
+
+
+def split_markdown_to_chunks_advanced(txt, chunk_token_num=256, min_chunk_tokens=10,
                                      overlap_ratio=0.0, include_metadata=False):
     """
     基于标题层级的高级 Markdown 分块方法 (混合分块策略 + 动态阈值调整)
