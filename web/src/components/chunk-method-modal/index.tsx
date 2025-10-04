@@ -86,13 +86,35 @@ const ChunkMethodModal: React.FC<IProps> = ({
       pages: values.pages?.map((x: any) => [x.from, x.to]) ?? [],
     };
 
-    // 如果是MinerU或DOTS解析器，添加分块配置到parser_config中
+    // 如果是 smart/title/parent_child/regex 解析方法，将分块配置合并到 parser_config
     if (
-      (selectedTag === DocumentParserType.MinerU ||
-        selectedTag === DocumentParserType.DOTS) &&
+      (selectedTag === DocumentParserType.Smart ||
+        selectedTag === DocumentParserType.Title ||
+        selectedTag === DocumentParserType.ParentChild ||
+        selectedTag === DocumentParserType.Regex) &&
       values.chunking_config
     ) {
-      parser_config.chunking_config = values.chunking_config;
+      // 将基本分块参数合并到 parser_config
+      Object.assign(parser_config, {
+        chunk_token_num: values.chunking_config.chunk_token_num,
+        min_chunk_tokens: values.chunking_config.min_chunk_tokens,
+      });
+
+      // 正则分块需要额外的 regex_pattern
+      if (
+        selectedTag === DocumentParserType.Regex &&
+        values.chunking_config.regex_pattern
+      ) {
+        parser_config.regex_pattern = values.chunking_config.regex_pattern;
+      }
+
+      // 父子分块需要额外的 parent_config
+      if (
+        selectedTag === DocumentParserType.ParentChild &&
+        values.chunking_config.parent_config
+      ) {
+        parser_config.parent_config = values.chunking_config.parent_config;
+      }
     }
 
     onOk(selectedTag, parser_config);
@@ -119,9 +141,12 @@ const ChunkMethodModal: React.FC<IProps> = ({
 
   const showEntityTypes = selectedTag === DocumentParserType.KnowledgeGraph;
 
-  const showMinerUChunking = selectedTag === DocumentParserType.MinerU;
-
-  const showDOTSChunking = selectedTag === DocumentParserType.DOTS;
+  // Smart chunking 相关的解析方法需要展示分块配置
+  const showSmartChunkingConfig =
+    selectedTag === DocumentParserType.Smart ||
+    selectedTag === DocumentParserType.Title ||
+    selectedTag === DocumentParserType.ParentChild ||
+    selectedTag === DocumentParserType.Regex;
 
   const showExcelToHtml =
     selectedTag === DocumentParserType.Naive && documentExtension === 'xlsx';
@@ -141,7 +166,6 @@ const ChunkMethodModal: React.FC<IProps> = ({
         pages: pages.length > 0 ? pages : [{ from: 1, to: 1024 }],
         parser_config: omit(parserConfig, ['pages', 'chunking_config']),
         chunking_config: parserConfig?.chunking_config || {
-          strategy: 'smart',
           chunk_token_num: 256,
           min_chunk_tokens: 10,
           regex_pattern: '',
@@ -333,14 +357,9 @@ const ChunkMethodModal: React.FC<IProps> = ({
           )}
           {showExcelToHtml && <ExcelToHtml></ExcelToHtml>}
         </DatasetConfigurationContainer>
-        {showMinerUChunking && (
+        {showSmartChunkingConfig && selectedTag && (
           <DatasetConfigurationContainer>
-            <ChunkingConfig />
-          </DatasetConfigurationContainer>
-        )}
-        {showDOTSChunking && (
-          <DatasetConfigurationContainer>
-            <ChunkingConfig />
+            <ChunkingConfig parserType={selectedTag} />
           </DatasetConfigurationContainer>
         )}
         {showRaptorParseConfiguration(selectedTag) && (

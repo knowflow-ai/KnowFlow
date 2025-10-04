@@ -1,3 +1,4 @@
+import { DocumentParserType } from '@/constants/knowledge';
 import { useTranslate } from '@/hooks/common-hooks';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { Alert, Card, Col, Form, Input, InputNumber, Row, Select } from 'antd';
@@ -5,8 +6,8 @@ import { memo } from 'react';
 
 interface ChunkingConfigProps {
   className?: string;
+  parserType?: DocumentParserType; // 从外部传入切片方法类型（可选，用于文档级配置）
   initialValues?: {
-    strategy?: 'basic' | 'smart' | 'advanced' | 'strict_regex' | 'parent_child';
     chunk_token_num?: number;
     min_chunk_tokens?: number;
     regex_pattern?: string;
@@ -14,15 +15,15 @@ interface ChunkingConfigProps {
       parent_chunk_size?: number;
       parent_chunk_overlap?: number;
       retrieval_mode?: 'parent' | 'child' | 'hybrid';
-      parent_split_level?: number; // AST语义分块：按照标题层级分割父分块
+      parent_split_level?: number;
     };
   };
 }
 
 export const ChunkingConfig = memo(function ChunkingConfig({
   className,
+  parserType,
   initialValues = {
-    strategy: 'smart',
     chunk_token_num: 256,
     min_chunk_tokens: 10,
     regex_pattern: '',
@@ -30,33 +31,19 @@ export const ChunkingConfig = memo(function ChunkingConfig({
       parent_chunk_size: 1024,
       parent_chunk_overlap: 100,
       retrieval_mode: 'parent',
-      parent_split_level: 2, // 默认按H2标题分割
+      parent_split_level: 2,
     },
   },
 }: ChunkingConfigProps) {
   const { t } = useTranslate('knowledgeConfiguration');
-  const strategy = Form.useWatch(['chunking_config', 'strategy']);
   const chunkTokenNum = Form.useWatch(['chunking_config', 'chunk_token_num']);
 
-  const strategyOptions = [
-    { value: 'basic', label: '基础分块' },
-    { value: 'smart', label: '智能分块' },
-    { value: 'advanced', label: '按标题分块' },
-    { value: 'strict_regex', label: '正则分块' },
-    { value: 'parent_child', label: '父子分块' },
-  ];
+  // 根据切片方法类型决定展示哪些配置（如果没有传递 parserType，则不展示特殊配置）
+  const isRegex = parserType === DocumentParserType.Regex;
+  const isParentChild = parserType === DocumentParserType.ParentChild;
 
   return (
     <div className={className}>
-      <Form.Item
-        name={['chunking_config', 'strategy']}
-        label="分块策略"
-        initialValue={initialValues.strategy}
-        rules={[{ required: true, message: '请选择分块策略' }]}
-      >
-        <Select placeholder="请选择分块策略" options={strategyOptions} />
-      </Form.Item>
-
       <Form.Item
         name={['chunking_config', 'chunk_token_num']}
         label="分块大小"
@@ -109,7 +96,7 @@ export const ChunkingConfig = memo(function ChunkingConfig({
         />
       </Form.Item>
 
-      {strategy === 'strict_regex' && (
+      {isRegex && (
         <Form.Item
           name={['chunking_config', 'regex_pattern']}
           label="正则表达式"
@@ -117,10 +104,10 @@ export const ChunkingConfig = memo(function ChunkingConfig({
           rules={[
             {
               validator: (_, value) => {
-                if (strategy === 'strict_regex') {
+                if (isRegex) {
                   if (!value || !value.trim()) {
                     return Promise.reject(
-                      new Error('正则分块策略需要输入正则表达式'),
+                      new Error('正则分块需要输入正则表达式'),
                     );
                   }
                   try {
@@ -134,13 +121,13 @@ export const ChunkingConfig = memo(function ChunkingConfig({
               },
             },
           ]}
-          extra="用于匹配条文等结构化内容"
+          extra="用于匹配条文等结构化内容，例如：第[零一二三四五六七八九十百千万\\d]+条"
         >
           <Input placeholder="第[零一二三四五六七八九十百千万\\d]+条" />
         </Form.Item>
       )}
 
-      {strategy === 'parent_child' && (
+      {isParentChild && (
         <>
           <Alert
             message="AST父子分块模式说明"

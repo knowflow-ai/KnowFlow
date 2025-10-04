@@ -68,7 +68,6 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         "parser_config", {
             "chunk_token_num": 256,
             "min_chunk_tokens": 10,
-            "chunking_strategy": "smart",  # smart/advanced/parent_child
         })
 
     doc = {
@@ -107,7 +106,7 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             markdown_text=markdown_text,
             coordinate_map=coordinate_map,
             chunking_config={
-                'strategy': parser_config.get('chunking_strategy', 'smart'),
+                'strategy': 'smart',  # 固定为 smart 策略
                 'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
                 'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10))
             },

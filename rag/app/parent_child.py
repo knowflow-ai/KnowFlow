@@ -68,7 +68,12 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         "parser_config", {
             "chunk_token_num": 256,  # 子块 token 数
             "min_chunk_tokens": 10,
-            "parent_chunk_token_num": 1024,  # 父块 token 数
+            "parent_config": {
+                "parent_chunk_size": 1024,
+                "parent_chunk_overlap": 100,
+                "retrieval_mode": "parent",
+                "parent_split_level": 2
+            }
         })
 
     doc = {
@@ -102,7 +107,10 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
 
     # 调用 KnowFlow Server 的父子分块服务
     try:
-        chunks_with_positions = _call_chunking_service(
+        # 获取父块配置
+        parent_config = parser_config.get('parent_config', {})
+
+        result = _call_chunking_service(
             markdown_text=markdown_text,
             coordinate_map=coordinate_map,
             chunking_config={
@@ -110,7 +118,10 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
                 'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
                 'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10)),
                 'parent_config': {
-                    'chunk_token_num': int(parser_config.get('parent_chunk_token_num', 1024))
+                    'parent_chunk_size': int(parent_config.get('parent_chunk_size', 1024)),
+                    'parent_chunk_overlap': int(parent_config.get('parent_chunk_overlap', 100)),
+                    'retrieval_mode': parent_config.get('retrieval_mode', 'parent'),
+                    'parent_split_level': int(parent_config.get('parent_split_level', 2))
                 }
             },
             doc_id=kwargs.get('doc_id', 'unknown'),
@@ -125,10 +136,14 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         raise
 
     # 转换为 RAGFlow 格式
+    # KnowFlow Server 已经保存了父块和映射关系
     is_english = lang.lower() == "english"
     res = []
 
-    for chunk_data in chunks_with_positions:
+    # result 可能是列表（普通分块）或字典（包含 chunks 字段）
+    chunks_list = result if isinstance(result, list) else result.get('chunks', [])
+
+    for chunk_data in chunks_list:
         d = copy.deepcopy(doc)
 
         # 提取文本和坐标
@@ -147,8 +162,8 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         tokenize(d, chunk_text, is_english)
         res.append(d)
 
-    logging.info(f"Parent-child chunking completed: {len(res)} chunks created")
-    callback(1.0, f"Completed: {len(res)} chunks")
+    logging.info(f"Parent-child chunking completed: {len(res)} child chunks created")
+    callback(1.0, f"Completed: {len(res)} child chunks")
 
     return res
 
@@ -241,9 +256,10 @@ def _call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_i
             logging.error(error_msg)
             raise RuntimeError(error_msg)
 
+        # 返回子块列表
+        # KnowFlow Server 已经处理了父块的存储和映射关系
         chunks = result.get('chunks', [])
         logging.info(f"Chunking service returned {len(chunks)} chunks")
-
         return chunks
 
     except requests.exceptions.Timeout:
