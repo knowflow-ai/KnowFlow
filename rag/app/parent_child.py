@@ -38,7 +38,7 @@ import copy
 import requests
 
 from deepdoc.parser import MinerUParser
-from rag.nlp import rag_tokenizer, tokenize
+from rag.nlp import rag_tokenizer, tokenize, add_positions
 
 
 def chunk(filename, binary=None, from_page=0, to_page=100000,
@@ -107,25 +107,25 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
 
     # 调用 KnowFlow Server 的父子分块服务
     try:
-        # 获取父块配置
+        # 构建分块配置
         parent_config = parser_config.get('parent_config', {})
+        chunking_config = {
+            'strategy': 'parent_child',
+            'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
+            'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10)),
+            'parent_config': {
+                'parent_chunk_size': int(parent_config.get('parent_chunk_size', 1024)),
+                'parent_chunk_overlap': int(parent_config.get('parent_chunk_overlap', 100)),
+                'retrieval_mode': parent_config.get('retrieval_mode', 'parent'),
+                'parent_split_level': int(parent_config.get('parent_split_level', 2))
+            }
+        }
 
         result = _call_chunking_service(
-            markdown_text=markdown_text,
-            coordinate_map=coordinate_map,
-            chunking_config={
-                'strategy': 'parent_child',
-                'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
-                'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10)),
-                'parent_config': {
-                    'parent_chunk_size': int(parent_config.get('parent_chunk_size', 1024)),
-                    'parent_chunk_overlap': int(parent_config.get('parent_chunk_overlap', 100)),
-                    'retrieval_mode': parent_config.get('retrieval_mode', 'parent'),
-                    'parent_split_level': int(parent_config.get('parent_split_level', 2))
-                }
-            },
-            doc_id=kwargs.get('doc_id', 'unknown'),
-            kb_id=kwargs.get('kb_id', 'unknown')
+            markdown_text, coordinate_map, chunking_config,
+            kwargs.get('doc_id', 'unknown'),
+            kwargs.get('kb_id', 'unknown'),
+            kwargs.get('tenant_id', 'unknown')
         )
 
         callback(0.9, "Parent-child chunking completed.")
@@ -153,9 +153,12 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         if not chunk_text.strip():
             continue
 
+        # 如果 KnowFlow Server 返回了预设 ID（父子分块），使用它
+        if 'id' in chunk_data:
+            d['_id_override'] = chunk_data['id']
+
         # 添加坐标信息
         if positions:
-            from rag.nlp import add_positions
             add_positions(d, positions)
 
         # Tokenize
@@ -207,7 +210,7 @@ def _extract_text_and_coordinates(sections):
     return markdown_text, coordinate_map
 
 
-def _call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_id, kb_id):
+def _call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_id, kb_id, tenant_id):
     """
     调用 KnowFlow Server 的通用分块服务
 
@@ -217,6 +220,7 @@ def _call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_i
         chunking_config: 分块配置
         doc_id: 文档ID
         kb_id: 知识库ID
+        tenant_id: 租户ID
 
     Returns:
         List[dict]: [{"content": str, "positions": [[page, x1, x2, y1, y2], ...]}, ...]
@@ -229,7 +233,8 @@ def _call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_i
         'markdown_text': markdown_text,
         'chunking_config': chunking_config,
         'doc_id': doc_id,
-        'kb_id': kb_id
+        'kb_id': kb_id,
+        'tenant_id': tenant_id
     }
 
     # 添加坐标映射（如果有）

@@ -80,42 +80,24 @@ def smart_chunk():
             coordinate_map=coordinate_map,
             chunking_config=chunking_config,
             doc_id=data.get('doc_id', 'unknown'),
-            kb_id=data.get('kb_id', 'unknown')
+            kb_id=data.get('kb_id', 'unknown'),
+            tenant_id=data.get('tenant_id', 'unknown')
         )
 
         # 处理返回结果
-        result_chunks = []
+        def process_chunk(chunk):
+            if isinstance(chunk, dict):
+                result = {
+                    'content': chunk.get('content', ''),
+                    'positions': chunk.get('coordinates', chunk.get('positions', []))
+                }
+                if 'id' in chunk:
+                    result['id'] = chunk['id']
+                return result
+            else:
+                return {'content': str(chunk), 'positions': []}
 
-        if isinstance(chunks, dict) and 'parent_chunks' in chunks:
-            # 父子分块格式
-            # 注意：父子分块不直接支持 coordinate_map，这里返回子分块
-            child_chunks = chunks.get('child_chunks', [])
-            for chunk in child_chunks:
-                if isinstance(chunk, dict):
-                    result_chunks.append({
-                        'content': chunk.get('content', ''),
-                        'positions': chunk.get('coordinates', [])
-                    })
-                else:
-                    result_chunks.append({
-                        'content': str(chunk),
-                        'positions': []
-                    })
-
-        elif isinstance(chunks, list):
-            for chunk in chunks:
-                if isinstance(chunk, dict):
-                    # 字典格式，包含 content 和 coordinates/positions
-                    result_chunks.append({
-                        'content': chunk.get('content', ''),
-                        'positions': chunk.get('coordinates', chunk.get('positions', []))
-                    })
-                else:
-                    # 字符串格式
-                    result_chunks.append({
-                        'content': str(chunk),
-                        'positions': []
-                    })
+        result_chunks = [process_chunk(chunk) for chunk in chunks] if isinstance(chunks, list) else []
 
         # 返回结果
         response = {

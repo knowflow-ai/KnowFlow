@@ -21,6 +21,8 @@ import re
 from markdown import markdown as md_to_html
 import time
 import difflib
+import xxhash
+import logging
 try:
     from markdown_it import MarkdownIt
     from markdown_it.tree import SyntaxTreeNode
@@ -98,7 +100,8 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
                 min_chunk_tokens=min_chunk_tokens,
                 parent_config=custom_chunking_config.get('parent_config', {}),
                 doc_id=kwargs.get('doc_id', 'unknown'),
-                kb_id=kwargs.get('kb_id', 'unknown')
+                kb_id=kwargs.get('kb_id', 'unknown'),
+                tenant_id=kwargs.get('tenant_id', 'unknown')
             )
             # 父子分块也支持坐标附加
             if coordinate_map is not None:
@@ -1441,11 +1444,146 @@ def split_markdown_to_chunks_strict_regex(txt, chunk_token_num=256, min_chunk_to
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
 
 
-def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10, 
-                                         parent_config=None, doc_id='unknown', kb_id='unknown'):
+def _get_es_connection():
+    """获取 Elasticsearch 连接"""
+    from elasticsearch import Elasticsearch
+
+    es_host = os.getenv('ES_HOST', 'es01')
+    es_port = int(os.getenv('ES_PORT', 1200))
+    es_password = os.getenv('ELASTIC_PASSWORD', 'infini_rag_flow')
+
+    return Elasticsearch(
+        [f"http://{es_host}:{es_port}"],
+        basic_auth=("elastic", es_password),
+        request_timeout=30
+    )
+
+
+def _get_mysql_connection():
+    """获取 MySQL 连接"""
+    mysql_host = os.getenv('MYSQL_HOST', 'mysql')
+    mysql_port = int(os.getenv('MYSQL_PORT', 3306))
+    mysql_user = os.getenv('MYSQL_USER', 'root')
+    mysql_password = os.getenv('MYSQL_PASSWORD', 'infini_rag_flow')
+    mysql_db = os.getenv('MYSQL_DBNAME', 'rag_flow')
+
+    return mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_db
+    )
+
+
+def _save_parent_chunks_to_es(parent_chunks, kb_id, doc_id, tenant_id):
     """
-    优化后的父子分块方法 - 本地完成所有处理，避免HTTP调用
-    
+    批量保存父块到 RAGFlow ES ragflow_{tenant_id}_parent 索引
+
+    Args:
+        parent_chunks: 父块列表 [ASTChunkInfo, ...]
+        kb_id: 知识库ID
+        doc_id: 文档ID
+        tenant_id: 租户ID
+    """
+    if not parent_chunks:
+        return
+
+    try:
+        from datetime import datetime
+        from elasticsearch.helpers import bulk
+
+        es = _get_es_connection()
+        parent_index = f"ragflow_{tenant_id}_parent"
+        now = datetime.now()
+        create_time = now.strftime("%Y-%m-%d %H:%M:%S")
+        create_timestamp = now.timestamp()
+
+        # 批量准备文档
+        actions = []
+        for parent_chunk in parent_chunks:
+            if not parent_chunk.id or not parent_chunk.content:
+                continue
+
+            actions.append({
+                "_index": parent_index,
+                "_id": parent_chunk.id,
+                "_source": {
+                    "id": parent_chunk.id,
+                    "doc_id": doc_id,
+                    "kb_id": kb_id,
+                    "content_with_weight": parent_chunk.content,
+                    "create_time": create_time,
+                    "create_timestamp_flt": create_timestamp,
+                }
+            })
+
+        # 批量索引
+        if actions:
+            success, failed = bulk(es, actions, refresh=False, raise_on_error=False)
+            logging.info(f"Saved {success}/{len(actions)} parent chunks to ES index {parent_index}")
+            if failed:
+                logging.warning(f"Failed to save {len(failed)} parent chunks")
+
+    except Exception as e:
+        logging.exception(f"Failed to save parent chunks to ES: {e}")
+        raise
+
+
+def _save_parent_child_mappings(relationships, kb_id, doc_id):
+    """
+    批量保存父子映射关系到 RAGFlow MySQL parent_child_mapping 表
+
+    Args:
+        relationships: 映射关系列表 [{"parent_id": ..., "child_id": ...}, ...]
+        kb_id: 知识库ID
+        doc_id: 文档ID
+    """
+    if not relationships:
+        return
+
+    try:
+        from datetime import datetime
+
+        conn = _get_mysql_connection()
+        cursor = conn.cursor()
+
+        # 批量准备数据
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        values = []
+        for relationship in relationships:
+            parent_id = relationship.get('parent_id', '')
+            child_id = relationship.get('child_id', '')
+
+            if not parent_id or not child_id:
+                continue
+
+            values.append((parent_id, child_id, doc_id, kb_id, 100, now, now))
+
+        # 批量插入
+        if values:
+            sql = """
+                INSERT IGNORE INTO parent_child_mapping
+                (parent_chunk_id, child_chunk_id, doc_id, kb_id, relevance_score, create_time, update_time)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.executemany(sql, values)
+            conn.commit()
+            logging.info(f"Saved {len(values)} parent-child relationships to MySQL")
+
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        logging.exception(f"Failed to save parent-child mappings to MySQL: {e}")
+        raise
+
+
+def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10,
+                                         parent_config=None, doc_id='unknown', kb_id='unknown', tenant_id='unknown'):
+    """
+    端到端的父子分块方法 - 生成真实ID、保存父块和映射关系
+
     Args:
         txt: 要分块的文本
         chunk_token_num: 子分块大小（tokens）
@@ -1453,20 +1591,26 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
         parent_config: 父分块配置
         doc_id: 文档ID
         kb_id: 知识库ID
-        
+        tenant_id: 租户ID
+
     Returns:
-        list: 子分块列表（用于向量存储和前端显示）
-        
+        list: 子分块字典列表 [{"content": str, "id": str}, ...]
+
     Note:
-        现在直接在KnowFlow本地完成所有父子分块处理，避免跨容器HTTP调用
+        在 KnowFlow Server 端完成所有父子分块处理：
+        1. AST 创建父块和子块
+        2. 使用 RAGFlow 的 ID 生成规则（xxhash）
+        3. 保存父块到 ES ragflow_{tenant_id}_parent
+        4. 保存映射关系到 MySQL
+        5. 返回带真实 ID 的子块
     """
     if not txt or not txt.strip():
         return []
-    
+
     parent_config = parent_config or {}
-    
+
     try:
-        # 调用本地AST父子分块函数
+        # 1. 调用本地AST父子分块函数（生成临时ID）
         parent_chunks, child_chunks, relationships = split_markdown_to_chunks_ast_parent_child(
             txt=txt,
             chunk_token_num=chunk_token_num,
@@ -1475,44 +1619,47 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
             doc_id=doc_id,
             kb_id=kb_id
         )
-        
-        # 构建详细结果供后续使用
-        detailed_result = {
-            'parent_chunks': [
-                {
-                    'id': chunk.id,
-                    'content': chunk.content,
-                    'order': chunk.order,
-                    'metadata': chunk.metadata
-                }
-                for chunk in parent_chunks
-            ],
-            'child_chunks': [
-                {
-                    'id': chunk.id,
-                    'content': chunk.content,
-                    'order': chunk.order,
-                    'metadata': chunk.metadata
-                }
-                for chunk in child_chunks
-            ],
-            'relationships': relationships,
-            'total_parents': len(parent_chunks),
-            'total_children': len(child_chunks)
-        }
-        
-        # 保存详细结果到全局变量（供ragflow_build.py使用）
-        global _last_parent_child_result
-        _last_parent_child_result = detailed_result
-        
-        # 返回子分块内容列表
-        child_chunks_content = [chunk.content for chunk in child_chunks]
-        return child_chunks_content
+
+        logging.info(f"AST 父子分块完成: {len(parent_chunks)} 父块, {len(child_chunks)} 子块")
+
+        # 2. 为子块和父块生成真实 ID（使用 RAGFlow 的 xxhash 规则）
+        temp_to_real_id = {}  # 临时ID → 真实ID 映射
+
+        # 子块 ID: xxhash(content + doc_id)
+        for child in child_chunks:
+            real_id = xxhash.xxh64((child.content + doc_id).encode("utf-8", "surrogatepass")).hexdigest()
+            temp_to_real_id[child.id] = real_id
+            child.id = real_id
+
+        # 父块 ID: {doc_id}_parent_{序号}_{hash[:8]}
+        for i, parent in enumerate(parent_chunks):
+            real_id = f"{doc_id}_parent_{i:04d}_{xxhash.xxh64(parent.content.encode('utf-8')).hexdigest()[:8]}"
+            temp_to_real_id[parent.id] = real_id
+            parent.id = real_id
+
+        logging.info(f"ID 生成完成: {len(child_chunks)} 子块, {len(parent_chunks)} 父块")
+
+        # 3. 更新映射关系使用真实 ID
+        updated_relationships = [
+            {
+                'parent_id': temp_to_real_id.get(rel.get('parent_chunk_id', rel.get('parent_id', '')), ''),
+                'child_id': temp_to_real_id.get(rel.get('child_chunk_id', rel.get('child_id', '')), '')
+            }
+            for rel in relationships
+        ]
+
+        # 4. 保存父块到 ES 和映射关系到 MySQL
+        _save_parent_chunks_to_es(parent_chunks, kb_id, doc_id, tenant_id)
+        _save_parent_child_mappings(updated_relationships, kb_id, doc_id)
+
+        # 5. 返回子块（带真实 ID）
+        result = [{"content": chunk.content, "id": chunk.id} for chunk in child_chunks]
+
+        logging.info(f"父子分块完成: 返回 {len(result)} 个子块")
+        return result
 
     except Exception as e:
-        logger.error(f"父子分块失败: {e}，回退到智能分块")
-        import traceback
-        traceback.print_exc()
+        logging.exception(f"父子分块失败: {e}，回退到智能分块")
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
 
 
