@@ -31,10 +31,10 @@ Smart Chunking Method
 - 智能分块，支持多种分块策略（smart/advanced/parent_child）
 """
 
-from rag.app.mineru_parser_base import MinerUParserBase
+from rag.app.modern_parser_base import ModernParserBase
 
 
-class SmartChunker(MinerUParserBase):
+class SmartChunker(ModernParserBase):
     """Smart 智能分块解析器"""
 
     def __init__(self):

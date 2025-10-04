@@ -31,10 +31,10 @@ Regex Chunking Method
 - 支持自定义正则分块模式
 """
 
-from rag.app.mineru_parser_base import MinerUParserBase
+from rag.app.modern_parser_base import ModernParserBase
 
 
-class RegexChunker(MinerUParserBase):
+class RegexChunker(ModernParserBase):
     """Regex 正则分块解析器"""
 
     def __init__(self):

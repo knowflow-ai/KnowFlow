@@ -15,9 +15,10 @@
 #
 
 """
-MinerU Parser Base Class - MinerU 解析器抽象基类
+Modern Parser Base Class - 现代解析器抽象基类
 
-提供标准的文档解析流程，子类只需实现差异化逻辑
+支持多种 PDF 解析器（MinerU、DOTS 等），提供标准的文档解析流程。
+子类只需实现差异化逻辑。
 """
 
 import logging
@@ -27,7 +28,6 @@ import copy
 import tempfile
 from abc import ABC, abstractmethod
 
-from deepdoc.parser import MinerUParser
 from rag.nlp import rag_tokenizer, tokenize, add_positions
 from rag.app.parser_utils import (
     ensure_pdf,
@@ -36,14 +36,19 @@ from rag.app.parser_utils import (
 )
 
 
-class MinerUParserBase(ABC):
+class ModernParserBase(ABC):
     """
-    MinerU 解析器抽象基类
+    现代解析器抽象基类
+
+    支持多种 PDF 解析器（通过 layout_recognize 配置选择）：
+    - MinerU: 高精度 OCR 解析器
+    - DOTS: 另一种 OCR 解析器
+    - DeepDOC: 默认解析器（未来支持）
 
     标准流程：
     1. 文件转换（ensure_pdf）
     2. 准备基础文档
-    3. MinerU 解析
+    3. 解析器解析（根据 layout_recognize 选择）
     4. 提取文本和坐标
     5. 调用分块服务
     6. 转换为 RAGFlow 格式
@@ -130,23 +135,26 @@ class MinerUParserBase(ABC):
             parser_config = kwargs.get("parser_config", self.get_default_config())
 
             callback(0.1, "Start to parse.")
-            logging.info(f"Using MinerU parser for {self.strategy_name} chunking")
-            callback(0.2, "Parsing with MinerU...")
 
-            # 4. MinerU 解析
+            # 4. 根据 layout_recognize 选择解析器
+            layout_recognizer = parser_config.get("layout_recognize", "MinerU")
+            logging.info(f"Using {layout_recognizer} parser for {self.strategy_name} chunking")
+            callback(0.2, f"Parsing with {layout_recognizer}...")
+
+            # 5. 解析 PDF
             kb_id = kwargs.get('kb_id', '') or kwargs.get('knowledgebase_id', '')
-            sections, tables = self._parse_with_mineru(
-                pdf_path, pdf_binary, from_page, to_page, kb_id
+            sections, tables = self._parse_with_layout_recognizer(
+                layout_recognizer, pdf_path, pdf_binary, from_page, to_page, kb_id
             )
 
-            callback(0.5, "MinerU parsing finished.")
+            callback(0.5, f"{layout_recognizer} parsing finished.")
 
-            # 5. 提取文本和坐标
+            # 6. 提取文本和坐标
             markdown_text, coordinate_map = extract_text_and_coordinates(sections)
 
             callback(0.6, f"Calling {self.strategy_name} chunking service...")
 
-            # 6. 调用分块服务
+            # 7. 调用分块服务
             chunking_config = self.build_chunking_config(parser_config)
             result = call_chunking_service(
                 markdown_text, coordinate_map, chunking_config,
@@ -157,10 +165,10 @@ class MinerUParserBase(ABC):
 
             callback(0.9, f"{self.strategy_name} chunking completed.")
 
-            # 7. 处理结果
+            # 8. 处理结果
             chunks_list = self.process_chunks_result(result)
 
-            # 8. 转换为 RAGFlow 格式
+            # 9. 转换为 RAGFlow 格式
             res = self._convert_to_ragflow_format(chunks_list, doc, lang)
 
             logging.info(f"{self.strategy_name} chunking completed: {len(res)} chunks created")
@@ -174,7 +182,7 @@ class MinerUParserBase(ABC):
             raise
 
         finally:
-            # 9. 清理临时文件
+            # 10. 清理临时文件
             self._cleanup_temp_files(temp_pdf_to_cleanup)
 
     def _prepare_base_doc(self, filename):
@@ -186,9 +194,33 @@ class MinerUParserBase(ABC):
         doc["title_sm_tks"] = rag_tokenizer.fine_grained_tokenize(doc["title_tks"])
         return doc
 
-    def _parse_with_mineru(self, pdf_path, pdf_binary, from_page, to_page, kb_id):
-        """使用 MinerU 解析 PDF"""
-        pdf_parser = MinerUParser()
+    def _parse_with_layout_recognizer(self, layout_recognizer, pdf_path, pdf_binary, from_page, to_page, kb_id):
+        """
+        根据 layout_recognizer 选择并使用对应的解析器
+
+        Args:
+            layout_recognizer: 布局识别器类型 (MinerU/DOTS/DeepDOC)
+            pdf_path: PDF 文件路径
+            pdf_binary: PDF 二进制数据
+            from_page: 起始页码
+            to_page: 结束页码
+            kb_id: 知识库 ID
+
+        Returns:
+            Tuple[List, List]: (sections, tables)
+        """
+        if layout_recognizer == "MinerU":
+            from deepdoc.parser import MinerUParser
+            pdf_parser = MinerUParser()
+        elif layout_recognizer == "DOTS":
+            from deepdoc.parser import DOTSParser
+            pdf_parser = DOTSParser()
+        else:
+            # 默认使用 MinerU（未来可以支持 DeepDOC）
+            logging.warning(f"Unknown layout_recognizer: {layout_recognizer}, falling back to MinerU")
+            from deepdoc.parser import MinerUParser
+            pdf_parser = MinerUParser()
+
         sections, tables = pdf_parser(
             pdf_path if not pdf_binary else pdf_binary,
             from_page=from_page,

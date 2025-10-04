@@ -18,14 +18,17 @@ const LayoutRecognize = () => {
     const list = [
       DocumentType.DeepDOC,
       DocumentType.PlainText,
-      'MinerU', // 新增 MinerU 选项
+      'MinerU',
+      'DOTS',
     ].map((x) => ({
       label:
         x === DocumentType.PlainText
           ? t(camelCase(x))
           : x === 'MinerU'
             ? 'MinerU'
-            : 'DeepDoc',
+            : x === 'DOTS'
+              ? 'DOTS'
+              : 'DeepDoc',
       value: x,
     }));
 

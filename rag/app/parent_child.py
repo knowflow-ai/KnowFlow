@@ -32,10 +32,10 @@ Parent-Child Chunking Method
 - 父块和子块的关系自动维护
 """
 
-from rag.app.mineru_parser_base import MinerUParserBase
+from rag.app.modern_parser_base import ModernParserBase
 
 
-class ParentChildChunker(MinerUParserBase):
+class ParentChildChunker(ModernParserBase):
     """Parent-Child 父子分块解析器"""
 
     def __init__(self):

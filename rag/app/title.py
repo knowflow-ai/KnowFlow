@@ -32,10 +32,10 @@ Title-based Chunking Method
 - 适合结构清晰、标题规范的文档
 """
 
-from rag.app.mineru_parser_base import MinerUParserBase
+from rag.app.modern_parser_base import ModernParserBase
 
 
-class TitleChunker(MinerUParserBase):
+class TitleChunker(ModernParserBase):
     """Title 标题分块解析器"""
 
     def __init__(self):

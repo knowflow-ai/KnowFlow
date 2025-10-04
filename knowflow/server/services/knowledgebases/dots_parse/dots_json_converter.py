@@ -135,16 +135,26 @@ class DotsJsonConverter:
             block['type'] = 'table'
             block['text'] = raw_text
 
-        elif category in ['Title', 'Section'] or category_lower.startswith('heading') or category_lower in {'subtitle', 'subheading'}:
+        elif category in ['Title', 'Section', 'Section-header'] or category_lower.startswith('heading') or category_lower in {'subtitle', 'subheading'}:
             block['type'] = 'title'
-            level = 1
-            if category == 'Section':
-                level = 2
-            elif category_lower.startswith('heading'):
-                match = re.search(r'(\d+)', category)
-                level = int(match.group(1)) if match else 3
-            elif category_lower in {'subtitle', 'subheading'}:
-                level = 3
+
+            # 检查文本是否已经包含 markdown 标题标记
+            title_match = re.match(r'^(#{1,6})\s+(.*)', text)
+            if title_match:
+                # 文本已包含 # 标记，提取级别和清理文本
+                level = len(title_match.group(1))
+                text = title_match.group(2).strip()
+            else:
+                # 没有 # 标记，根据 category 设置级别
+                level = 1
+                if category in ['Section', 'Section-header']:
+                    level = 2
+                elif category_lower.startswith('heading'):
+                    match = re.search(r'(\d+)', category)
+                    level = int(match.group(1)) if match else 3
+                elif category_lower in {'subtitle', 'subheading'}:
+                    level = 3
+
             block['level'] = max(1, min(level, 6))
             block['text'] = text
 
