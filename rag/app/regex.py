@@ -31,7 +31,35 @@ Regex Chunking Method
 - 支持自定义正则分块模式
 """
 
-from rag.app.parser_utils import mineru_chunk_pipeline
+from rag.app.mineru_parser_base import MinerUParserBase
+
+
+class RegexChunker(MinerUParserBase):
+    """Regex 正则分块解析器"""
+
+    def __init__(self):
+        super().__init__(strategy_name="Regex")
+
+    def get_default_config(self):
+        """返回默认配置"""
+        return {
+            "chunk_token_num": 256,
+            "min_chunk_tokens": 10,
+            "regex_pattern": r"\n\n+",  # 默认：双换行符分块
+        }
+
+    def build_chunking_config(self, parser_config):
+        """构建分块配置"""
+        return {
+            'strategy': 'strict_regex',
+            'regex_pattern': parser_config.get('regex_pattern', r"\n\n+"),
+            'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
+            'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10))
+        }
+
+
+# 创建全局实例
+_chunker = RegexChunker()
 
 
 def chunk(filename, binary=None, from_page=0, to_page=100000,
@@ -56,36 +84,7 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     Returns:
         List[dict]: 分块结果列表
     """
-    parser_config = kwargs.get(
-        "parser_config", {
-            "chunk_token_num": 256,
-            "min_chunk_tokens": 10,
-            "regex_pattern": r"\n\n+",  # 默认：双换行符分块
-        })
-
-    # 构建分块配置
-    chunking_config = {
-        'strategy': 'strict_regex',
-        'regex_pattern': parser_config.get('regex_pattern', r"\n\n+"),
-        'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
-        'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10))
-    }
-
-    # 使用通用流程
-    return mineru_chunk_pipeline(
-        filename=filename,
-        binary=binary,
-        from_page=from_page,
-        to_page=to_page,
-        lang=lang,
-        callback=callback,
-        strategy='strict_regex',
-        parser_config=chunking_config,
-        doc_id=kwargs.get('doc_id', 'unknown'),
-        kb_id=kwargs.get('kb_id', '') or kwargs.get('knowledgebase_id', ''),
-        tenant_id=kwargs.get('tenant_id', 'unknown'),
-        strategy_name="Regex"
-    )
+    return _chunker.chunk(filename, binary, from_page, to_page, lang, callback, **kwargs)
 
 
 if __name__ == "__main__":

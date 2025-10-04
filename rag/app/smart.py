@@ -31,7 +31,33 @@ Smart Chunking Method
 - 智能分块，支持多种分块策略（smart/advanced/parent_child）
 """
 
-from rag.app.parser_utils import mineru_chunk_pipeline
+from rag.app.mineru_parser_base import MinerUParserBase
+
+
+class SmartChunker(MinerUParserBase):
+    """Smart 智能分块解析器"""
+
+    def __init__(self):
+        super().__init__(strategy_name="Smart")
+
+    def get_default_config(self):
+        """返回默认配置"""
+        return {
+            "chunk_token_num": 256,
+            "min_chunk_tokens": 10,
+        }
+
+    def build_chunking_config(self, parser_config):
+        """构建分块配置"""
+        return {
+            'strategy': 'smart',
+            'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
+            'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10))
+        }
+
+
+# 创建全局实例
+_chunker = SmartChunker()
 
 
 def chunk(filename, binary=None, from_page=0, to_page=100000,
@@ -56,34 +82,7 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     Returns:
         List[dict]: 分块结果列表
     """
-    parser_config = kwargs.get(
-        "parser_config", {
-            "chunk_token_num": 256,
-            "min_chunk_tokens": 10,
-        })
-
-    # 构建分块配置
-    chunking_config = {
-        'strategy': 'smart',
-        'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
-        'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10))
-    }
-
-    # 使用通用流程
-    return mineru_chunk_pipeline(
-        filename=filename,
-        binary=binary,
-        from_page=from_page,
-        to_page=to_page,
-        lang=lang,
-        callback=callback,
-        strategy='smart',
-        parser_config=chunking_config,
-        doc_id=kwargs.get('doc_id', 'unknown'),
-        kb_id=kwargs.get('kb_id', '') or kwargs.get('knowledgebase_id', ''),
-        tenant_id=kwargs.get('tenant_id', 'unknown'),
-        strategy_name="Smart"
-    )
+    return _chunker.chunk(filename, binary, from_page, to_page, lang, callback, **kwargs)
 
 
 if __name__ == "__main__":
