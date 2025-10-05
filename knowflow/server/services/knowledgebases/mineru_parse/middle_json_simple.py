@@ -236,6 +236,10 @@ class SimpleMiddleJsonConverter:
             'image_path': image_path if block_type == 'image' else None
         }
 
+        # 对于标题块，保留 level 字段以支持多级标题
+        if block_type == 'title' and 'level' in block:
+            result['level'] = block['level']
+
         # 保留原始的 blocks 数组，用于图片块的精确坐标
         if block_type == 'image' and 'blocks' in block:
             result['blocks'] = block['blocks']
