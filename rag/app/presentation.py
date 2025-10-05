@@ -133,23 +133,73 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         if layout_recognizer == "MinerU":
             logging.info("Using MinerU parser for PDF (presentation mode)")
             pdf_parser = MinerUParser()
-            sections, _ = pdf_parser(
+            parsed_sections, _ = pdf_parser(
                 filename if not binary else binary,
                 from_page=from_page,
                 to_page=to_page,
                 chunk_level='semantic',
                 **kwargs
             )
+            # MinerU 返回语义块列表，需要按页分组并合并
+            # presentation 模式要求每页作为一个 chunk
+            from collections import defaultdict
+            import re
+            page_texts = defaultdict(list)
+            for text_with_tag, _ in parsed_sections:
+                # 从 position tag 提取页码: @@page_num\t...##
+                match = re.match(r'@@(\d+)\t', text_with_tag)
+                if match:
+                    page_num = int(match.group(1))
+                    clean_text = pdf_parser.remove_tag(text_with_tag)
+                    page_texts[page_num].append(clean_text)
+            # 生成连续的页面列表（从 from_page 到 to_page）
+            # 与 DeepDOC 保持一致：即使某页没内容也要有空元素
+            sections = []
+            for page_num in range(from_page, to_page + 1):
+                if page_num in page_texts:
+                    page_text = "\n".join(page_texts[page_num])
+                    sections.append((page_text, None))
+                elif page_num < max(page_texts.keys(), default=from_page):
+                    # 中间缺失的页，添加空内容
+                    sections.append(("", None))
+                else:
+                    # 超出解析范围，停止
+                    break
         elif layout_recognizer == "DOTS":
             logging.info("Using DOTS parser for PDF (presentation mode)")
             pdf_parser = DOTSParser()
-            sections, _ = pdf_parser(
+            parsed_sections, _ = pdf_parser(
                 filename if not binary else binary,
                 from_page=from_page,
                 to_page=to_page,
                 chunk_level='semantic',
                 **kwargs
             )
+            # DOTS 返回语义块列表，需要按页分组并合并
+            # presentation 模式要求每页作为一个 chunk
+            from collections import defaultdict
+            import re
+            page_texts = defaultdict(list)
+            for text_with_tag, _ in parsed_sections:
+                # 从 position tag 提取页码: @@page_num\t...##
+                match = re.match(r'@@(\d+)\t', text_with_tag)
+                if match:
+                    page_num = int(match.group(1))
+                    clean_text = pdf_parser.remove_tag(text_with_tag)
+                    page_texts[page_num].append(clean_text)
+            # 生成连续的页面列表（从 from_page 到 to_page）
+            # 与 DeepDOC 保持一致：即使某页没内容也要有空元素
+            sections = []
+            for page_num in range(from_page, to_page + 1):
+                if page_num in page_texts:
+                    page_text = "\n".join(page_texts[page_num])
+                    sections.append((page_text, None))
+                elif page_num < max(page_texts.keys(), default=from_page):
+                    # 中间缺失的页，添加空内容
+                    sections.append(("", None))
+                else:
+                    # 超出解析范围，停止
+                    break
         elif layout_recognizer == "DeepDOC":
             pdf_parser = Pdf()
             sections = pdf_parser(filename, binary, from_page=from_page, to_page=to_page, callback=callback)

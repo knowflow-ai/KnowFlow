@@ -244,13 +244,21 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
                                         from_page=from_page, to_page=to_page, callback=callback)
         if sections and len(sections[0]) < 3:
             sections = [(t, lvl, [[0] * 5]) for t, lvl in sections]
+
+        # 对于 MinerU/DOTS，需要先移除 position tag 再进行标题分析
+        if layout_recognize in ("MinerU", "DOTS"):
+            # 创建 clean_sections 用于标题分析
+            clean_sections = [(pdf_parser.remove_tag(txt), lvl, poss) for txt, lvl, poss in sections]
+        else:
+            clean_sections = sections
+
         # set pivot using the most frequent type of title,
         # then merge between 2 pivot
         if len(sections) > 0 and hasattr(pdf_parser, 'outlines') and len(pdf_parser.outlines) / len(sections) > 0.03:
             max_lvl = max([lvl for _, lvl in pdf_parser.outlines])
             most_level = max(0, max_lvl - 1)
             levels = []
-            for txt, _, _ in sections:
+            for txt, _, _ in clean_sections:  # 使用 clean_sections
                 for t, lvl in pdf_parser.outlines:
                     tks = set([t[i] + t[i + 1] for i in range(len(t) - 1)])
                     tks_ = set([txt[i] + txt[i + 1]
@@ -262,9 +270,9 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
                     levels.append(max_lvl + 1)
 
         else:
-            bull = bullets_category([txt for txt, _, _ in sections])
+            bull = bullets_category([txt for txt, _, _ in clean_sections])  # 使用 clean_sections
             most_level, levels = title_frequency(
-                bull, [(txt, lvl) for txt, lvl, _ in sections])
+                bull, [(txt, lvl) for txt, lvl, _ in clean_sections])  # 使用 clean_sections
 
         assert len(sections) == len(levels)
         sec_ids = []

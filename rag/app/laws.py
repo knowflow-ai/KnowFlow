@@ -170,27 +170,23 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         if layout_recognize == "MinerU":
             logging.info("Using MinerU parser for PDF (laws mode)")
             pdf_parser = MinerUParser()
-            parsed_sections, _ = pdf_parser(
+            sections, _ = pdf_parser(
                 filename if not binary else binary,
                 from_page=from_page,
                 to_page=to_page,
                 chunk_level='semantic',
                 **kwargs
             )
-            for txt, poss in parsed_sections:
-                sections.append(txt + poss)
         elif layout_recognize == "DOTS":
             logging.info("Using DOTS parser for PDF (laws mode)")
             pdf_parser = DOTSParser()
-            parsed_sections, _ = pdf_parser(
+            sections, _ = pdf_parser(
                 filename if not binary else binary,
                 from_page=from_page,
                 to_page=to_page,
                 chunk_level='semantic',
                 **kwargs
             )
-            for txt, poss in parsed_sections:
-                sections.append(txt + poss)
         elif layout_recognize == "Plain Text":
             pdf_parser = PlainParser()
             for txt, poss in pdf_parser(filename if not binary else binary,
@@ -228,17 +224,47 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             "file type not supported yet(doc, docx, pdf, txt supported)")
 
 
-    # Remove 'Contents' part
-    remove_contents_table(sections, eng)
+    # 对于 MinerU/DOTS，需要先移除 position tag 再进行标题分析
+    if layout_recognize in ("MinerU", "DOTS"):
+        # sections 格式: [(text_with_tag, layout_type), ...]
+        # Remove 'Contents' part
+        remove_contents_table(sections, eng)
 
-    make_colon_as_title(sections)
-    bull = bullets_category(sections)
-    chunks = hierarchical_merge(bull, sections, 5)
+        # 使用 parser 的 remove_tag 方法移除 position tag
+        clean_sections = [(pdf_parser.remove_tag(txt), pos) for txt, pos in sections]
+        make_colon_as_title(clean_sections)
+        bull = bullets_category([txt for txt, _ in clean_sections])
+
+        if bull >= 0:
+            # hierarchical_merge 使用 clean_sections，但最终 chunks 要保留 position tag
+            merged_groups = hierarchical_merge(bull, clean_sections, 5)
+            chunks = []
+            for group in merged_groups:
+                # 找到 clean text 对应的原始 text（带 tag）
+                chunk_parts = []
+                for clean_txt in group:
+                    for orig_txt, _ in sections:
+                        if pdf_parser.remove_tag(orig_txt) == clean_txt:
+                            chunk_parts.append(orig_txt)
+                            break
+                chunks.append("\n".join(chunk_parts))
+        else:
+            # 如果没有识别到标题层级，直接使用原始 sections
+            chunks = [txt for txt, _ in sections]
+    else:
+        # DeepDOC/Plain Text 的原有逻辑
+        # Remove 'Contents' part
+        remove_contents_table(sections, eng)
+
+        make_colon_as_title(sections)
+        bull = bullets_category(sections)
+        chunks = hierarchical_merge(bull, sections, 5)
+        chunks = ["\n".join(ck) for ck in chunks]
+
     if not chunks:
         callback(0.99, "No chunk parsed out.")
 
-    return tokenize_chunks(["\n".join(ck)
-                           for ck in chunks], doc, eng, pdf_parser)
+    return tokenize_chunks(chunks, doc, eng, pdf_parser)
 
 
 if __name__ == "__main__":
