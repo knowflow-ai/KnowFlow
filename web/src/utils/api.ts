@@ -82,11 +82,6 @@ export default {
   setMeta: `${api_host}/document/set_meta`,
   get_dataset_filter: `${api_host}/document/filter`,
 
-  // knowflow mineru parser
-  knowflow_document_parse: `/api/knowflow/v1/knowledgebases/documents`,
-  knowflow_parse_progress: `/api/knowflow/v1/knowledgebases/documents`,
-  knowflow_parse_cancel: `/api/knowflow/v1/knowledgebases/documents`,
-
   // chat
   setDialog: `${api_host}/dialog/set`,
   getDialog: `${api_host}/dialog/get`,

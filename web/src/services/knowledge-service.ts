@@ -34,9 +34,6 @@ const {
   setMeta,
   getMeta,
   retrievalTestShare,
-  knowflow_document_parse,
-  knowflow_parse_progress,
-  knowflow_parse_cancel,
 } = api;
 
 const methods = {
@@ -154,20 +151,6 @@ const methods = {
   listTagByKnowledgeIds: {
     url: listTagByKnowledgeIds,
     method: 'get',
-  },
-  // knowflow mineru parser
-  knowflow_document_parse: {
-    url: knowflow_document_parse,
-    method: 'post',
-    timeout: 600000, // 10分钟超时，DOTS解析可能需要更长时间
-  },
-  knowflow_parse_progress: {
-    url: knowflow_parse_progress,
-    method: 'get',
-  },
-  knowflow_parse_cancel: {
-    url: knowflow_parse_cancel,
-    method: 'post',
   },
   getMeta: {
     url: getMeta,

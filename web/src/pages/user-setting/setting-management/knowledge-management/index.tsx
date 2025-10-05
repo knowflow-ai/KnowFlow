@@ -1121,29 +1121,6 @@ const KnowledgeManagementPage = () => {
       render: (count: number) => <Tag color="blue">{count}</Tag>,
     },
     {
-      title: '解析方法',
-      dataIndex: 'parser_id',
-      key: 'parser_id',
-      width: 100,
-      align: 'left',
-      render: (parser: string) => {
-        const getParserDisplay = (parserId: string) => {
-          switch (parserId) {
-            case 'mineru':
-              return { text: 'MinerU', color: 'purple' };
-            case 'dots':
-              return { text: 'DOTS', color: 'cyan' };
-            case 'naive':
-              return { text: 'General', color: 'green' };
-            default:
-              return { text: parserId || 'MinerU', color: 'default' };
-          }
-        };
-        const { text, color } = getParserDisplay(parser);
-        return <Tag color={color}>{text}</Tag>;
-      },
-    },
-    {
       title: '角色配置',
       dataIndex: 'permission_stats',
       key: 'permission_stats',
