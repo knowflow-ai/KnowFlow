@@ -140,6 +140,65 @@ class SimpleMiddleJsonConverter:
                                 bbox[0], bbox[2], bbox[1], bbox[3]
                             ]
                         line_counter += 1
+                elif block.get('type') == 'table' and block.get('blocks'):
+                    # 处理表格：分别提取 caption 和 table_body 的坐标
+                    caption_line_bboxes = []
+                    table_body_bbox = block['bbox']
+
+                    for sub_block in block['blocks']:
+                        if sub_block.get('type') == 'table_caption' and 'lines' in sub_block:
+                            # 提取 caption 的行级坐标
+                            for line in sub_block['lines']:
+                                spans = line.get('spans', [])
+                                if not spans:
+                                    continue
+
+                                line_bbox = line.get('bbox')
+                                if not line_bbox:
+                                    # 从 spans 合并
+                                    xs1, ys1, xs2, ys2 = [], [], [], []
+                                    for span in spans:
+                                        span_bbox = span.get('bbox')
+                                        if span_bbox:
+                                            xs1.append(span_bbox[0])
+                                            ys1.append(span_bbox[1])
+                                            xs2.append(span_bbox[2])
+                                            ys2.append(span_bbox[3])
+                                    if xs1:
+                                        line_bbox = [min(xs1), min(ys1), max(xs2), max(ys2)]
+                                    else:
+                                        line_bbox = sub_block.get('bbox', block['bbox'])
+
+                                caption_line_bboxes.append(line_bbox)
+                        elif sub_block.get('type') == 'table_body':
+                            table_body_bbox = sub_block.get('bbox', block['bbox'])
+
+                    text_lines = markdown_text.split('\n')
+                    caption_line_idx = 0
+                    is_table_started = False
+
+                    for i, line in enumerate(text_lines):
+                        markdown_lines.append(line)
+                        if line.strip():
+                            bbox = block['bbox']
+
+                            # 检查是否是表格HTML
+                            if line.strip().startswith('<table'):
+                                is_table_started = True
+                                bbox = table_body_bbox
+                            # Caption 行：在表格开始前且还有 caption bbox 可用
+                            elif not is_table_started and caption_line_idx < len(caption_line_bboxes):
+                                bbox = caption_line_bboxes[caption_line_idx]
+                                caption_line_idx += 1
+                            # 表格内容或 caption 用完后的行
+                            else:
+                                bbox = table_body_bbox
+
+                            coordinate_map[line_counter] = [
+                                block['page_idx'],
+                                bbox[0], bbox[2], bbox[1], bbox[3]
+                            ]
+                        line_counter += 1
                 else:
                     # 根据 merge_text_lines 参数决定如何处理 text/title
                     if block.get('type') in ('text', 'title') and self.merge_text_lines:
@@ -240,8 +299,8 @@ class SimpleMiddleJsonConverter:
         if block_type == 'title' and 'level' in block:
             result['level'] = block['level']
 
-        # 保留原始的 blocks 数组，用于图片块的精确坐标
-        if block_type == 'image' and 'blocks' in block:
+        # 保留原始的 blocks 数组，用于图片块和表格块的精确坐标
+        if block_type in ('image', 'table') and 'blocks' in block:
             result['blocks'] = block['blocks']
 
         # 根据 merge_text_lines 决定是否生成 line_infos
@@ -263,19 +322,32 @@ class SimpleMiddleJsonConverter:
         """提取文本内容"""
         # 处理表格
         if block.get('type') == 'table':
-            # 直接从 block 获取 HTML
-            if 'html' in block:
-                return block['html']
+            parts = []
 
-            # 从嵌套结构获取 HTML (blocks[0].lines[0].spans[0].html)
+            # 提取 table_caption
             if 'blocks' in block:
                 for sub_block in block['blocks']:
-                    if 'lines' in sub_block:
+                    if sub_block.get('type') == 'table_caption':
+                        caption_text = self._extract_text_from_lines(sub_block)
+                        if caption_text:
+                            parts.append(caption_text)
+
+            # 提取 HTML 表格
+            # 直接从 block 获取 HTML
+            if 'html' in block:
+                parts.append(block['html'])
+            # 从嵌套结构获取 HTML (blocks[0].lines[0].spans[0].html)
+            elif 'blocks' in block:
+                for sub_block in block['blocks']:
+                    if sub_block.get('type') == 'table_body' and 'lines' in sub_block:
                         for line in sub_block['lines']:
                             if 'spans' in line:
                                 for span in line['spans']:
                                     if 'html' in span:
-                                        return span['html']
+                                        parts.append(span['html'])
+                                        break
+
+            return '\n\n'.join(parts) if parts else ''
 
         # 处理图片（提取图片标题）
         if block.get('type') == 'image' and 'blocks' in block:
