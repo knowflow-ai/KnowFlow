@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 import time
 import traceback
@@ -8,6 +9,8 @@ import mysql.connector
 import requests
 from database import DB_CONFIG, get_es_client
 from utils import generate_uuid
+
+logger = logging.getLogger(__name__)
 
 # 解析相关模块
 # 注意：document_parser 中的 perform_parse 等函数已废弃
@@ -1243,6 +1246,85 @@ class KnowledgebaseService:
             if conn:
                 conn.close()
 
+    @classmethod
+    def update_document_parser_config(cls, doc_id, parser_id=None, layout_recognize=None, parser_config_updates=None):
+        """更新文档的解析配置（不触发解析）
+
+        Args:
+            doc_id: 文档 ID
+            parser_id: 分块方法（smart/title/regex/parent_child）
+            layout_recognize: PDF 解析器（DeepDOC/MinerU/DOTS）
+            parser_config_updates: 其他配置更新（如 chunk_token_num）
+
+        Returns:
+            dict: {"success": bool, "message": str}
+        """
+        conn = None
+        cursor = None
+
+        try:
+            conn = cls._get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            # 查询文档现有配置
+            query = "SELECT parser_id, parser_config FROM document WHERE id = %s"
+            cursor.execute(query, (doc_id,))
+            doc = cursor.fetchone()
+
+            if not doc:
+                return {"success": False, "message": "文档不存在"}
+
+            # 准备更新的配置
+            import json
+            current_parser_config = doc.get('parser_config', {})
+            if isinstance(current_parser_config, str):
+                current_parser_config = json.loads(current_parser_config) if current_parser_config else {}
+
+            # 合并配置更新
+            updated_parser_config = current_parser_config.copy()
+
+            # 更新 layout_recognize
+            if layout_recognize:
+                updated_parser_config['layout_recognize'] = layout_recognize
+
+            # 更新其他配置
+            if parser_config_updates:
+                updated_parser_config.update(parser_config_updates)
+
+            # 更新 parser_id
+            final_parser_id = parser_id if parser_id else doc.get('parser_id', 'smart')
+
+            # 更新数据库
+            update_query = """
+                UPDATE document
+                SET parser_id = %s,
+                    parser_config = %s
+                WHERE id = %s
+            """
+            cursor.execute(update_query, (
+                final_parser_id,
+                json.dumps(updated_parser_config),
+                doc_id
+            ))
+            conn.commit()
+
+            return {
+                "success": True,
+                "message": "配置已更新",
+                "parser_id": final_parser_id,
+                "parser_config": updated_parser_config
+            }
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            return {"success": False, "message": f"更新配置失败: {str(e)}"}
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
     # --- 统一的文档解析方法（使用 RAGFlow API）---
     @classmethod
     def parse_document_unified(cls, doc_id, auth_token=None, parser_id=None, layout_recognize=None, parser_config_updates=None):
@@ -2057,3 +2139,127 @@ class KnowledgebaseService:
         )
         
         return permission_check.has_permission
+
+    # 批量解析状态管理（存储在内存中）
+    _batch_parse_status = {}
+
+    @classmethod
+    def start_batch_parse_sequential(cls, kb_id, auth_token=None):
+        """启动批量顺序解析（串行执行）"""
+        import threading
+        import time
+
+        # 检查是否已有批量解析在运行
+        if kb_id in cls._batch_parse_status:
+            status = cls._batch_parse_status[kb_id]
+            if status.get('status') == 'running':
+                return {
+                    "success": False,
+                    "message": "已有批量解析任务正在运行"
+                }
+
+        # 获取知识库中所有未完成解析的文档（run != '3' 为未完成）
+        conn = cls._get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        try:
+            # 查询所有 run != '3' 的文档（未完成解析）
+            query = """
+                SELECT id, name, run, progress
+                FROM document
+                WHERE kb_id = %s AND (run IS NULL OR run != '3')
+                ORDER BY create_time ASC
+            """
+            cursor.execute(query, (kb_id,))
+            documents = cursor.fetchall()
+
+            if not documents:
+                return {
+                    "success": False,
+                    "message": "没有需要解析的文档"
+                }
+
+            # 初始化批量解析状态
+            cls._batch_parse_status[kb_id] = {
+                'status': 'running',
+                'total': len(documents),
+                'current': 0,
+                'message': '准备开始批量解析...',
+                'start_time': time.time(),
+                'documents': documents
+            }
+
+            # 启动后台线程进行串行解析
+            def parse_worker():
+                for idx, doc in enumerate(documents):
+                    doc_id = doc['id']
+                    doc_name = doc['name']
+
+                    # 更新状态
+                    cls._batch_parse_status[kb_id]['current'] = idx + 1
+                    cls._batch_parse_status[kb_id]['message'] = f"正在解析: {doc_name} ({idx + 1}/{len(documents)})"
+
+                    # 调用单文档解析
+                    try:
+                        result = cls.parse_document_unified(
+                            doc_id,
+                            auth_token=auth_token
+                        )
+
+                        if not result.get("success"):
+                            continue
+
+                        # 等待文档解析完成（只以 run='3' 为完成条件）
+                        max_wait = 300  # 最多等待5分钟
+                        wait_time = 0
+                        while wait_time < max_wait:
+                            time.sleep(3)
+                            wait_time += 3
+
+                            progress_result = cls.get_document_parse_progress_unified(doc_id)
+                            if isinstance(progress_result, dict):
+                                run = progress_result.get('run', '0')
+
+                                # 检查是否完成（只以 run='3' 为准）
+                                if run == '3':
+                                    break
+
+                    except Exception as e:
+                        pass
+
+                # 全部完成
+                cls._batch_parse_status[kb_id]['status'] = 'completed'
+                cls._batch_parse_status[kb_id]['message'] = f"批量解析完成！共解析 {len(documents)} 个文档"
+
+            thread = threading.Thread(target=parse_worker, daemon=True)
+            thread.start()
+
+            return {
+                "success": True,
+                "message": f"批量解析已启动，共 {len(documents)} 个文档"
+            }
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @classmethod
+    def get_batch_parse_progress(cls, kb_id):
+        """获取批量解析进度"""
+        if kb_id not in cls._batch_parse_status:
+            return {
+                'status': 'idle',
+                'total': 0,
+                'current': 0,
+                'message': '无批量解析任务',
+                'start_time': None
+            }
+
+        status = cls._batch_parse_status[kb_id]
+        return {
+            'status': status.get('status', 'idle'),
+            'total': status.get('total', 0),
+            'current': status.get('current', 0),
+            'message': status.get('message', ''),
+            'start_time': status.get('start_time')
+        }

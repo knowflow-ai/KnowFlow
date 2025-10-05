@@ -519,6 +519,46 @@ def cancel_parse_document(doc_id):
         print(f"取消解析失败: {str(e)}")
         return error_response(f"取消解析失败: {str(e)}", code=500)
 
+@knowledgebase_bp.route('/<kb_id>/batch_parse_sequential/start', methods=['POST'])
+def start_batch_parse_sequential(kb_id):
+    """启动批量顺序解析（串行执行）"""
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+
+    try:
+        # 获取并转发 JWT token
+        auth_token = request.headers.get('Authorization')
+
+        # 启动批量解析
+        result = KnowledgebaseService.start_batch_parse_sequential(kb_id, auth_token=auth_token)
+
+        if result.get("success"):
+            return success_response(data=result, message="批量解析已启动")
+        else:
+            return error_response(result.get("message", "启动批量解析失败"), code=500)
+    except Exception as e:
+        print(f"启动批量解析失败: {str(e)}")
+        return error_response(f"启动批量解析失败: {str(e)}", code=500)
+
+@knowledgebase_bp.route('/<kb_id>/batch_parse_sequential/progress', methods=['GET'])
+def get_batch_parse_progress(kb_id):
+    """获取批量解析进度"""
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        response.headers.add('Access-Control-Allow-Methods', 'GET')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+
+    try:
+        result = KnowledgebaseService.get_batch_parse_progress(kb_id)
+        return success_response(data=result)
+    except Exception as e:
+        print(f"获取批量解析进度失败: {str(e)}")
+        return error_response(f"获取批量解析进度失败: {str(e)}", code=500)
+
 # 获取系统 Embedding 配置路由
 @knowledgebase_bp.route('/system_embedding_config', methods=['GET'])
 def get_system_embedding_config_route():
