@@ -750,7 +750,7 @@ def _process_ast_node(node, context_stack, chunk_token_num, min_chunk_tokens):
         # 引用块处理
         content = _render_blockquote_from_ast(node)
         
-    elif node_type == "list":
+    elif node_type in ("list", "bullet_list", "ordered_list"):
         # 列表处理
         content = _render_list_from_ast(node)
         

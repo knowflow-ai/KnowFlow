@@ -249,7 +249,11 @@ class SimpleMiddleJsonConverter:
         # merge_text_lines=False: text/title 也生成 line_infos（保留逐行坐标）
         if block_type not in ('image', 'table'):
             if not (block_type in ('text', 'title') and self.merge_text_lines):
-                line_infos = self._collect_line_infos(block, page_idx)
+                # 列表类型需要特殊处理:每个子块作为独立行
+                if block_type == 'list' and 'blocks' in block:
+                    line_infos = self._collect_list_line_infos(block, page_idx)
+                else:
+                    line_infos = self._collect_line_infos(block, page_idx)
                 if line_infos:
                     result['line_infos'] = line_infos
 
@@ -290,7 +294,8 @@ class SimpleMiddleJsonConverter:
             for sub_block in block['blocks']:
                 item_text = self._extract_text_from_lines(sub_block)
                 if item_text:
-                    items.append(f"- {item_text}")
+                    # VLM 的列表项文本已经包含了 "-" 符号,不再重复添加
+                    items.append(item_text)
             return '\n'.join(items)
 
         # 普通文本
@@ -360,6 +365,27 @@ class SimpleMiddleJsonConverter:
                 'text': line_text,
                 'bbox': bbox,
                 'page_idx': page_idx
+            })
+
+        return line_infos
+
+    def _collect_list_line_infos(self, list_block: Dict, default_page_idx: int) -> List[Dict]:
+        """为列表块提取每个子项的坐标信息"""
+        line_infos: List[Dict] = []
+
+        for sub_block in list_block.get('blocks', []):
+            # 提取子块的文本(已包含 "- " 前缀)
+            item_text = self._extract_text_from_lines(sub_block).strip()
+            if not item_text:
+                continue
+
+            # 使用子块的 bbox 作为该列表项的坐标
+            bbox = sub_block.get('bbox', list_block.get('bbox', [0, 0, 0, 0]))
+
+            line_infos.append({
+                'text': item_text,
+                'bbox': bbox,
+                'page_idx': default_page_idx
             })
 
         return line_infos
