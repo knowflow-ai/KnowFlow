@@ -25,7 +25,7 @@ from api.db.services.llm_service import LLMBundle
 from deepdoc.parser.pdf_parser import VisionParser
 from rag.nlp import tokenize, is_english
 from rag.nlp import rag_tokenizer
-from deepdoc.parser import PdfParser, PptParser, PlainParser
+from deepdoc.parser import PdfParser, PptParser, PlainParser, MinerUParser, DOTSParser
 from PyPDF2 import PdfReader as pdf2_read
 
 
@@ -130,7 +130,27 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         return res
     elif re.search(r"\.pdf$", filename, re.IGNORECASE):
         layout_recognizer = parser_config.get("layout_recognize", "DeepDOC")
-        if layout_recognizer == "DeepDOC":
+        if layout_recognizer == "MinerU":
+            logging.info("Using MinerU parser for PDF (presentation mode)")
+            pdf_parser = MinerUParser()
+            sections, _ = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+        elif layout_recognizer == "DOTS":
+            logging.info("Using DOTS parser for PDF (presentation mode)")
+            pdf_parser = DOTSParser()
+            sections, _ = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+        elif layout_recognizer == "DeepDOC":
             pdf_parser = Pdf()
             sections = pdf_parser(filename, binary, from_page=from_page, to_page=to_page, callback=callback)
         elif layout_recognizer == "Plain Text":

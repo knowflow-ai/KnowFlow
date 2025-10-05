@@ -30,7 +30,7 @@ from tika import parser
 
 from api.db import LLMType
 from api.db.services.llm_service import LLMBundle
-from deepdoc.parser import DocxParser, ExcelParser, HtmlParser, JsonParser, MarkdownElementExtractor, MarkdownParser, MinerUParser, PdfParser, TxtParser
+from deepdoc.parser import DocxParser, ExcelParser, HtmlParser, JsonParser, MarkdownElementExtractor, MarkdownParser, MinerUParser, DOTSParser, PdfParser, TxtParser
 from deepdoc.parser.figure_parser import VisionFigureParser, vision_figure_parser_figure_data_wrapper
 from deepdoc.parser.pdf_parser import PlainParser, VisionParser
 from rag.nlp import concat_img, find_codec, naive_merge, naive_merge_with_images, naive_merge_docx, rag_tokenizer, tokenize_chunks, tokenize_chunks_with_images, tokenize_table
@@ -463,6 +463,21 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             )
             res = tokenize_table(tables, doc, is_english)
             callback(0.8, "MinerU parsing finished.")
+
+        elif layout_recognizer == "DOTS":
+            # 使用 DOTS 解析器（语义块级别）
+            logging.info("Using DOTS parser for PDF (semantic blocks)")
+            callback(0.2, "Parsing with DOTS...")
+            pdf_parser = DOTSParser()
+            sections, tables = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',  # 使用语义块（preproc_blocks），不断句
+                **kwargs
+            )
+            res = tokenize_table(tables, doc, is_english)
+            callback(0.8, "DOTS parsing finished.")
 
         elif layout_recognizer == "DeepDOC":
             pdf_parser = Pdf()

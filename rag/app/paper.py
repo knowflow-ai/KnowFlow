@@ -20,7 +20,7 @@ import re
 
 from api.db import ParserType
 from rag.nlp import rag_tokenizer, tokenize, tokenize_table, add_positions, bullets_category, title_frequency, tokenize_chunks
-from deepdoc.parser import PdfParser, PlainParser
+from deepdoc.parser import PdfParser, PlainParser, MinerUParser, DOTSParser
 import numpy as np
 
 
@@ -147,7 +147,45 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         "parser_config", {
             "chunk_token_num": 512, "delimiter": "\n!?。；！？", "layout_recognize": "DeepDOC"})
     if re.search(r"\.pdf$", filename, re.IGNORECASE):
-        if parser_config.get("layout_recognize", "DeepDOC") == "Plain Text":
+        layout_recognize = parser_config.get("layout_recognize", "DeepDOC")
+
+        if layout_recognize == "MinerU":
+            # 使用 MinerU 解析器
+            logging.info("Using MinerU parser for PDF (paper mode)")
+            pdf_parser = MinerUParser()
+            sections, tables = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+            paper = {
+                "title": filename,
+                "authors": " ",
+                "abstract": "",
+                "sections": sections,
+                "tables": tables
+            }
+        elif layout_recognize == "DOTS":
+            # 使用 DOTS 解析器
+            logging.info("Using DOTS parser for PDF (paper mode)")
+            pdf_parser = DOTSParser()
+            sections, tables = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+            paper = {
+                "title": filename,
+                "authors": " ",
+                "abstract": "",
+                "sections": sections,
+                "tables": tables
+            }
+        elif layout_recognize == "Plain Text":
             pdf_parser = PlainParser()
             paper = {
                 "title": filename,
@@ -187,8 +225,16 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     sorted_sections = paper["sections"]
     # set pivot using the most frequent type of title,
     # then merge between 2 pivot
-    bull = bullets_category([txt for txt, _ in sorted_sections])
-    most_level, levels = title_frequency(bull, sorted_sections)
+
+    # 对于 MinerU/DOTS，需要先移除 position tag 再进行标题分析
+    if layout_recognize in ("MinerU", "DOTS"):
+        # 使用 parser 的 remove_tag 方法移除 position tag
+        clean_sections = [(pdf_parser.remove_tag(txt), pos) for txt, pos in sorted_sections]
+        bull = bullets_category([txt for txt, _ in clean_sections])
+        most_level, levels = title_frequency(bull, clean_sections)
+    else:
+        bull = bullets_category([txt for txt, _ in sorted_sections])
+        most_level, levels = title_frequency(bull, sorted_sections)
     assert len(sorted_sections) == len(levels)
     sec_ids = []
     sid = 0

@@ -177,7 +177,8 @@ class DOTSParser:
                         # 末尾添加换行符，避免 naive_merge 拼接时连在一起
                         position_tag = f"@@{page_num}\t{x0:.1f}\t{x1:.1f}\t{top:.1f}\t{bottom:.1f}##"
                         text_with_tag = f"{position_tag}{text}\n"
-                        sections.append((text_with_tag, position_tag))
+                        # 返回 layout_type 作为 layoutno，用于 paper/book 等方法的标题识别
+                        sections.append((text_with_tag, layout_type))
 
                 logging.info(f"DOTS parsed {len(sections)} text sections and {len(tables)} tables from PDF")
                 return sections, tables

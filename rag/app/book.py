@@ -24,7 +24,7 @@ from rag.nlp import bullets_category, is_english,remove_contents_table, \
     hierarchical_merge, make_colon_as_title, naive_merge, random_choices, tokenize_table, \
     tokenize_chunks
 from rag.nlp import rag_tokenizer
-from deepdoc.parser import PdfParser, DocxParser, PlainParser, HtmlParser
+from deepdoc.parser import PdfParser, DocxParser, PlainParser, HtmlParser, MinerUParser, DOTSParser
 
 
 class Pdf(PdfParser):
@@ -91,11 +91,36 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         callback(0.8, "Finish parsing.")
 
     elif re.search(r"\.pdf$", filename, re.IGNORECASE):
-        pdf_parser = Pdf()
-        if parser_config.get("layout_recognize", "DeepDOC") == "Plain Text":
+        layout_recognize = parser_config.get("layout_recognize", "DeepDOC")
+
+        if layout_recognize == "MinerU":
+            logging.info("Using MinerU parser for PDF (book mode)")
+            pdf_parser = MinerUParser()
+            sections, tbls = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+        elif layout_recognize == "DOTS":
+            logging.info("Using DOTS parser for PDF (book mode)")
+            pdf_parser = DOTSParser()
+            sections, tbls = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+        elif layout_recognize == "Plain Text":
             pdf_parser = PlainParser()
-        sections, tbls = pdf_parser(filename if not binary else binary,
-                                    from_page=from_page, to_page=to_page, callback=callback)
+            sections, tbls = pdf_parser(filename if not binary else binary,
+                                        from_page=from_page, to_page=to_page, callback=callback)
+        else:
+            pdf_parser = Pdf()
+            sections, tbls = pdf_parser(filename if not binary else binary,
+                                        from_page=from_page, to_page=to_page, callback=callback)
 
     elif re.search(r"\.txt$", filename, re.IGNORECASE):
         callback(0.1, "Start to parse.")

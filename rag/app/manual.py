@@ -22,7 +22,7 @@ from api.db import ParserType
 from io import BytesIO
 from rag.nlp import rag_tokenizer, tokenize, tokenize_table, bullets_category, title_frequency, tokenize_chunks, docx_question_level
 from rag.utils import num_tokens_from_string
-from deepdoc.parser import PdfParser, PlainParser, DocxParser
+from deepdoc.parser import PdfParser, PlainParser, DocxParser, MinerUParser, DOTSParser
 from docx import Document
 from PIL import Image
 
@@ -186,11 +186,40 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     # is it English
     eng = lang.lower() == "english"  # pdf_parser.is_english
     if re.search(r"\.pdf$", filename, re.IGNORECASE):
-        pdf_parser = Pdf()
-        if parser_config.get("layout_recognize", "DeepDOC") == "Plain Text":
+        layout_recognize = parser_config.get("layout_recognize", "DeepDOC")
+
+        if layout_recognize == "MinerU":
+            logging.info("Using MinerU parser for PDF (manual mode)")
+            pdf_parser = MinerUParser()
+            sections, tbls = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+            # MinerU 返回 (text, position) 格式，转换为 manual 需要的 (text, level, positions)
+            sections = [(t, "", [p]) if p else (t, "", [[0]*5]) for t, p in sections]
+        elif layout_recognize == "DOTS":
+            logging.info("Using DOTS parser for PDF (manual mode)")
+            pdf_parser = DOTSParser()
+            sections, tbls = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+            # DOTS 返回 (text, position) 格式，转换为 manual 需要的 (text, level, positions)
+            sections = [(t, "", [p]) if p else (t, "", [[0]*5]) for t, p in sections]
+        elif layout_recognize == "Plain Text":
             pdf_parser = PlainParser()
-        sections, tbls = pdf_parser(filename if not binary else binary,
-                                    from_page=from_page, to_page=to_page, callback=callback)
+            sections, tbls = pdf_parser(filename if not binary else binary,
+                                        from_page=from_page, to_page=to_page, callback=callback)
+        else:
+            pdf_parser = Pdf()
+            sections, tbls = pdf_parser(filename if not binary else binary,
+                                        from_page=from_page, to_page=to_page, callback=callback)
         if sections and len(sections[0]) < 3:
             sections = [(t, lvl, [[0] * 5]) for t, lvl in sections]
         # set pivot using the most frequent type of title,
