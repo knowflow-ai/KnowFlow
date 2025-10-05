@@ -198,8 +198,19 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
                 chunk_level='semantic',
                 **kwargs
             )
-            # MinerU 返回 (text, position) 格式，转换为 manual 需要的 (text, level, positions)
-            sections = [(t, "", [p]) if p else (t, "", [[0]*5]) for t, p in sections]
+            # MinerU 返回 (text_with_tag, layout_type) 格式，转换为 manual 需要的 (text, level, positions)
+            # Position 信息在 text_with_tag 中，需要提取出来
+            converted_sections = []
+            for text_with_tag, layout_type in sections:
+                # 提取 position 信息
+                pattern = r'@@(\d+)\t([\d.]+)\t([\d.]+)\t([\d.]+)\t([\d.]+)##'
+                matches = re.findall(pattern, text_with_tag)
+                if matches:
+                    positions = [[int(m[0]), float(m[1]), float(m[2]), float(m[3]), float(m[4])] for m in matches]
+                else:
+                    positions = [[0, 0, 0, 0, 0]]
+                converted_sections.append((text_with_tag, layout_type, positions))
+            sections = converted_sections
         elif layout_recognize == "DOTS":
             logging.info("Using DOTS parser for PDF (manual mode)")
             pdf_parser = DOTSParser()
@@ -210,8 +221,19 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
                 chunk_level='semantic',
                 **kwargs
             )
-            # DOTS 返回 (text, position) 格式，转换为 manual 需要的 (text, level, positions)
-            sections = [(t, "", [p]) if p else (t, "", [[0]*5]) for t, p in sections]
+            # DOTS 返回 (text_with_tag, layout_type) 格式，转换为 manual 需要的 (text, level, positions)
+            # Position 信息在 text_with_tag 中，需要提取出来
+            converted_sections = []
+            for text_with_tag, layout_type in sections:
+                # 提取 position 信息
+                pattern = r'@@(\d+)\t([\d.]+)\t([\d.]+)\t([\d.]+)\t([\d.]+)##'
+                matches = re.findall(pattern, text_with_tag)
+                if matches:
+                    positions = [[int(m[0]), float(m[1]), float(m[2]), float(m[3]), float(m[4])] for m in matches]
+                else:
+                    positions = [[0, 0, 0, 0, 0]]
+                converted_sections.append((text_with_tag, layout_type, positions))
+            sections = converted_sections
         elif layout_recognize == "Plain Text":
             pdf_parser = PlainParser()
             sections, tbls = pdf_parser(filename if not binary else binary,
@@ -224,7 +246,7 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             sections = [(t, lvl, [[0] * 5]) for t, lvl in sections]
         # set pivot using the most frequent type of title,
         # then merge between 2 pivot
-        if len(sections) > 0 and len(pdf_parser.outlines) / len(sections) > 0.03:
+        if len(sections) > 0 and hasattr(pdf_parser, 'outlines') and len(pdf_parser.outlines) / len(sections) > 0.03:
             max_lvl = max([lvl for _, lvl in pdf_parser.outlines])
             most_level = max(0, max_lvl - 1)
             levels = []
