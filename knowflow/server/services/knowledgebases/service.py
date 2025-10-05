@@ -390,7 +390,7 @@ class KnowledgebaseService:
                     0,  # chunk_num
                     0.7,  # similarity_threshold
                     0.3,  # vector_similarity_weight
-                    data.get("parser_id", "naive"),  # parser_id
+                    data.get("parser_id", "smart"),  # parser_id
                     default_parser_config,  # parser_config
                     0,  # pagerank
                     "1",  # status
@@ -1060,8 +1060,8 @@ class KnowledgebaseService:
 
             # 查询文档信息和知识库的解析方法
             doc_query = """
-                SELECT d.id, d.name, d.location, d.type, d.kb_id, 
-                       COALESCE(d.parser_id, k.parser_id, 'mineru') as parser_id, 
+                SELECT d.id, d.name, d.location, d.type, d.kb_id,
+                       COALESCE(d.parser_id, k.parser_id, 'smart') as parser_id,
                        d.parser_config, d.created_by
                 FROM document d
                 JOIN knowledgebase k ON d.kb_id = k.id
