@@ -131,35 +131,45 @@ graph TB
 
 #### 1. 启动文档解析服务
 
-可以在 MinerU 和 Dots 服务中任选一种，推荐 Dots ，MarkDown 文件标题识别效果更好。
+可以在 MinerU 和 Dots 服务中任选一种。
 
-##### 1. 启动 MinerU 镜像
+**📊 服务对比：**
 
-基于 SGLang 的 MinerU 完全离线部署方案，镜像包含所有必要的模型文件，无需运行时下载：
+| 特性 | MinerU | Dots |
+|------|--------|------|
+| **推荐场景** | 通用文档、学术论文 | Markdown 文档、技术手册 |
+| **标题识别** | 良好 | 优秀（推荐） |
+| **部署复杂度** | 简单（Docker Run/Compose） | 中等（需要脚本） |
+| **GPU 要求** | 必需 | 必需 |
+| **模型大小** | ~15GB | ~10GB |
+| **启动速度** | 快 | 中 |
 
-**SGLang 模式（推荐）- 支持所有后端模式**
+> 💡 **建议**：如果主要处理 Markdown 文档或需要更好的标题识别效果，推荐使用 **Dots**；如果是通用场景或需要快速部署，推荐使用 **MinerU**。
+
+##### 启动 MinerU 服务
+
+基于 VLM 的 MinerU 完全离线部署方案，镜像包含所有必要的模型文件，无需运行时下载。配置文件位于：`knowflow/mineru/docker-compose.yml` , 根据需要选择 pipline 模式或者 vllm 模式。
+
 ```bash
-docker run -d \
-    --gpus all \
-    -p 8888:8888 \
-    -p 30000:30000 \
-    -e MINERU_MODEL_SOURCE=local \
-    -e SGLANG_MEM_FRACTION_STATIC=0.8 \
-    --name mineru-sglang \
-    zxwei/mineru-api-full:v2.1.11
+# 进入 MinerU 目录
+cd knowflow/mineru/
+
+# pipline: 仅启动基础 API 服务（端口 8000)
+docker compose up -d mineru-api
+
+# vllm: 同时启动 API + VLM 服务（端口 8000 + 30000）
+docker compose --profile vllm up -d
 ```
 
-**Pipeline 模式 - 仅支持标准 Pipeline 后端**
+**查看服务状态：**
 ```bash
-docker run -d \
-    --gpus all \
-    -p 8888:8888 \
-    --name mineru-pipeline \
-    -e MINERU_MODEL_SOURCE=local \
-    -e INSTALL_TYPE=core \
-    zxwei/mineru-api-full:v2.1.11
-```
+# 查看运行中的容器
+docker compose ps
 
+# 查看日志
+docker compose logs -f mineru-api
+docker compose logs -f mineru-vllm-server
+```
 
 > 💡 **镜像特性：**
 > - **完全离线部署**: 所有模型文件已预下载并打包在镜像中
@@ -169,44 +179,64 @@ docker run -d \
 > - **高性能**: GPU 加速推理，支持 CUDA 12.4
 > - **智能启动**: 支持环境变量配置，灵活的参数调优
 
-##### 2. MinerU 服务地址配置
+**端口说明：**
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| mineru-api | 8888 | MinerU 基础 API 服务 |
+| mineru-vllm-server | 30000 | VLM 高级 OCR 服务（需要 `--profile vllm`） |
+
+##### MinerU 服务地址配置
 
 在 `/knowflow/server/services/config/settings.yaml` 配置文件中，配置 MinerU 服务地址以及解析模式:
 
 ```bash
+  # 选项: pipeline, vlm-http-client
+  default_backend: "pipeline"
+
+  # FastAPI 客户端配置
   fastapi:
-    # FastAPI 服务地址
-    # 本地开发: http://localhost:8888
-    # Docker部署: http://host.docker.internal:8888 (Docker Desktop)
-    #           或 http://宿主机IP:8888 (Linux Docker)
-    url: "http://宿主机IP:8888"
-    
+    # FastAPI 服务地址 - 使用 MinerU 2.5 官方 API
+    # 本地开发: http://localhost:8000
+    # Docker部署: http://knowflow-mineru-api:8000 (容器内部通信)
+    #           或 http://host.docker.internal:8000 (Docker Desktop)
+    #           或 http://宿主机IP:8000 (Linux Docker)
+    url: "http://localhost:8000"
+
     # HTTP 请求超时时间（秒）
-    timeout: 30000
+    timeout: 60000  # 增加到 60000 秒，避免大文件超时
 
-
-   # VLM 后端配置
+  # VLM 后端配置
   vlm:
-    sglang:
-      # SGLang 服务器地址（vlm-sglang-client 后端需要）
-      # Docker部署时同样需要使用宿主机IP或容器网络地址
-      server_url: "http://宿主机IP:30000"
+    # HTTP 客户端配置（vlm-http-client 后端）
+    http_client:
+      # VLM HTTP 服务器地址(同上)
+      server_url: "http://localhost:30000"
 ```
 
 
-##### 1. 启动 Dots 镜像 
+##### 启动 Dots 服务
 
-进入到 `knowflow/dots` 目录下, 执行拉取 Dots 镜像脚本，该脚本可以自动下载模型以及下载 Dots 镜像。
+进入到 `knowflow/dots` 目录下，执行部署脚本，该脚本会自动下载模型并启动 Dots 镜像。
 
 ```bash
 cd knowflow/dots
 ./deploy.sh
 ```
 
-默认端口是 8000，如有冲突，可以手动调整 compose 文件。
+**端口说明：**
+- 默认端口：`8000`（DOTS OCR API 服务）
+- 如有端口冲突，可修改 `docker-compose.yml` 文件
 
+**查看服务状态：**
+```bash
+# 查看运行中的容器
+docker compose ps
 
-##### 2. Dots 服务地址配置
+# 查看日志
+docker compose logs -f
+```
+
+##### Dots 服务地址配置
 
 在 `/knowflow/server/services/config/settings.yaml` 配置文件中，配置 Dots 服务地址以及解析模式:
 
@@ -427,181 +457,6 @@ pnpm dev
 
 ---
 
-## ⚙️ 高级配置
-
-### 🔧 MinerU 高级配置
-
-#### 环境变量配置
-
-通过环境变量自定义 MinerU 启动行为：
-
-```bash
-# 自定义 SGLang 服务器参数
-docker run -d \
-    --gpus all \
-    -p 8888:8888 \
-    -p 30000:30000 \
-    -e MINERU_MODEL_SOURCE=local \
-    -e SGLANG_TP_SIZE=2 \
-    -e SGLANG_MEM_FRACTION_STATIC=0.9 \
-    -e SGLANG_ENABLE_TORCH_COMPILE=true \
-    --name mineru-sglang-custom \
-    zxwei/mineru-api-full:v2.1.11
-```
-
-#### 配置文件挂载
-
-**方法一：环境变量文件**
-```bash
-# 创建本地 .env 文件
-cp .env.example .env
-vim .env
-
-# 挂载配置文件
-docker run -d \
-    --gpus all \
-    -p 8888:8888 \
-    -p 30000:30000 \
-    -v $(pwd)/.env:/app/.env \
-    -v $(pwd)/mineru.json:/root/mineru.json \
-    -e MINERU_MODEL_SOURCE=local \
-    --name mineru-sglang \
-    zxwei/mineru-api-full:v2.1.11
-```
-
-**方法二：完整配置挂载（生产环境推荐）**
-```bash
-# 创建配置目录
-mkdir -p config
-cp .env config/
-cp mineru.json config/
-
-# 挂载整个配置目录
-docker run -d \
-    --gpus all \
-    -p 8888:8888 \
-    -p 30000:30000 \
-    -v $(pwd)/config/.env:/app/.env \
-    -v $(pwd)/config/mineru.json:/root/mineru.json \
-    -v $(pwd)/data:/app/data \
-    -v $(pwd)/output:/app/output \
-    -e MINERU_MODEL_SOURCE=local \
-    --name mineru-sglang \
-    zxwei/mineru-api-full:v2.1.11
-```
-
-#### 环境变量配置示例
-
-**.env 文件配置**：
-```bash
-# 基础配置
-INSTALL_TYPE=all
-MINERU_MODEL_SOURCE=local
-API_PORT=8888
-SGLANG_PORT=30000
-
-# SGLang 性能参数
-SGLANG_TP_SIZE=2                    # 张量并行大小
-SGLANG_DP_SIZE=1                    # 数据并行大小
-SGLANG_MEM_FRACTION_STATIC=0.8      # 内存分配比例
-SGLANG_ENABLE_TORCH_COMPILE=true    # 启用编译优化
-SGLANG_MAX_SEQ_LEN=8192             # 最大序列长度
-SGLANG_BATCH_SIZE=64                # 批处理大小
-
-# 高级配置
-STARTUP_WAIT_TIME=20                # 启动等待时间
-LOG_LEVEL=INFO                      # 日志级别
-VERBOSE=true                        # 详细日志
-```
-
-#### 常见配置场景
-
-**高性能配置（多 GPU）**
-```bash
-SGLANG_TP_SIZE=4
-SGLANG_MEM_FRACTION_STATIC=0.85
-SGLANG_ENABLE_TORCH_COMPILE=true
-SGLANG_MAX_SEQ_LEN=16384
-SGLANG_BATCH_SIZE=128
-```
-
-**内存受限环境**
-```bash
-SGLANG_TP_SIZE=1
-SGLANG_MEM_FRACTION_STATIC=0.7
-SGLANG_MAX_SEQ_LEN=4096
-SGLANG_BATCH_SIZE=32
-```
-
-**仅 API 服务（不启动 SGLang）**
-```bash
-INSTALL_TYPE=core
-```
-
-#### MinerU 本地调试（开发环境）
-
-如果需要在本地环境进行开发调试：
-
-```bash
-# 1. 安装 Python 依赖（注意：zsh 需要用引号包围方括号）
-pip install "mineru[core]" fastapi uvicorn python-multipart
-
-# 2. 设置环境变量
-export MINERU_DEVICE_MODE=cpu
-export MINERU_MODEL_SOURCE=modelscope
-
-# 3. 进入项目目录
-cd knowflow/web_api
-
-# 4. 启动本地服务
-python app.py
-```
-
-**配置 settings.yaml：**
-```yaml
-mineru:
-  fastapi:
-    # 本地开发服务地址
-    url: "http://localhost:8888"
-  
-  vlm:
-    sglang:
-      # 本地SGLang服务地址（如果使用vlm-sglang-client后端）
-      server_url: "http://localhost:30000"
-```
-
-#### DOTS 解析使用
-
-**配置 DOTS 解析**
-1. 在知识库设置中选择"DOTS"解析方式
-2. 支持复杂文档版式和多模态内容理解
-3. 提供更准确的文档结构识别
-
-**使用步骤**
-```bash
-# 1. 创建知识库时选择 DOTS 解析器
-# 2. 上传文档自动使用 DOTS 解析
-# 3. 获得更精准的图文混排输出
-```
-
-#### API 使用示例
-
-**健康检查**
-```bash
-curl http://localhost:8888/health
-```
-
-**文档解析 API**
-```bash
-# 上传文档进行解析
-curl -X POST "http://localhost:8888/parse" \
-     -F "file=@document.pdf" \
-     -F "mode=pipeline"
-```
-
-
----
-
 ## 🔧 编译 Docker（开发者）
 
 
@@ -640,18 +495,6 @@ RAGFLOW_IMAGE=infiniflow/ragflow:nightly-slim
 
 ---
 
-## 开启管理员管理功能
-
-默认注册的账号不具备管理员权限，如需使用管理功能，需要对账号进行授权。
-
-运行 KnowFlow 之后，执行 `docker/set_superuser.sh` 脚本:
-
-```bash
- ./set_superuser.sh set xxxx@xxx.com 
-```
-
----
-
 ## 📋 TODO 清单
 
 - [x] 支持更多文档格式的 MinerU 解析
@@ -667,19 +510,9 @@ RAGFLOW_IMAGE=infiniflow/ragflow:nightly-slim
 
 ## ❓ 常见问题
 
-### 1. MinerU 镜像选择与特性
+### 1. 如何启用 GPU 加速？
 
-**zxwei/mineru-api-full:v2.1.11（推荐）：**
-- ✅ **完全离线部署**: 所有模型文件已预下载并打包在镜像中
-- ✅ **最新版本**: 使用 MinerU v2.1.11 最新版本
-- ✅ **SGLang 集成**: 基于 SGLang v0.4.7-cu124 官方镜像
-- ✅ **全功能支持**: 支持 Pipeline 和 VLM 两种模式
-- ✅ **高性能**: GPU 加速推理，支持 CUDA 12.4
-- ✅ **智能启动**: 默认支持环境变量配置，灵活的参数调优
-
-### 2. 如何启用 GPU 加速？
-
-1. **安装 nvidia-container-toolkit**
+**安装 nvidia-container-toolkit**
 ```bash
 # 添加源
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
@@ -693,106 +526,8 @@ sudo apt-get install -y nvidia-container-toolkit
 
 # 重启 Docker
 sudo systemctl restart docker
+
 ```
-
-2. **启动容器时使用 GPU**
-确保启动命令包含 `--gpus=all` 参数
-
-3. **配置 GPU 后端**
-```yaml
-mineru:
-  default_backend: "vlm-sglang-client"  # 使用 VLM 后端
-```
-
-### 3. MinerU 故障排除
-
-#### 常见问题
-
-**1. 构建时间过长**
-- 模型下载需要时间，请耐心等待
-- 建议使用 ModelScope 源（国内网络更快）
-
-**2. 内存不足**
-- 确保 Docker 有足够内存（建议 8GB+）
-- 调整 `SGLANG_MEM_FRACTION_STATIC` 参数
-- 可以分阶段构建或使用更大的机器
-
-**3. GPU 不可用**
-- 确保安装了 nvidia-docker2
-- 检查 CUDA 驱动版本兼容性
-
-**4. SGLang 服务启动失败**
-- 检查 GPU 内存是否足够
-- 调整 `SGLANG_TP_SIZE` 和 `SGLANG_MEM_FRACTION_STATIC`
-- 增加 `STARTUP_WAIT_TIME` 等待时间
-
-**5. 环境变量不生效**
-- 确保 `.env` 文件格式正确（无空格、正确的键值对）
-- 检查文件挂载路径是否正确
-- 使用 `docker exec` 进入容器检查环境变量
-
-**6. 端口冲突**
-- 修改 `API_PORT` 和 `SGLANG_PORT` 环境变量
-- 确保宿主机端口未被占用：
-  - MinerU API 服务：8888
-  - SGLang 服务：30000
-  - KnowFlow 前端：8081
-  - KnowFlow 后端：5000
-
-**7. 配置文件挂载问题**
-- 确保配置文件路径正确且文件存在
-- 检查文件权限（建议 644 权限）
-- 验证 JSON 格式是否正确（使用 `jq` 工具验证）
-- 确保挂载路径与容器内路径匹配
-
-**8. 模型路径配置错误**
-- 检查 `mineru.json` 中的 `models-dir` 配置
-- 确保模型文件在指定路径存在
-- 验证模型文件完整性
-
-#### 日志查看与调试
-
-```bash
-# 查看容器日志
-docker logs mineru-sglang
-
-# 实时查看日志
-docker logs -f mineru-sglang
-
-# 进入容器检查配置
-docker exec -it mineru-sglang bash
-
-# 检查环境变量
-docker exec mineru-sglang env | grep -E "(SGLANG|API|MINERU)"
-
-# 验证配置文件
-docker exec mineru-sglang cat /app/.env
-docker exec mineru-sglang cat /root/mineru.json
-
-# 检查模型文件
-docker exec mineru-sglang ls -la /app/models/
-
-# 验证 JSON 配置格式
-docker exec mineru-sglang jq . /root/mineru.json
-```
-
-**网络连接问题：**
-检查防火墙设置和容器网络配置
-
-**图片显示问题：**
-确保聊天助手提示词包含图片显示指令：
-
-> 请参考{knowledge}内容回答用户问题。<br>
-> 如果知识库内容包含图片，请在回答中包含图片URL。<br>
-> 注意这个 html 格式的 URL 是来自知识库本身，URL 不能做任何改动。<br>
-> 请确保回答简洁、专业，将图片自然地融入回答内容中。
-
-### 4. 性能优化建议
-
-1. **使用 GPU**: 启用 GPU 加速可显著提升处理速度
-2. **内存配置**: 为容器分配足够内存（推荐 8GB+）
-3. **存储优化**: 使用 SSD 存储可提升 I/O 性能
-4. **网络配置**: 如需外网访问，配置适当的防火墙规则
 
 ---
 

@@ -100,6 +100,10 @@ excel:
 # MinerU 文档解析配置 (客户端配置)
 # =======================================================
 mineru:
+  # 默认使用的后端类型
+  # 选项: pipeline, vlm-http-client
+  default_backend: "pipeline"
+
   # FastAPI 客户端配置
   fastapi:
     # FastAPI 服务地址 - 使用 MinerU 2.5 官方 API
@@ -107,15 +111,17 @@ mineru:
     # Docker部署: http://knowflow-mineru-api:8000 (容器内部通信)
     #           或 http://host.docker.internal:8000 (Docker Desktop)
     #           或 http://宿主机IP:8000 (Linux Docker)
-    # 生产环境: http://8.134.177.47:18001 (新部署的MinerU API服务)
-    url: "http://8.134.177.47:18001"
+    url: "http://localhost:8000"
 
     # HTTP 请求超时时间（秒）
-    timeout: 30000
-  
-  # 默认使用的后端类型
-  # 选项: pipeline, vlm-http-client
-  default_backend: "vlm-http-client"
+    timeout: 60000  # 增加到 60000 秒，避免大文件超时
+
+  # VLM 后端配置
+  vlm:
+    # HTTP 客户端配置（vlm-http-client 后端）
+    http_client:
+      # VLM HTTP 服务器地址
+      server_url: "http://localhost:30000"
   
   # Pipeline 后端请求参数
   pipeline:
@@ -131,13 +137,6 @@ mineru:
     # 是否启用表格解析
     table_enable: true
   
-  # VLM 后端配置
-  vlm:
-    # HTTP 客户端配置（vlm-http-client 后端）
-    http_client:
-      # VLM HTTP 服务器地址
-      server_url: "http://8.134.177.47:30001"
-
 # =======================================================
 # DOTS OCR 文档解析配置
 # =======================================================
