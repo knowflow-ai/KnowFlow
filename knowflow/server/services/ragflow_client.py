@@ -6,6 +6,7 @@ RAGFlow API 客户端
 提供与 RAGFlow 后端交互的统一接口，用于文档解析、进度查询等。
 """
 
+import os
 import requests
 import logging
 from typing import List, Dict, Optional
@@ -18,12 +19,14 @@ logger = logging.getLogger(__name__)
 class RAGFlowClient:
     """RAGFlow API 客户端"""
 
-    def __init__(self, ragflow_url: str = "http://127.0.0.1:9380"):
+    def __init__(self, ragflow_url: str = None):
         """初始化 RAGFlow 客户端
 
         Args:
-            ragflow_url: RAGFlow 服务地址
+            ragflow_url: RAGFlow 服务地址（可选，未提供时从环境变量 RAGFLOW_BASE_URL 读取）
         """
+        if ragflow_url is None:
+            ragflow_url = os.environ.get('RAGFLOW_BASE_URL', 'http://127.0.0.1:9380')
         self.base_url = ragflow_url.rstrip('/')
         logger.info(f"RAGFlowClient initialized with base_url: {self.base_url}")
 
