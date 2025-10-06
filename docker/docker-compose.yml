@@ -44,6 +44,7 @@ services:
       - HF_ENDPOINT=${HF_ENDPOINT}
       - MACOS=${MACOS}
       - KNOWFLOW_API_URL=${KNOWFLOW_API_URL:-http://knowflow-backend:5000}
+      - KNOWFLOW_SERVER_URL=${KNOWFLOW_SERVER_URL:-http://knowflow-backend:5000}
     networks:
       - ragflow
     restart: on-failure
