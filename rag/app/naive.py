@@ -461,6 +461,25 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
                 chunk_level='semantic',  # 使用语义块（preproc_blocks），不断句
                 **kwargs
             )
+
+            # 转换 MinerU 格式为 naive_merge 期望的格式
+            # MinerU 返回: (text_with_tag, layout_type)
+            # naive_merge 期望: (text, position_tag)
+            converted_sections = []
+            for text_with_tag, layout_type in sections:
+                # 提取 position tag（格式：@@page\tx0\tx1\ty0\ty1##）
+                pattern = r'(@@\d+\t[\d.]+\t[\d.]+\t[\d.]+\t[\d.]+##)'
+                match = re.match(pattern, text_with_tag)
+                if match:
+                    position_tag = match.group(1)
+                    # 移除 position tag，得到纯文本
+                    text = text_with_tag[len(position_tag):]
+                    converted_sections.append((text, position_tag))
+                else:
+                    # 没有 position tag，直接使用
+                    converted_sections.append((text_with_tag, ''))
+            sections = converted_sections
+
             res = tokenize_table(tables, doc, is_english)
             callback(0.8, "MinerU parsing finished.")
 
@@ -476,6 +495,25 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
                 chunk_level='semantic',  # 使用语义块（preproc_blocks），不断句
                 **kwargs
             )
+
+            # 转换 DOTS 格式为 naive_merge 期望的格式
+            # DOTS 返回: (text_with_tag, layout_type)
+            # naive_merge 期望: (text, position_tag)
+            converted_sections = []
+            for text_with_tag, layout_type in sections:
+                # 提取 position tag（格式：@@page\tx0\tx1\ty0\ty1##）
+                pattern = r'(@@\d+\t[\d.]+\t[\d.]+\t[\d.]+\t[\d.]+##)'
+                match = re.match(pattern, text_with_tag)
+                if match:
+                    position_tag = match.group(1)
+                    # 移除 position tag，得到纯文本
+                    text = text_with_tag[len(position_tag):]
+                    converted_sections.append((text, position_tag))
+                else:
+                    # 没有 position tag，直接使用
+                    converted_sections.append((text_with_tag, ''))
+            sections = converted_sections
+
             res = tokenize_table(tables, doc, is_english)
             callback(0.8, "DOTS parsing finished.")
 
