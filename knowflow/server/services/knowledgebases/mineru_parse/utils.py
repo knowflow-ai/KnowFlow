@@ -49,12 +49,14 @@ def is_dev_mode():
 
 
 def should_cleanup_temp_files():
-    """检查是否应该清理临时文件"""
-    # 在dev模式下，默认不清理临时文件，但环境变量仍可覆盖
-    if is_dev_mode():
-        return APP_CONFIG.cleanup_temp_files
-    # 在非dev模式下，默认清理，但环境变量仍可覆盖
-    return APP_CONFIG.cleanup_temp_files
+    """
+    检查是否应该清理临时文件
+
+    清理策略：
+    - dev_mode=True:  不清理临时文件（保留用于调试）
+    - dev_mode=False: 清理临时文件（节省磁盘空间）
+    """
+    return not is_dev_mode()
 
 
 def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_tokens=10, coordinate_map=None, **kwargs):

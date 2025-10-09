@@ -122,10 +122,7 @@ def _load_dots_env_vars() -> Dict[str, Any]:
         'DOTS_TEMPERATURE': 'vllm.temperature',
         'DOTS_TOP_P': 'vllm.top_p',
         'DOTS_MAX_COMPLETION_TOKENS': 'vllm.max_completion_tokens',
-        
-        # DOTS处理配置
-        'DOTS_DEV_MODE': 'dev_mode',
-        'DOTS_CLEANUP_TEMP_FILES': 'cleanup_temp_files',
+
     }
     
     for env_key, config_path in env_mappings.items():

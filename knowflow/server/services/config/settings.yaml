@@ -11,90 +11,12 @@
 #
 # =======================================================
 
-# 默认解析器配置
-# 'mineru': 使用MinerU进行文档解析（默认）
-# 'dots': 使用DOTS OCR进行文档解析
-default_parser: "mineru"
-
 app:
   # 开发模式
   # true: 启用开发模式，跳过某些耗时步骤，输出更详细的日志。
   # false: 生产模式。
   dev_mode: true
 
-  # 临时文件清理
-  # true: 在处理完成后自动清理临时文件（如上传的原始文件、中间文件）。
-  # false: 保留临时文件，便于调试。
-  # 注意：在开发模式下，此项默认为 false，但仍可被环境变量覆盖。
-  cleanup_temp_files: true
-
-  # 全局分块方法
-  # 'parent_child': 父子分块，基于Smart AST + LangChain ParentDocumentRetriever。
-  # 'smart': 智能分块，基于AST的语义分块（默认推荐）。
-  # 'advanced': 高级分块，混合策略+动态阈值调整。
-  # 'basic': 基础分块，简单的文本分割。
-  chunk_method: "smart"
-
-# =======================================================
-# 父子分块配置
-# =======================================================
-parent_child:
-  # 全局启用状态
-  enabled: true
-  
-  # 默认配置
-  default_config:
-    parent_chunk_size: 1024        # 父分块大小（tokens）
-    parent_chunk_overlap: 100      # 父分块重叠大小
-    parent_separator: "\\n\\n"     # 父分块分隔符
-    child_chunk_size: 256          # 子分块大小（tokens）
-    child_chunk_overlap: 50        # 子分块重叠大小
-    child_separator: "[。！？.!?]" # 子分块分隔符
-    retrieval_mode: "parent"       # 检索模式：parent/child/hybrid
-    top_k_children: 10             # 检索子分块数量
-    top_k_parents: 4               # 返回父分块数量
-  
-  # 性能配置
-  performance:
-    batch_size: 100                # 批处理大小
-    max_concurrent_chunks: 10      # 最大并发分块数
-    cache_ttl: 3600               # 缓存过期时间（秒）
-  
-  # 存储配置
-  storage:
-    enable_db_storage: true        # 是否启用数据库存储
-    enable_es_storage: true        # 是否启用ES存储
-    backup_to_file: false          # 是否备份到文件
-
-excel:
-  # 默认分块策略
-  # 'html': 将Excel内容转换为HTML表格进行分块。
-  # 'row': 按行进行分块。
-  default_strategy: "html"
-
-  # HTML分块的默认行数
-  html_chunk_rows: 10
-
-  # 是否启用智能分块大小计算（仅对HTML策略有效）
-  enable_smart_chunk_size: true
-
-  # 在行分块模式下合并的相邻行数
-  merge_adjacent_rows: 1
-
-  # 是否预处理合并的单元格
-  preprocess_merged_cells: true
-
-  # 是否格式化数字（例如，将10000显示为10,000）
-  number_formatting: true
-
-  # 最小分块字符数
-  min_chunk_size: 50
-
-  # 最大分块字符数
-  max_chunk_size: 8000
-
-  # 是否在HTML分块中尽量保持表格结构
-  preserve_table_structure: true
 
 # =======================================================
 # MinerU 文档解析配置 (客户端配置)
@@ -111,7 +33,7 @@ mineru:
     # Docker部署: http://knowflow-mineru-api:8000 (容器内部通信)
     #           或 http://host.docker.internal:8000 (Docker Desktop)
     #           或 http://宿主机IP:8000 (Linux Docker)
-    url: "http://localhost:8000"
+    url: "http://8.134.177.47:18001"
 
     # HTTP 请求超时时间（秒）
     timeout: 60000  # 增加到 60000 秒，避免大文件超时
@@ -121,22 +43,22 @@ mineru:
     # HTTP 客户端配置（vlm-http-client 后端）
     http_client:
       # VLM HTTP 服务器地址
-      server_url: "http://localhost:30000"
-  
+      server_url: "http://8.134.177.47:30001"
+
   # Pipeline 后端请求参数
   pipeline:
     # 解析方法: auto, txt, ocr
     parse_method: "auto"
-    
+
     # 文档语言（提升OCR准确率）
     lang: "ch"
-    
+
     # 是否启用公式解析
     formula_enable: true
-    
+
     # 是否启用表格解析
     table_enable: true
-  
+
 # =======================================================
 # DOTS OCR 文档解析配置
 # =======================================================
@@ -147,21 +69,17 @@ dots:
     # 远程服务示例: http://{ip}:8000
     # 本地服务示例: http://localhost:8000
     url: "http://8.134.177.47:30001"
-    
+
     # 模型名称（根据部署配置调整）
     model_name: "dotsocr-model"
-    
+
     # 请求超时时间（秒）
-    timeout: 300
-    
+    timeout: 60000
+
     # 生成参数
     temperature: 0.1
     top_p: 1.0
     max_completion_tokens: 16384
-  
+
   # DOTS处理配置
-  dev_mode: false
-  cleanup_temp_files: true
-
-
-
+  # 临时文件清理：app.dev_mode=true 时保留临时文件，app.dev_mode=false 时自动清理

@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 class AppConfig(BaseModel):
     """应用主配置"""
     dev_mode: bool = Field(False, description="是否启用开发模式")
-    cleanup_temp_files: bool = Field(True, description="是否清理临时文件")
     chunk_method: str = Field("smart", description="全局分块方法")
 
 
@@ -47,8 +46,6 @@ class DOTSVLLMConfig:
 class DOTSConfig:
     """DOTS OCR 客户端配置"""
     vllm: DOTSVLLMConfig = field(default_factory=DOTSVLLMConfig)
-    dev_mode: bool = False
-    cleanup_temp_files: bool = True
 
 # =======================================================
 # MinerU 配置模型类
