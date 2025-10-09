@@ -81,5 +81,4 @@ dots:
     top_p: 1.0
     max_completion_tokens: 16384
 
-  # DOTS处理配置
-  # 临时文件清理：app.dev_mode=true 时保留临时文件，app.dev_mode=false 时自动清理
+

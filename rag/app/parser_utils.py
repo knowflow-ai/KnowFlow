@@ -305,7 +305,7 @@ def call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_id
     Returns:
         List[dict]: [{"content": str, "positions": [[page, x1, x2, y1, y2], ...], "id": str (optional)}, ...]
     """
-    knowflow_server_url = os.getenv('KNOWFLOW_SERVER_URL', 'http://localhost:5000')
+    knowflow_server_url = os.getenv('KNOWFLOW_API_URL', 'http://localhost:5000')
     api_url = f"{knowflow_server_url}/api/parse/smart_chunk"
 
     # 准备请求数据

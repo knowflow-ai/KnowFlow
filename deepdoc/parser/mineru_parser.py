@@ -33,7 +33,7 @@ class MinerUParser:
 
     def __init__(self):
         self.knowflow_server_url = os.getenv(
-            'KNOWFLOW_SERVER_URL',
+            'KNOWFLOW_API_URL',
             'http://localhost:5000'
         )
         self.timeout = int(os.getenv('MINERU_PARSE_TIMEOUT', '300'))  # 5分钟超时

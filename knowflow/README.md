@@ -200,7 +200,7 @@ class MinerUParser(object):
     def __init__(self):
         # 从环境变量读取 KnowFlow Server URL
         self.knowflow_server_url = os.getenv(
-            'KNOWFLOW_SERVER_URL',
+            'KNOWFLOW_API_URL',
             'http://localhost:5000'
         )
         self.timeout = int(os.getenv('MINERU_PARSE_TIMEOUT', '300'))
@@ -273,7 +273,7 @@ DOTS Parser 与 MinerU Parser 架构完全一致，唯一区别是调用不同�
 class DOTSParser(object):
     def __init__(self):
         self.knowflow_server_url = os.getenv(
-            'KNOWFLOW_SERVER_URL',
+            'KNOWFLOW_API_URL',
             'http://localhost:5000'
         )
 
@@ -1083,7 +1083,7 @@ def enhance_chunks_with_smart_api(
     Returns:
         [{"content": str, "positions": [[page,x0,x1,y0,y1], ...]}, ...]
     """
-    knowflow_server_url = os.getenv('KNOWFLOW_SERVER_URL', 'http://localhost:5000')
+    knowflow_server_url = os.getenv('KNOWFLOW_API_URL', 'http://localhost:5000')
     api_url = f"{knowflow_server_url}/api/parse/smart_chunk"
 
     # 构建请求数据
@@ -1351,7 +1351,7 @@ def parse_with_dots():
 # =======================================================
 # KnowFlow Server URL (for RAGFlow to call KnowFlow)
 # =======================================================
-KNOWFLOW_SERVER_URL=http://knowflow-backend:5000
+KNOWFLOW_API_URL=http://knowflow-backend:5000
 
 # =======================================================
 # MinerU Service Configuration
@@ -1447,7 +1447,7 @@ services:
     container_name: ragflow-server
     environment:
       # KnowFlow 集成配置
-      - KNOWFLOW_SERVER_URL=${KNOWFLOW_SERVER_URL:-http://knowflow-backend:5000}
+      - KNOWFLOW_API_URL=${KNOWFLOW_API_URL:-http://knowflow-backend:5000}
 
       # MinerU 配置
       - MINERU_FASTAPI_URL=${MINERU_FASTAPI_URL:-http://mineru-api:8888}
