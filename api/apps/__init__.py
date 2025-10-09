@@ -143,35 +143,71 @@ client_urls_prefix = [
 
 @login_manager.request_loader
 def load_user(web_request):
-    jwt = Serializer(secret_key=settings.SECRET_KEY)
+    from api.db.db_models import APIToken
+
     authorization = web_request.headers.get("Authorization")
-    if authorization:
-        try:
-            access_token = str(jwt.loads(authorization))
+    if not authorization:
+        return None
 
-            if not access_token or not access_token.strip():
-                logging.warning("Authentication attempt with empty access token")
-                return None
+    try:
+        # 方式1: JWT Token 认证（优先）
+        # 尝试解析 JWT Token（适用于前端登录用户）
+        if not authorization.startswith("Bearer "):
+            jwt = Serializer(secret_key=settings.SECRET_KEY)
+            try:
+                access_token = str(jwt.loads(authorization))
 
-            # Access tokens should be UUIDs (32 hex characters)
-            if len(access_token.strip()) < 32:
-                logging.warning(f"Authentication attempt with invalid token format: {len(access_token)} chars")
-                return None
-
-            user = UserService.query(
-                access_token=access_token, status=StatusEnum.VALID.value
-            )
-            if user:
-                if not user[0].access_token or not user[0].access_token.strip():
-                    logging.warning(f"User {user[0].email} has empty access_token in database")
+                if not access_token or not access_token.strip():
+                    logging.warning("Authentication attempt with empty access token")
                     return None
+
+                # Access tokens should be UUIDs (32 hex characters)
+                if len(access_token.strip()) < 32:
+                    logging.warning(f"Authentication attempt with invalid token format: {len(access_token)} chars")
+                    return None
+
+                user = UserService.query(
+                    access_token=access_token, status=StatusEnum.VALID.value
+                )
+                if user:
+                    if not user[0].access_token or not user[0].access_token.strip():
+                        logging.warning(f"User {user[0].email} has empty access_token in database")
+                        return None
+                    logging.debug(f"JWT Token authentication successful for user: {user[0].email}")
+                    return user[0]
+                else:
+                    return None
+            except Exception as jwt_error:
+                # JWT Token 解析失败，继续尝试 API Key（可能是格式错误）
+                logging.debug(f"JWT Token authentication failed: {jwt_error}")
+                pass
+
+        # 方式2: API Key 认证（兜底）
+        # 格式: Bearer <api_key>（适用于服务端调用）
+        if authorization.startswith("Bearer "):
+            api_key = authorization[7:]  # 去掉 "Bearer " 前缀
+
+            # 查询 API Token
+            objs = APIToken.query(token=api_key)
+            if not objs:
+                logging.warning(f"API Key authentication failed: invalid key")
+                return None
+
+            # tenant_id 就是 user_id (RAGFlow 架构)
+            user_id = objs[0].tenant_id
+            user = UserService.query(id=user_id, status=StatusEnum.VALID.value)
+
+            if user:
+                logging.info(f"API Key authentication successful for user: {user[0].email}")
                 return user[0]
             else:
+                logging.warning(f"API Key authentication failed: user not found")
                 return None
-        except Exception as e:
-            logging.warning(f"load_user got exception {e}")
-            return None
-    else:
+
+        return None
+
+    except Exception as e:
+        logging.warning(f"load_user got exception {e}")
         return None
 
 
