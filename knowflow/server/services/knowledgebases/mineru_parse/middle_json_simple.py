@@ -10,6 +10,27 @@ from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 
 
+# ==================== 公式分隔符配置（参照 MinerU 官方实现） ====================
+# 支持自定义公式分隔符，与 MinerU 保持一致
+DEFAULT_LATEX_DELIMITERS = {
+    'display': {'left': '$$', 'right': '$$'},      # 行间公式（独立成行）
+    'inline': {'left': '$', 'right': '$'}          # 行内公式（嵌入文本中）
+}
+
+# 可通过环境变量或配置文件自定义分隔符
+def get_latex_delimiters():
+    """获取 LaTeX 公式分隔符配置"""
+    # TODO: 未来可从配置文件读取
+    return DEFAULT_LATEX_DELIMITERS
+
+LATEX_DELIMITERS = get_latex_delimiters()
+INLINE_LEFT = LATEX_DELIMITERS['inline']['left']
+INLINE_RIGHT = LATEX_DELIMITERS['inline']['right']
+DISPLAY_LEFT = LATEX_DELIMITERS['display']['left']
+DISPLAY_RIGHT = LATEX_DELIMITERS['display']['right']
+# ==============================================================================
+
+
 class SimpleMiddleJsonConverter:
     """简化的 middle.json 转换器"""
 
@@ -375,7 +396,7 @@ class SimpleMiddleJsonConverter:
 
     def _extract_text_from_lines(self, block: Dict, merge_lines: bool = False) -> str:
         """
-        从 lines 结构提取文本
+        从 lines 结构提取文本（支持行内公式和行间公式）
 
         Args:
             block: 文本块
@@ -387,7 +408,27 @@ class SimpleMiddleJsonConverter:
         lines = []
         for line in block['lines']:
             if 'spans' in line:
-                line_text = ''.join(span.get('content', '') for span in line['spans'])
+                # 处理 span 级别的内容，包括文本和公式
+                line_parts = []
+                for span in line['spans']:
+                    span_type = span.get('type', 'text')
+                    content = span.get('content', '')
+
+                    if not content:
+                        continue
+
+                    # 根据 span 类型添加适当的分隔符（参照 MinerU 官方实现）
+                    if span_type == 'inline_equation':
+                        # 行内公式：$...$
+                        line_parts.append(f"{INLINE_LEFT}{content}{INLINE_RIGHT}")
+                    elif span_type == 'interline_equation':
+                        # 行间公式：\n$$\n...\n$$\n
+                        line_parts.append(f"\n{DISPLAY_LEFT}\n{content}\n{DISPLAY_RIGHT}\n")
+                    else:
+                        # 普通文本
+                        line_parts.append(content)
+
+                line_text = ''.join(line_parts)
                 if line_text:
                     lines.append(line_text)
 
@@ -494,7 +535,7 @@ class SimpleMiddleJsonConverter:
         block_type = block['type']
         text = block['text']
 
-        if not text and block_type != 'image':
+        if not text and block_type not in ('image', 'interline_equation'):
             return ''
 
         # 根据类型生成 markdown
@@ -522,10 +563,17 @@ class SimpleMiddleJsonConverter:
             if text:
                 lines.append(text)
             return '\n'.join(lines)
-        elif block_type == 'formula':
-            if not (text.startswith('$') and text.endswith('$')):
-                return f"${text}$"
-            return text
+        elif block_type == 'interline_equation':
+            # 行间公式（块级）：\n$$\n...\n$$\n（参照 MinerU 官方实现）
+            # text 已经通过 _extract_text_from_lines 处理，可能已包含分隔符
+            # 但为了确保一致性，检查并添加分隔符
+            if text:
+                # 如果已经有分隔符，直接返回
+                if text.strip().startswith(DISPLAY_LEFT) and text.strip().endswith(DISPLAY_RIGHT):
+                    return text
+                # 否则添加分隔符
+                return f"\n{DISPLAY_LEFT}\n{text.strip()}\n{DISPLAY_RIGHT}\n"
+            return ''
         elif block_type == 'list':
             return text  # 已经格式化过了
         else:
