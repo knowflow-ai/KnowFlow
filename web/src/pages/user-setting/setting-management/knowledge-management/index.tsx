@@ -1516,17 +1516,6 @@ const KnowledgeManagementPage = () => {
               <Option value="team">团队</Option>
             </Select>
           </Form.Item>
-          <Form.Item
-            name="parser_id"
-            label="解析方法"
-            initialValue="mineru"
-            rules={[{ required: true, message: '请选择解析方法' }]}
-          >
-            <Select>
-              <Option value="mineru">MinerU</Option>
-              <Option value="dots">DOTS</Option>
-            </Select>
-          </Form.Item>
         </Form>
       </Modal>
 
