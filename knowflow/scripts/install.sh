@@ -177,15 +177,11 @@ setup_env_file() {
         echo -e "${BLUE}🔍 检测到的本机IP: $LOCAL_IP${NC}"
     fi
     
-    # 检查.env文件是否存在，如果存在则备份
+    # 检查.env文件是否存在，提示覆盖
     if [ -f "$PROJECT_ROOT/.env" ]; then
-        echo -e "${YELLOW}📋 备份现有.env文件...${NC}"
-        if ! cp "$PROJECT_ROOT/.env" "$PROJECT_ROOT/.env.backup.$(date +%Y%m%d_%H%M%S)"; then
-            echo -e "${RED}❌ 备份.env文件失败${NC}"
-            return 1
-        fi
+        echo -e "${YELLOW}⚠️  .env文件已存在，将被覆盖${NC}"
     fi
-    
+
     echo "生成.env文件..."
     
     if [ "$USE_DOCKER_CONTAINERS" = true ]; then

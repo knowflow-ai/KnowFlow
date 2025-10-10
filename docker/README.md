@@ -1,14 +1,368 @@
-# README
+# KnowFlow Docker 部署指南
 
 <details open>
 <summary></b>📗 Table of Contents</b></summary>
 
+- 🚀 [快速开始](#-快速开始)
+- 📦 [部署架构](#-部署架构)
 - 🐳 [Docker Compose](#-docker-compose)
 - 🐬 [Docker environment variables](#-docker-environment-variables)
 - 🐋 [Service configuration](#-service-configuration)
+- 🔧 [KnowFlow 配置](#-knowflow-配置)
+- 🖥️ [部署场景](#-部署场景)
 - 📋 [Setup Examples](#-setup-examples)
+- 🛠️ [故障排查](#-故障排查)
 
 </details>
+
+---
+
+## 🚀 快速开始
+
+### 方式一：自动部署脚本（推荐，零配置）
+
+完整的交互式部署流程，自动配置所有服务：
+
+```bash
+# 运行自动部署脚本
+./scripts/deploy.sh
+```
+
+**部署流程**：
+1. ✅ 选择要安装的 OCR 服务（MinerU/DOTS）
+2. ✅ 选择部署模式（CPU/GPU）
+3. ✅ 自动配置服务地址和端口
+4. ✅ 自动更新 settings.yaml
+5. ✅ 自动启动所有服务
+6. ✅ 显示访问地址和登录信息
+
+**访问服务**：
+- 🌐 前端: http://localhost
+- 🔌 API: http://localhost:9380
+- 👤 默认账号: admin@gmail.com / admin
+
+详细说明请查看：[scripts/README.md](scripts/README.md)
+
+### 方式二：快速启动（适用于已配置环境）
+
+```bash
+# 启动主服务
+./scripts/quick-start.sh
+
+# 启动所有服务（包括 MinerU 和 DOTS）
+./scripts/quick-start.sh --all
+
+# 停止服务
+./scripts/quick-start.sh --stop
+
+# 查看状态
+./scripts/quick-start.sh --status
+```
+
+### 方式三：手动启动
+
+```bash
+# 1. 配置环境
+cp .env.example .env
+cp knowflow-server/settings.yaml.example knowflow-server/settings.yaml
+
+# 2. 编辑配置（可选）
+vim .env
+vim knowflow-server/settings.yaml
+
+# 3. 启动服务
+docker compose up -d
+
+# 4. 查看日志
+docker compose logs -f
+
+# 5. 检查服务状态
+docker compose ps
+```
+
+---
+
+## 📦 部署架构
+
+KnowFlow 采用模块化部署架构，支持灵活的分布式部署：
+
+```
+KnowFlow 部署架构
+├── 主服务 (docker-compose.yml)
+│   ├── RAGFlow 前端 (端口 80/443)
+│   ├── RAGFlow API (端口 9380)
+│   ├── KnowFlow Server (端口 5000)
+│   ├── MySQL (端口 5455)
+│   ├── Elasticsearch (端口 1200)
+│   ├── MinIO (端口 9000, 9001)
+│   └── Redis (端口 6379)
+│
+├── MinerU 服务 (mineru/docker-compose.yml) - 可独立部署
+│   ├── MinerU API (端口 8000)
+│   └── MinerU VLM (端口 30000, 可选)
+│
+└── DOTS 服务 (dots/docker-compose.yml) - 可独立部署
+    └── DOTS OCR Server (端口 8000)
+```
+
+**核心特性**:
+- ✅ **独立部署**: MinerU 和 DOTS 可部署在不同服务器
+- ✅ **灵活配置**: 通过 `knowflow-server/settings.yaml` 配置服务地址
+- ✅ **GPU 支持**: MinerU/DOTS 支持多 GPU 并行
+- ✅ **一键启动**: 提供自动化部署脚本
+
+---
+
+## 🔧 KnowFlow 配置
+
+### KnowFlow Server 业务配置
+
+配置文件位置: `knowflow-server/settings.yaml`
+
+**重要**: 此文件控制 KnowFlow 的业务逻辑，包括 MinerU/DOTS 服务地址配置。
+
+```yaml
+# 应用配置
+app:
+  dev_mode: false
+
+# MinerU 服务配置
+mineru:
+  default_backend: "pipeline"  # pipeline 或 vlm-http-client
+  fastapi:
+    url: "http://localhost:8000"  # 👈 修改为 MinerU 服务地址
+    timeout: 60000
+  vlm:
+    http_client:
+      server_url: "http://localhost:30000"  # VLM 服务地址（可选）
+
+# DOTS 服务配置
+dots:
+  vllm:
+    url: "http://localhost:8000"  # 👈 修改为 DOTS 服务地址
+    model_name: "dotsocr-model"
+    timeout: 60000
+```
+
+**配置步骤**:
+
+1. 从模板创建配置文件:
+   ```bash
+   cp knowflow-server/settings.yaml.example knowflow-server/settings.yaml
+   ```
+
+2. 根据部署场景修改服务地址:
+   - **同服务器部署**: `http://localhost:8000`
+   - **远程部署**: `http://192.168.1.101:8000`
+   - **Docker 网络**: `http://knowflow-mineru-api:8000`
+
+3. 详细配置说明请参考: [knowflow-server/README.md](knowflow-server/README.md)
+
+---
+
+## 🖥️ 部署场景
+
+### 场景 1: 单服务器部署 (All-in-One)
+
+所有服务部署在同一台服务器上。
+
+**适用场景**: 开发环境、小规模生产环境
+
+**部署步骤**:
+
+```bash
+# 1. 启动主服务
+./scripts/quick-start.sh
+
+# 2. 启动 MinerU（注意端口冲突）
+cd mineru/
+cp .env.example .env
+# 修改端口避免冲突: MINERU_API_PORT=8888
+docker compose up -d
+
+# 3. 启动 DOTS（注意端口冲突）
+cd ../dots/
+cp .env.example .env
+# 下载模型
+pip install modelscope
+modelscope download --model rednote-hilab/dots.ocr --local_dir ./weights/DotsOCR
+# 修改端口: DOTS_PORT=8001
+docker compose up -d
+
+# 4. 配置 KnowFlow Server
+# 编辑 knowflow-server/settings.yaml:
+# mineru.fastapi.url: "http://localhost:8888"
+# dots.vllm.url: "http://localhost:8001"
+
+# 5. 重启主服务
+cd ..
+docker compose restart knowflow-server
+```
+
+### 场景 2: 分布式部署（推荐）
+
+将 GPU 密集型服务部署在独立服务器上。
+
+**适用场景**: 生产环境、GPU 资源独立管理
+
+**服务器分配示例**:
+- **服务器 A** (192.168.1.100): KnowFlow 主服务
+- **服务器 B** (192.168.1.101): MinerU 服务
+- **服务器 C** (192.168.1.102): DOTS 服务
+
+**部署步骤**:
+
+```bash
+# 服务器 A - 主服务
+cd /path/to/knowflow/docker
+cp .env.example .env
+cp knowflow-server/settings.yaml.example knowflow-server/settings.yaml
+
+# 编辑 knowflow-server/settings.yaml:
+# mineru.fastapi.url: "http://192.168.1.101:8000"
+# dots.vllm.url: "http://192.168.1.102:8000"
+
+./scripts/quick-start.sh
+
+# 服务器 B - MinerU
+cd /path/to/knowflow/docker/mineru
+cp .env.example .env
+docker compose up -d
+
+# 服务器 C - DOTS
+cd /path/to/knowflow/docker/dots
+cp .env.example .env
+# 下载模型
+modelscope download --model rednote-hilab/dots.ocr --local_dir ./weights/DotsOCR
+docker compose up -d
+```
+
+### 场景 3: Docker 网络部署
+
+所有服务在同一 Docker Compose 网络中通信。
+
+**适用场景**: 容器化环境、Kubernetes
+
+**配置示例**:
+
+```yaml
+# knowflow-server/settings.yaml
+mineru:
+  fastapi:
+    url: "http://knowflow-mineru-api:8000"
+dots:
+  vllm:
+    url: "http://knowflow-dots-ocr:8000"
+```
+
+---
+
+## 🛠️ 故障排查
+
+### 1. KnowFlow Server 无法连接 MinerU/DOTS
+
+**症状**: 日志显示连接超时或拒绝连接
+
+**检查清单**:
+
+```bash
+# 1. 检查 MinerU/DOTS 服务是否运行
+cd mineru && docker compose ps
+cd ../dots && docker compose ps
+
+# 2. 测试网络连通性
+curl http://localhost:8000/health  # MinerU
+curl http://localhost:8000/v1/models  # DOTS
+
+# 3. 检查 settings.yaml 配置
+cat knowflow-server/settings.yaml | grep -A 5 "mineru:"
+cat knowflow-server/settings.yaml | grep -A 5 "dots:"
+
+# 4. 查看 KnowFlow Server 日志
+docker compose logs knowflow-server | tail -50
+
+# 5. 检查防火墙规则
+sudo ufw status
+sudo ufw allow 8000/tcp
+```
+
+### 2. 端口冲突
+
+**症状**: `port already in use`
+
+**解决方案**:
+
+```bash
+# 修改冲突的端口
+# MinerU: 编辑 mineru/.env
+MINERU_API_PORT=8888
+
+# DOTS: 编辑 dots/.env
+DOTS_PORT=8001
+
+# 重启服务
+docker compose down && docker compose up -d
+```
+
+### 3. GPU 不可用
+
+**症状**: `No GPU available` 或 `CUDA out of memory`
+
+**解决方案**:
+
+```bash
+# 检查 GPU 状态
+nvidia-smi
+
+# 检查 nvidia-docker
+docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+
+# 降低 GPU 内存利用率（编辑 .env）
+MINERU_GPU_MEMORY_UTILIZATION=0.6
+DOTS_GPU_MEMORY_UTILIZATION=0.6
+```
+
+### 4. DOTS 模型加载失败
+
+**症状**: `FileNotFoundError: weights/DotsOCR not found`
+
+**解决方案**:
+
+```bash
+cd dots/
+
+# 下载模型
+pip install modelscope
+modelscope download --model rednote-hilab/dots.ocr --local_dir ./weights/DotsOCR
+
+# 检查模型文件
+ls -la weights/DotsOCR/
+
+# 重启服务
+docker compose restart
+```
+
+### 5. 数据库连接失败
+
+**症状**: `Can't connect to MySQL server`
+
+**解决方案**:
+
+```bash
+# 检查 MySQL 服务
+docker compose ps mysql
+
+# 查看 MySQL 日志
+docker compose logs mysql | tail -50
+
+# 检查 .env 中的密码配置
+cat .env | grep MYSQL_PASSWORD
+
+# 重启 MySQL
+docker compose restart mysql
+```
+
+---
 
 ## 🐳 Docker Compose
 

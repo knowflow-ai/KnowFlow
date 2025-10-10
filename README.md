@@ -124,178 +124,148 @@ graph TB
 ### 方式一：Docker Compose 部署（推荐）
 
 #### 前置要求
-- Docker 20.10+ 
+- Docker 20.10+
 - Docker Compose 2.0+
 - 至少 8GB 内存
 - 可选：NVIDIA GPU + nvidia-container-toolkit（GPU加速）
 
-#### 1. 启动文档解析服务
+#### 1. 克隆项目代码
 
-可以在 MinerU 和 Dots 服务中任选一种。
+```bash
+git clone https://github.com/weizxfree/KnowFlow.git
+cd KnowFlow/docker
+```
 
-**📊 服务对比：**
+#### 2. 配置 KnowFlow Server
 
-| 特性 | MinerU | Dots |
-|------|--------|------|
-| **推荐场景** | 通用文档、学术论文 | Markdown 文档、技术手册 |
-| **标题识别** | 良好 | 优秀（推荐） |
-| **部署复杂度** | 简单（Docker Run/Compose） | 中等（需要脚本） |
-| **GPU 要求** | 必需 | 必需 |
-| **模型大小** | ~15GB | ~10GB |
-| **启动速度** | 快 | 中 |
+配置文件位于：`docker/knowflow-server/settings.yaml`
 
-> 💡 **建议**：如果主要处理 Markdown 文档或需要更好的标题识别效果，推荐使用 **Dots**；如果是通用场景或需要快速部署，推荐使用 **MinerU**。
+```bash
+# 从模板创建配置文件
+cp knowflow-server/settings.yaml.example knowflow-server/settings.yaml
 
-##### 启动 MinerU 服务
+# 编辑配置文件，配置 MinerU/DOTS 服务地址
+vim knowflow-server/settings.yaml
+```
 
-基于 VLM 的 MinerU 完全离线部署方案，镜像包含所有必要的模型文件，无需运行时下载。配置文件位于：`knowflow/mineru/docker-compose.yml` , 根据需要选择 pipline 模式或者 vllm 模式。
+**配置示例**：
+
+```yaml
+# MinerU 服务配置
+mineru:
+  default_backend: "pipeline"
+  fastapi:
+    url: "http://localhost:8000"  # 👈 修改为 MinerU 服务地址
+    timeout: 60000
+
+# DOTS 服务配置（可选）
+dots:
+  vllm:
+    url: "http://localhost:8000"  # 👈 修改为 DOTS 服务地址
+    model_name: "dotsocr-model"
+    timeout: 60000
+```
+
+**部署场景配置**：
+- **同服务器部署**: `http://localhost:8000`
+- **远程服务器部署**: `http://192.168.1.101:8000`
+- **Docker 网络部署**: `http://knowflow-mineru-api:8000`
+
+详细配置说明：[docker/knowflow-server/README.md](docker/knowflow-server/README.md)
+
+#### 3. 部署 OCR 解析服务（可选）
+
+KnowFlow 支持 MinerU 和 DOTS 两种 OCR 服务，可根据需求选择部署。
+
+##### 选项 A：部署 MinerU 服务
 
 ```bash
 # 进入 MinerU 目录
-cd knowflow/mineru/
+cd mineru/
 
-# pipline: 仅启动基础 API 服务（端口 8000)
-docker compose up -d mineru-api
+# 从模板创建配置
+cp .env.example .env
 
-# vllm: 同时启动 API + VLM 服务（端口 8000 + 30000）
-docker compose --profile vllm up -d
-```
+# 启动 MinerU API 服务
+docker compose up -d
 
-**查看服务状态：**
-```bash
-# 查看运行中的容器
+# 查看服务状态
 docker compose ps
-
-# 查看日志
-docker compose logs -f mineru-api
-docker compose logs -f mineru-vllm-server
+docker compose logs -f
 ```
 
-> 💡 **镜像特性：**
-> - **完全离线部署**: 所有模型文件已预下载并打包在镜像中
-> - **最新版本**: 使用 MinerU v2.1.11 最新版本
-> - **SGLang 集成**: 基于 SGLang v0.4.7-cu124 官方镜像
-> - **全功能支持**: 支持 Pipeline 和 VLM 两种模式
-> - **高性能**: GPU 加速推理，支持 CUDA 12.4
-> - **智能启动**: 支持环境变量配置，灵活的参数调优
+**服务端口**：
+- MinerU API: 8000
+- MinerU VLM (可选): 30000
 
-**端口说明：**
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| mineru-api | 8888 | MinerU 基础 API 服务 |
-| mineru-vllm-server | 30000 | VLM 高级 OCR 服务（需要 `--profile vllm`） |
+详细说明：[docker/mineru/README.md](docker/mineru/README.md)
 
-##### MinerU 服务地址配置
-
-在 `/knowflow/server/services/config/settings.yaml` 配置文件中，配置 MinerU 服务地址以及解析模式:
+##### 选项 B：部署 DOTS 服务
 
 ```bash
-  # 选项: pipeline, vlm-http-client
-  default_backend: "pipeline"
+# 进入 DOTS 目录
+cd dots/
 
-  # FastAPI 客户端配置
-  fastapi:
-    # FastAPI 服务地址 - 使用 MinerU 2.5 官方 API
-    # 本地开发: http://localhost:8000
-    # Docker部署: http://knowflow-mineru-api:8000 (容器内部通信)
-    #           或 http://host.docker.internal:8000 (Docker Desktop)
-    #           或 http://宿主机IP:8000 (Linux Docker)
-    url: "http://localhost:8000"
+# 下载 DOTS 模型
+pip install modelscope
+modelscope download --model rednote-hilab/dots.ocr --local_dir ./weights/DotsOCR
 
-    # HTTP 请求超时时间（秒）
-    timeout: 60000  # 增加到 60000 秒，避免大文件超时
+# 从模板创建配置
+cp .env.example .env
 
-  # VLM 后端配置
-  vlm:
-    # HTTP 客户端配置（vlm-http-client 后端）
-    http_client:
-      # VLM HTTP 服务器地址(同上)
-      server_url: "http://localhost:30000"
+# 启动 DOTS 服务
+docker compose up -d
+
+# 查看服务状态
+docker compose ps
+docker compose logs -f
 ```
 
+**服务端口**：
+- DOTS OCR: 8000
 
-##### 启动 Dots 服务
+详细说明：[docker/dots/README.md](docker/dots/README.md)
 
-进入到 `knowflow/dots` 目录下，执行部署脚本，该脚本会自动下载模型并启动 Dots 镜像。
+> 💡 **提示**：MinerU 和 DOTS 可以同时部署，但需要修改端口避免冲突。建议 MinerU 使用 8000，DOTS 使用 8001。
+
+#### 4. 启动 KnowFlow 主服务
+
+返回 docker 目录，启动主服务：
 
 ```bash
-cd knowflow/dots
-./deploy.sh
-```
+# 返回 docker 目录
+cd ..
 
-**端口说明：**
-- 默认端口：`8000`（DOTS OCR API 服务）
-- 如有端口冲突，可修改 `docker-compose.yml` 文件
+# 配置环境变量（如果未配置）
+cp .env.example .env
 
-**查看服务状态：**
-```bash
-# 查看运行中的容器
+# 选择部署模式
+# 有 GPU：
+docker compose -f docker-compose-gpu.yml up -d
+
+# 无 GPU：
+docker compose up -d
+
+# 查看服务状态
 docker compose ps
 
 # 查看日志
 docker compose logs -f
 ```
 
-##### Dots 服务地址配置
+#### 5. 访问系统
 
-在 `/knowflow/server/services/config/settings.yaml` 配置文件中，配置 Dots 服务地址以及解析模式:
+- 🌐 **前端地址**: `http://服务器IP` 或 `http://localhost`
+- 🔌 **API 地址**: `http://服务器IP:9380`
 
-```bash
-dots:
-  # VLLM 服务配置
-  vllm:
-    # DOTS OCR 服务地址
-    # 远程服务示例: http://{ip}:8000
-    # 本地服务示例: http://localhost:8000
-    url: "http://localhost:8000"
-    
-    # 模型名称（根据部署配置调整）
-    model_name: "dotsocr-model"
-    
-    # 请求超时时间（秒）
-    timeout: 300
-    
-    # 生成参数
-    temperature: 0.1
-    top_p: 1.0
-    max_completion_tokens: 16384
-    
-```
-
-
-
-#### 2. 启动 KnowFlow 容器，开始使用
-
-1. 拉取本项目代码：
-
-```bash
-git clone https://github.com/weizxfree/KnowFlowPro.git
-```
-
-2. 进入到 `docker` 目录执行（此步骤和 RAGFlow 官方一致）：
-
-如有 GPU 则选择：
-```bash
-docker compose -f docker-compose-gpu.yml up -d
-```
-
-无 GPU 则选择：
-```bash
-docker compose -f docker-compose.yml up -d
-```
-
-访问地址：`http://服务器IP:80`，进入 KnowFlow 首页
-
-#### 3. 默认管理员账户
-
-系统启动后，请使用以下默认超级管理员账户登录：
+#### 6. 默认管理员账户
 
 ```
 邮箱：admin@gmail.com
 密码：admin
 ```
 
-> 💡 **安全提示：** 首次登录后，请及时修改默认密码以确保系统安全。
+> 💡 **安全提示**：首次登录后请立即修改默认密码！
 
 
 ### 方式二：源码部署

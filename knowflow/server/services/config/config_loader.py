@@ -9,8 +9,32 @@ from .business_config import RootConfig
 logger = logging.getLogger(__name__)
 
 ENV_PREFIX = "KNOWFLOW_"
-CONFIG_DIR = Path(__file__).parent
-DEFAULT_CONFIG_PATH = CONFIG_DIR / "settings.yaml"
+
+# 配置文件路径优先级：
+# 1. 环境变量 KNOWFLOW_SETTINGS_PATH（最高优先级）
+# 2. docker/knowflow-server/settings.yaml（本地开发和Docker部署统一使用）
+# 3. 当前目录下的 settings.yaml（向后兼容）
+def _get_config_path() -> Path:
+    """获取配置文件路径"""
+    # 优先使用环境变量指定的路径
+    env_path = os.environ.get('KNOWFLOW_SETTINGS_PATH')
+    if env_path:
+        return Path(env_path)
+
+    # 尝试使用项目根目录下的 docker/knowflow-server/settings.yaml
+    current_dir = Path(__file__).parent
+    # 从 knowflow/server/services/config 向上 4 层到项目根目录
+    project_root = current_dir.parent.parent.parent.parent
+    docker_config_path = project_root / "docker" / "knowflow-server" / "settings.yaml"
+
+    if docker_config_path.exists():
+        return docker_config_path
+
+    # 向后兼容：使用当前目录下的 settings.yaml
+    fallback_path = current_dir / "settings.yaml"
+    return fallback_path
+
+DEFAULT_CONFIG_PATH = _get_config_path()
 
 def _load_config_from_yaml(path: Path) -> Dict[str, Any]:
     """从YAML文件加载配置"""
@@ -156,6 +180,7 @@ def load_configuration() -> RootConfig:
     加载顺序: 默认YAML -> 环境变量 -> MinerU环境变量 -> DOTS环境变量
     """
     # 1. 从默认YAML文件加载
+    logger.info(f"加载配置文件: {DEFAULT_CONFIG_PATH.absolute()}")
     config_data = _load_config_from_yaml(DEFAULT_CONFIG_PATH)
 
     # 2. 从KNOWFLOW_环境变量加载并覆盖
