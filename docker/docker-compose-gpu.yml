@@ -74,7 +74,7 @@ services:
       - MANAGEMENT_JWT_SECRET=${MANAGEMENT_JWT_SECRET:-12345678}
       - TZ=${TIMEZONE:-UTC}
     volumes:
-      - ../knowflow/server/services/config:/app/services/config:ro
+      - ./knowflow-server/settings.yaml:/app/services/config/settings.yaml:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
