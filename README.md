@@ -183,9 +183,6 @@ KnowFlow 支持 MinerU 和 DOTS 两种 OCR 服务，可根据需求选择部署�
 # 进入 MinerU 目录
 cd mineru/
 
-# 从模板创建配置
-cp .env.example .env
-
 # 启动 MinerU API 服务
 docker compose up -d
 
@@ -210,9 +207,6 @@ cd dots/
 pip install modelscope
 modelscope download --model rednote-hilab/dots.ocr --local_dir ./weights/DotsOCR
 
-# 从模板创建配置
-cp .env.example .env
-
 # 启动 DOTS 服务
 docker compose up -d
 
@@ -235,9 +229,6 @@ docker compose logs -f
 ```bash
 # 返回 docker 目录
 cd ..
-
-# 配置环境变量（如果未配置）
-cp .env.example .env
 
 # 选择部署模式
 # 有 GPU：

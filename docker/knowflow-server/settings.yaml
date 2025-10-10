@@ -33,7 +33,7 @@ mineru:
     # Docker部署: http://knowflow-mineru-api:8000 (容器内部通信)
     #           或 http://host.docker.internal:8000 (Docker Desktop)
     #           或 http://宿主机IP:8000 (Linux Docker)
-    url: "http://8.134.177.47:18001"
+    url: "http://localhost:8000"
 
     # HTTP 请求超时时间（秒）
     timeout: 60000  # 增加到 60000 秒，避免大文件超时
@@ -43,7 +43,7 @@ mineru:
     # HTTP 客户端配置（vlm-http-client 后端）
     http_client:
       # VLM HTTP 服务器地址
-      server_url: "http://8.134.177.47:30001"
+      server_url: "http://localhost:30000"
 
   # Pipeline 后端请求参数
   pipeline:
@@ -68,7 +68,7 @@ dots:
     # DOTS OCR 服务地址
     # 远程服务示例: http://{ip}:8000
     # 本地服务示例: http://localhost:8000
-    url: "http://8.134.177.47:30001"
+    url: "http://localhost:30000"
 
     # 模型名称（根据部署配置调整）
     model_name: "dotsocr-model"
