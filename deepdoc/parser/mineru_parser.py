@@ -36,7 +36,7 @@ class MinerUParser:
             'KNOWFLOW_API_URL',
             'http://localhost:5000'
         )
-        self.timeout = int(os.getenv('MINERU_PARSE_TIMEOUT', '300'))  # 5分钟超时
+        self.timeout = int(os.getenv('MINERU_FASTAPI_TIMEOUT', '60000'))  
 
     def __call__(
         self,
