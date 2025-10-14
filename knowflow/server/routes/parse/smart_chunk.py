@@ -90,7 +90,8 @@ def smart_chunk():
             chunks = enhance_chunks_with_vision(
                 chunks,
                 tenant_id=data.get('tenant_id', 'unknown'),
-                description_format=data.get('vision_description_format', '[图片描述: {desc}]')
+                description_format=data.get('vision_description_format', '[图片描述: {desc}]'),
+                batch_size=data.get('vision_batch_size')  # 支持配置批量大小
             )
 
         # 处理返回结果

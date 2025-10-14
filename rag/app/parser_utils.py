@@ -330,6 +330,8 @@ def call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_id
             request_data['enable_vision_enhancement'] = True
             if 'vision_description_format' in chunking_config:
                 request_data['vision_description_format'] = chunking_config['vision_description_format']
+            if 'vision_batch_size' in chunking_config:
+                request_data['vision_batch_size'] = chunking_config['vision_batch_size']
 
             logging.info("图片视觉增强已启用")
 

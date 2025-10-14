@@ -42,55 +42,70 @@ def extract_image_references(text: str) -> List[tuple]:
     return matches
 
 
-def call_ragflow_vision_api(image_path: str, tenant_id: str) -> Optional[str]:
+def call_ragflow_vision_api_batch(image_paths: List[str], tenant_id: str) -> Dict[str, Optional[str]]:
     """
-    调用 RAGFlow 视觉 API 获取图片描述
+    批量调用 RAGFlow 视觉 API 获取图片描述
 
     Args:
-        image_path: 图片路径（MinIO路径）
+        image_paths: 图片路径列表（MinIO路径）
         tenant_id: 租户ID
 
     Returns:
-        图片描述文本，失败返回 None
+        {image_path: description} 字典，失败的图片描述为 None
     """
+    if not image_paths:
+        return {}
+
     ragflow_base_url = os.getenv('RAGFLOW_BASE_URL', 'http://localhost:9380')
-    api_endpoint = f"{ragflow_base_url}/v1/llm/vision/describe"
+    api_endpoint = f"{ragflow_base_url}/v1/llm/vision/describe_batch"
 
     try:
         payload = {
             "tenant_id": tenant_id,
-            "image_data": image_path
+            "images": [{"image_data": path} for path in image_paths]
         }
 
-        response = requests.post(api_endpoint, json=payload, timeout=30)
+        response = requests.post(api_endpoint, json=payload, timeout=90)
         response.raise_for_status()
 
         result = response.json()
         if result.get('code') == 0 and 'data' in result:
-            description = result['data'].get('description', '')
-            logger.info(f"图片描述已生成: {description[:50]}...")
-            return description
+            descriptions = result['data'].get('descriptions', [])
+
+            # 构建路径到描述的映射
+            result_dict = {}
+            for i, path in enumerate(image_paths):
+                if i < len(descriptions):
+                    result_dict[path] = descriptions[i]
+                    logger.info(f"图片描述已生成 [{i+1}/{len(image_paths)}]: {descriptions[i][:50] if descriptions[i] else 'None'}...")
+                else:
+                    result_dict[path] = None
+                    logger.warning(f"图片 {path} 未返回描述")
+
+            return result_dict
         else:
-            logger.warning(f"RAGFlow 返回错误: {result}")
-            return None
+            logger.warning(f"RAGFlow 批量API返回错误: {result}")
+            return {path: None for path in image_paths}
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"调用 RAGFlow 视觉 API 失败: {e}")
-        return None
+        logger.error(f"调用 RAGFlow 批量视觉 API 失败: {e}")
+        return {path: None for path in image_paths}
 
 
 def enhance_chunks_with_vision(
     chunks: List[Dict[str, Any]],
     tenant_id: str,
-    description_format: str = "[图片描述: {desc}]"
+    description_format: str = "[图片描述: {desc}]",
+    batch_size: int = None
 ) -> List[Dict[str, Any]]:
     """
-    为分块添加图片视觉增强描述
+    为分块添加图片视觉增强描述（批量处理）
 
     Args:
         chunks: 分块列表，每个分块是 {"content": str, "coordinates": [...]}
         tenant_id: 租户ID
         description_format: 描述格式模板
+        batch_size: 批量处理大小，默认从环境变量读取，设为1则单条发送
 
     Returns:
         增强后的分块列表
@@ -98,27 +113,62 @@ def enhance_chunks_with_vision(
     if not chunks:
         return chunks
 
-    logger.info(f"开始图片视觉增强，共 {len(chunks)} 个分块")
+    # 从环境变量或参数获取批量大小
+    if batch_size is None:
+        batch_size = int(os.getenv('VISION_BATCH_SIZE', '3'))
 
+    logger.info(f"开始图片视觉增强，共 {len(chunks)} 个分块，批量大小: {batch_size}")
+
+    # 第一步：收集所有需要处理的图片
+    chunk_images = []  # [(chunk_index, img_refs), ...]
+    all_image_paths = []
+
+    for i, chunk in enumerate(chunks):
+        if not isinstance(chunk, dict) or 'content' not in chunk:
+            continue
+
+        img_refs = extract_image_references(chunk['content'])
+        if img_refs:
+            chunk_images.append((i, img_refs))
+            for _, img_path, _, _ in img_refs:
+                if img_path not in all_image_paths:
+                    all_image_paths.append(img_path)
+
+    if not all_image_paths:
+        logger.info("未发现需要处理的图片")
+        return chunks
+
+    logger.info(f"共发现 {len(all_image_paths)} 个唯一图片")
+
+    # 第二步：批量获取所有图片描述
+    all_descriptions = {}
+
+    for i in range(0, len(all_image_paths), batch_size):
+        batch = all_image_paths[i:i + batch_size]
+        logger.info(f"处理批次 {i//batch_size + 1}/{(len(all_image_paths) + batch_size - 1)//batch_size}，包含 {len(batch)} 个图片")
+        batch_results = call_ragflow_vision_api_batch(batch, tenant_id)
+        all_descriptions.update(batch_results)
+
+    # 第三步：将描述应用到对应的分块
     enhanced_chunks = []
     enhanced_count = 0
 
     for i, chunk in enumerate(chunks):
-        if not isinstance(chunk, dict) or 'content' not in chunk:
+        # 查找该分块是否有图片
+        chunk_img_refs = None
+        for chunk_idx, img_refs in chunk_images:
+            if chunk_idx == i:
+                chunk_img_refs = img_refs
+                break
+
+        if chunk_img_refs is None:
             enhanced_chunks.append(chunk)
             continue
 
-        img_refs = extract_image_references(chunk['content'])
-        if not img_refs:
-            enhanced_chunks.append(chunk)
-            continue
-
-        logger.info(f"分块 {i+1} 发现 {len(img_refs)} 个图片")
-
-        # 生成图片描述
+        # 应用图片描述
         enhanced_content = chunk['content']
-        for full_tag, img_path, start, end in reversed(img_refs):
-            desc = call_ragflow_vision_api(img_path, tenant_id)
+        for full_tag, img_path, start, end in reversed(chunk_img_refs):
+            desc = all_descriptions.get(img_path)
             if desc:
                 enhancement = "\n" + description_format.format(desc=desc) + "\n"
                 enhanced_content = enhanced_content[:end] + enhancement + enhanced_content[end:]
