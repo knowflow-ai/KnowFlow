@@ -6,6 +6,7 @@ import logging
 from flask import request, jsonify
 from . import parse_bp
 from services.knowledgebases.mineru_parse.utils import split_markdown_to_chunks_configured
+from services.knowledgebases.common.image_vision_enhancer import enhance_chunks_with_vision
 
 
 @parse_bp.route('/api/parse/smart_chunk', methods=['POST'])
@@ -72,7 +73,7 @@ def smart_chunk():
 
         logging.info(f"Smart chunking: strategy={strategy}, chunk_token_num={chunk_token_num}")
 
-        # 调用智能分块函数
+        # 调用智能分块函数（基于原始 markdown，完成坐标映射）
         chunks = split_markdown_to_chunks_configured(
             markdown_text,
             chunk_token_num=chunk_token_num,
@@ -83,6 +84,14 @@ def smart_chunk():
             kb_id=data.get('kb_id', 'unknown'),
             tenant_id=data.get('tenant_id', 'unknown')
         )
+
+        # 图片视觉增强（在分块和坐标映射之后进行，不影响坐标）
+        if data.get('enable_vision_enhancement', True):
+            chunks = enhance_chunks_with_vision(
+                chunks,
+                tenant_id=data.get('tenant_id', 'unknown'),
+                description_format=data.get('vision_description_format', '[图片描述: {desc}]')
+            )
 
         # 处理返回结果
         def process_chunk(chunk):

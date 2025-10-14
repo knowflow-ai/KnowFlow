@@ -394,3 +394,122 @@ def list_app():
         return get_json_result(data=res)
     except Exception as e:
         return server_error_response(e)
+
+
+@manager.route('/vision/describe', methods=['POST'])  # noqa: F821
+@validate_request("tenant_id", "image_data")
+def vision_describe():
+    """
+    图片描述 API，供 KnowFlow Server 调用
+
+    Request JSON:
+    {
+        "tenant_id": "租户ID",
+        "image_data": "MinIO路径(/minio/bucket/file.jpg)或base64编码的图片",
+        "prompt": "可选的自定义prompt"
+    }
+
+    Response JSON:
+    {
+        "code": 0,
+        "data": {
+            "description": "图片描述文本",
+            "tokens_used": 123
+        }
+    }
+    """
+    try:
+        req = request.json
+        tenant_id = req["tenant_id"]
+        image_data = req["image_data"]
+        custom_prompt = req.get("prompt", None)
+
+        # 导入需要的模块
+        from api.db.services.llm_service import LLMBundle
+        from api.db import LLMType
+        import base64
+        from rag.utils.storage_factory import STORAGE_IMPL
+
+        # 初始化视觉模型
+        try:
+            vision_model = LLMBundle(tenant_id, LLMType.IMAGE2TEXT)
+        except Exception as e:
+            return get_data_error_result(
+                message=f"Failed to initialize vision model: {str(e)}"
+            )
+
+        # 处理图片数据
+        image_bytes = None
+        if isinstance(image_data, str):
+            # 1. 如果是 MinIO 路径 (/minio/bucket/filename.jpg)
+            if image_data.startswith('/minio/'):
+                try:
+                    # 解析路径: /minio/bucket/filename.jpg -> bucket, filename.jpg
+                    parts = image_data.split('/', 3)  # ['', 'minio', 'bucket', 'filename.jpg']
+                    if len(parts) >= 4:
+                        bucket = parts[2]
+                        filename = parts[3]
+                        logging.info(f"Loading image from MinIO: bucket={bucket}, file={filename}")
+                        image_bytes = STORAGE_IMPL.get(bucket, filename)
+                        if not image_bytes:
+                            return get_data_error_result(
+                                message=f"Failed to load image from MinIO: {image_data}"
+                            )
+                    else:
+                        return get_data_error_result(
+                            message=f"Invalid MinIO path format: {image_data}"
+                        )
+                except Exception as e:
+                    logging.error(f"Failed to load image from MinIO: {e}")
+                    return get_data_error_result(
+                        message=f"Failed to load image from MinIO: {str(e)}"
+                    )
+            # 2. 如果是 base64 字符串
+            elif image_data.startswith('data:image'):
+                # 去除 data:image/xxx;base64, 前缀
+                image_data = image_data.split(',', 1)[1]
+                image_bytes = base64.b64decode(image_data)
+            else:
+                # 尝试直接 base64 解码
+                try:
+                    image_bytes = base64.b64decode(image_data)
+                except Exception as e:
+                    return get_data_error_result(
+                        message=f"Invalid image data format: {str(e)}"
+                    )
+        else:
+            image_bytes = image_data
+
+        if not image_bytes:
+            return get_data_error_result(message="Failed to process image data")
+
+        # 调用视觉模型生成描述
+        try:
+            if custom_prompt:
+                description = vision_model.describe_with_prompt(image_bytes, custom_prompt)
+            else:
+                description = vision_model.describe(image_bytes)
+
+            # describe 和 describe_with_prompt 可能返回 (text, tokens) 或 text
+            if isinstance(description, tuple):
+                desc_text, tokens_used = description
+            else:
+                desc_text = description
+                tokens_used = 0
+
+        except Exception as e:
+            logging.error(f"Vision model describe failed: {e}")
+            return get_data_error_result(
+                message=f"Failed to generate image description: {str(e)}"
+            )
+
+        return get_json_result(data={
+            "description": desc_text,
+            "tokens_used": tokens_used
+        })
+
+    except KeyError as e:
+        return get_data_error_result(message=f"Missing required field: {str(e)}")
+    except Exception as e:
+        logging.exception(f"Vision describe API error: {e}")
+        return server_error_response(e)

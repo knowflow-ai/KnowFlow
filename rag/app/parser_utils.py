@@ -297,7 +297,7 @@ def call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_id
     Args:
         markdown_text: markdown 文本
         coordinate_map: 坐标映射
-        chunking_config: 分块配置
+        chunking_config: 分块配置（可以包含 enable_vision_enhancement 等配置）
         doc_id: 文档ID
         kb_id: 知识库ID
         tenant_id: 租户ID
@@ -322,11 +322,21 @@ def call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_id
         # 将键转换为字符串（JSON 要求）
         request_data['coordinate_map'] = {str(k): v for k, v in coordinate_map.items()}
 
+    # 添加图片视觉增强配置（从 chunking_config 中提取）
+    if isinstance(chunking_config, dict):
+        # 支持从 chunking_config 中读取图片增强配置
+        enable_vision = chunking_config.get('enable_vision_enhancement', True)
+        if enable_vision:
+            request_data['enable_vision_enhancement'] = True
+            if 'vision_description_format' in chunking_config:
+                request_data['vision_description_format'] = chunking_config['vision_description_format']
+
+            logging.info("图片视觉增强已启用")
+
     try:
         response = requests.post(
             api_url,
-            json=request_data,
-            timeout=300  # 5分钟超时
+            json=request_data
         )
 
         if response.status_code != 200:
@@ -347,7 +357,7 @@ def call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_id
         return chunks
 
     except requests.exceptions.Timeout:
-        raise RuntimeError("Chunking service timeout (>300s)")
+        raise RuntimeError("Chunking service timeout")
     except requests.exceptions.ConnectionError as e:
         raise RuntimeError(f"Cannot connect to KnowFlow Server at {knowflow_server_url}: {e}")
     except Exception as e:
