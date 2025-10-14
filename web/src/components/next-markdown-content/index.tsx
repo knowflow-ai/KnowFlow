@@ -25,7 +25,7 @@ import {
 } from '@/utils/chat';
 
 import { cn } from '@/lib/utils';
-import { replaceTextByOldReg } from '@/pages/chat/utils';
+import { currentReg, replaceTextByOldReg } from '@/pages/chat/utils';
 import classNames from 'classnames';
 import { omit } from 'lodash';
 import { pipe } from 'lodash/fp';
@@ -38,8 +38,7 @@ import {
 } from '../ui/hover-card';
 import styles from './index.less';
 
-const reg = /(~{2}\d+={2})/g;
-const getChunkIndex = (match: string) => Number(match.slice(2, -2));
+const getChunkIndex = (match: string) => Number(match);
 function MarkdownContent({
   reference,
   clickDocumentButton,
@@ -207,7 +206,7 @@ function MarkdownContent({
 
   const renderReference = useCallback(
     (text: string) => {
-      let replacedText = reactStringReplace(text, reg, (match, i) => {
+      let replacedText = reactStringReplace(text, currentReg, (match, i) => {
         const chunkIndex = getChunkIndex(match);
 
         const { documentUrl, fileExtension, imageId, chunkItem, documentId } =

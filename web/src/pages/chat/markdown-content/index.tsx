@@ -21,17 +21,14 @@ import { useTranslation } from 'react-i18next';
 import 'katex/dist/katex.min.css'; // `rehype-katex` does not import the CSS for you
 
 import { preprocessLaTeX, replaceThinkToSection } from '@/utils/chat';
-import { replaceTextByOldReg } from '../utils';
+import { currentReg, replaceTextByOldReg } from '../utils';
 
 import classNames from 'classnames';
 import { omit } from 'lodash';
 import { pipe } from 'lodash/fp';
 import styles from './index.less';
 
-const reg = /(~{2}\d+={2})/g;
-// const curReg = /(~{2}\d+\${2})/g;
-
-const getChunkIndex = (match: string) => Number(match.slice(2, -2));
+const getChunkIndex = (match: string) => Number(match);
 // TODO: The display of the table is inconsistent with the display previously placed in the MessageItem.
 const MarkdownContent = ({
   reference,
@@ -175,7 +172,7 @@ const MarkdownContent = ({
 
   const renderReference = useCallback(
     (text: string) => {
-      let replacedText = reactStringReplace(text, reg, (match, i) => {
+      let replacedText = reactStringReplace(text, currentReg, (match, i) => {
         const chunkIndex = getChunkIndex(match);
         return (
           <Popover content={getPopoverContent(chunkIndex)} key={i}>
@@ -183,10 +180,6 @@ const MarkdownContent = ({
           </Popover>
         );
       });
-
-      // replacedText = reactStringReplace(replacedText, curReg, (match, i) => (
-      //   <span className={styles.cursor} key={i}></span>
-      // ));
 
       return replacedText;
     },
