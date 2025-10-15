@@ -9,7 +9,6 @@ interface ChunkingConfigProps {
   parserType?: DocumentParserType; // 从外部传入切片方法类型（可选，用于文档级配置）
   initialValues?: {
     chunk_token_num?: number;
-    min_chunk_tokens?: number;
     regex_pattern?: string;
     parent_config?: {
       parent_chunk_size?: number;
@@ -25,7 +24,6 @@ export const ChunkingConfig = memo(function ChunkingConfig({
   parserType,
   initialValues = {
     chunk_token_num: 256,
-    min_chunk_tokens: 10,
     regex_pattern: '',
     parent_config: {
       parent_chunk_size: 1024,
@@ -36,7 +34,7 @@ export const ChunkingConfig = memo(function ChunkingConfig({
   },
 }: ChunkingConfigProps) {
   const { t } = useTranslate('knowledgeConfiguration');
-  const chunkTokenNum = Form.useWatch(['chunking_config', 'chunk_token_num']);
+  const chunkTokenNum = Form.useWatch(['parser_config', 'chunk_token_num']);
 
   // 根据切片方法类型决定展示哪些配置（如果没有传递 parserType，则不展示特殊配置）
   const isRegex = parserType === DocumentParserType.Regex;
@@ -45,7 +43,7 @@ export const ChunkingConfig = memo(function ChunkingConfig({
   return (
     <div className={className}>
       <Form.Item
-        name={['chunking_config', 'chunk_token_num']}
+        name={['parser_config', 'chunk_token_num']}
         label="分块大小"
         initialValue={initialValues.chunk_token_num}
         rules={[
@@ -69,36 +67,9 @@ export const ChunkingConfig = memo(function ChunkingConfig({
         />
       </Form.Item>
 
-      <Form.Item
-        name={['chunking_config', 'min_chunk_tokens']}
-        label="最小分块大小"
-        initialValue={initialValues.min_chunk_tokens}
-        rules={[
-          { required: true, message: '请输入最小分块大小' },
-          {
-            validator: (_, value) => {
-              if (value < 10 || value > 500) {
-                return Promise.reject(
-                  new Error('最小分块大小必须在10-500之间'),
-                );
-              }
-              return Promise.resolve();
-            },
-          },
-        ]}
-        extra="单位：tokens，范围：10-500"
-      >
-        <InputNumber
-          min={10}
-          max={500}
-          placeholder="10"
-          style={{ width: '100%' }}
-        />
-      </Form.Item>
-
       {isRegex && (
         <Form.Item
-          name={['chunking_config', 'regex_pattern']}
+          name={['parser_config', 'regex_pattern']}
           label="正则表达式"
           initialValue={initialValues.regex_pattern}
           rules={[
@@ -146,11 +117,7 @@ export const ChunkingConfig = memo(function ChunkingConfig({
                 style={{ marginBottom: 16 }}
               >
                 <Form.Item
-                  name={[
-                    'chunking_config',
-                    'parent_config',
-                    'parent_chunk_size',
-                  ]}
+                  name={['parser_config', 'parent_config', 'parent_chunk_size']}
                   label="父分块大小"
                   initialValue={
                     initialValues.parent_config?.parent_chunk_size || 1024
@@ -180,7 +147,7 @@ export const ChunkingConfig = memo(function ChunkingConfig({
 
                 <Form.Item
                   name={[
-                    'chunking_config',
+                    'parser_config',
                     'parent_config',
                     'parent_chunk_overlap',
                   ]}
@@ -212,7 +179,7 @@ export const ChunkingConfig = memo(function ChunkingConfig({
 
                 <Form.Item
                   name={[
-                    'chunking_config',
+                    'parser_config',
                     'parent_config',
                     'parent_split_level',
                   ]}
@@ -266,7 +233,7 @@ export const ChunkingConfig = memo(function ChunkingConfig({
                 </Form.Item>
 
                 <Form.Item
-                  name={['chunking_config', 'parent_config', 'retrieval_mode']}
+                  name={['parser_config', 'parent_config', 'retrieval_mode']}
                   label="检索模式"
                   initialValue={
                     initialValues.parent_config?.retrieval_mode || 'parent'
