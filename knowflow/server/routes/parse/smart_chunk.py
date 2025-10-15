@@ -86,13 +86,16 @@ def smart_chunk():
         )
 
         # 图片视觉增强（在分块和坐标映射之后进行，不影响坐标）
-        if data.get('enable_vision_enhancement', True):
+        if data.get('enable_vision_enhancement', False):
             chunks = enhance_chunks_with_vision(
                 chunks,
                 tenant_id=data.get('tenant_id', 'unknown'),
-                description_format=data.get('vision_description_format', '[图片描述: {desc}]'),
+                description_format=data.get('vision_description_format', '[图片描述]: {desc}'),
                 batch_size=data.get('vision_batch_size')  # 支持配置批量大小
             )
+            logging.info("图片视觉增强处理完成")
+        else:
+            logging.info("图片视觉增强已跳过（未启用）")
 
         # 处理返回结果
         def process_chunk(chunk):

@@ -51,13 +51,16 @@ class ParentChildChunker(ModernParserBase):
                 "parent_chunk_overlap": 100,
                 "retrieval_mode": "parent",
                 "parent_split_level": 2
-            }
+            },
+            "enable_vision_enhancement": False,
+            "vision_description_format": "[图片描述]: {desc}",
+            "vision_batch_size": 3,
         }
 
     def build_chunking_config(self, parser_config):
         """构建分块配置"""
         parent_config = parser_config.get('parent_config', {})
-        return {
+        config = {
             'strategy': 'parent_child',
             'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
             'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10)),
@@ -68,6 +71,9 @@ class ParentChildChunker(ModernParserBase):
                 'parent_split_level': int(parent_config.get('parent_split_level', 2))
             }
         }
+        # 添加图片理解配置
+        config.update(self._extract_vision_config(parser_config))
+        return config
 
     def process_chunks_result(self, result):
         """

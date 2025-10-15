@@ -65,7 +65,7 @@ def call_ragflow_vision_api_batch(image_paths: List[str], tenant_id: str) -> Dic
             "images": [{"image_data": path} for path in image_paths]
         }
 
-        response = requests.post(api_endpoint, json=payload, timeout=90)
+        response = requests.post(api_endpoint, json=payload)
         response.raise_for_status()
 
         result = response.json()

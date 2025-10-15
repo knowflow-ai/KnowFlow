@@ -406,7 +406,23 @@ def get_parser_config(chunk_method, parser_config):
         },
         "email": None,
         "picture": None,
-        "mineru": {"chunk_token_num": 128, "delimiter": r"\n", "html4excel": False, "layout_recognize": "MinerU", "raptor": {"use_raptor": False}},
+        "mineru": {"chunk_token_num": 256, "delimiter": r"\n", "html4excel": False, "layout_recognize": "MinerU", "raptor": {"use_raptor": False}},
+        "smart": {"chunk_token_num": 256, "min_chunk_tokens": 10, "layout_recognize": "MinerU", "raptor": {"use_raptor": False}, "graphrag": {"use_graphrag": False}},
+        "regex": {"chunk_token_num": 256, "min_chunk_tokens": 10, "regex_pattern": r"\n\n+", "layout_recognize": "MinerU", "raptor": {"use_raptor": False}, "graphrag": {"use_graphrag": False}},
+        "title": {"chunk_token_num": 256, "min_chunk_tokens": 10, "include_metadata": True, "split_level": 3, "layout_recognize": "MinerU", "raptor": {"use_raptor": False}, "graphrag": {"use_graphrag": False}},
+        "parent_child": {
+            "chunk_token_num": 256,
+            "min_chunk_tokens": 10,
+            "layout_recognize": "MinerU",
+            "parent_config": {
+                "parent_chunk_size": 1024,
+                "parent_chunk_overlap": 100,
+                "retrieval_mode": "parent",
+                "parent_split_level": 2
+            },
+            "raptor": {"use_raptor": False},
+            "graphrag": {"use_graphrag": False}
+        },
     }
 
     default_config = key_mapping[chunk_method]

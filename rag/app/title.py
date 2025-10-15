@@ -44,21 +44,27 @@ class TitleChunker(ModernParserBase):
     def get_default_config(self):
         """返回默认配置"""
         return {
-            "chunk_token_num": 512,
+            "chunk_token_num": 256,
             "min_chunk_tokens": 10,
             "include_metadata": True,  # 包含标题元数据
             "split_level": 3,  # H1/H2/H3 作为分割边界
+            "enable_vision_enhancement": False,
+            "vision_description_format": "[图片描述]: {desc}",
+            "vision_batch_size": 3,
         }
 
     def build_chunking_config(self, parser_config):
         """构建分块配置"""
-        return {
+        config = {
             'strategy': 'title',
-            'chunk_token_num': int(parser_config.get('chunk_token_num', 512)),
+            'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
             'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10)),
             'include_metadata': bool(parser_config.get('include_metadata', True)),
             'split_level': int(parser_config.get('split_level', 3))
         }
+        # 添加图片理解配置
+        config.update(self._extract_vision_config(parser_config))
+        return config
 
 
 # 创建全局实例

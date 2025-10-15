@@ -324,16 +324,20 @@ def call_chunking_service(markdown_text, coordinate_map, chunking_config, doc_id
 
     # 添加图片视觉增强配置（从 chunking_config 中提取）
     if isinstance(chunking_config, dict):
-        # 支持从 chunking_config 中读取图片增强配置
-        enable_vision = chunking_config.get('enable_vision_enhancement', True)
-        if enable_vision:
-            request_data['enable_vision_enhancement'] = True
-            if 'vision_description_format' in chunking_config:
-                request_data['vision_description_format'] = chunking_config['vision_description_format']
-            if 'vision_batch_size' in chunking_config:
-                request_data['vision_batch_size'] = chunking_config['vision_batch_size']
+        # 读取图片增强配置，如果配置中明确指定了值则使用，否则默认为 False
+        if 'enable_vision_enhancement' in chunking_config:
+            enable_vision = chunking_config['enable_vision_enhancement']
+            request_data['enable_vision_enhancement'] = enable_vision
 
-            logging.info("图片视觉增强已启用")
+            if enable_vision:
+                # 只有启用时才传递额外配置
+                if 'vision_description_format' in chunking_config:
+                    request_data['vision_description_format'] = chunking_config['vision_description_format']
+                if 'vision_batch_size' in chunking_config:
+                    request_data['vision_batch_size'] = chunking_config['vision_batch_size']
+                logging.info("图片视觉增强已启用")
+            else:
+                logging.info("图片视觉增强已禁用")
 
     try:
         response = requests.post(

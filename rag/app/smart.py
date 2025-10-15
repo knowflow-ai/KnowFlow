@@ -45,15 +45,21 @@ class SmartChunker(ModernParserBase):
         return {
             "chunk_token_num": 256,
             "min_chunk_tokens": 10,
+            "enable_vision_enhancement": False,
+            "vision_description_format": "[图片描述]: {desc}",
+            "vision_batch_size": 3,
         }
 
     def build_chunking_config(self, parser_config):
         """构建分块配置"""
-        return {
+        config = {
             'strategy': 'smart',
             'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
             'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10))
         }
+        # 添加图片理解配置
+        config.update(self._extract_vision_config(parser_config))
+        return config
 
 
 # 创建全局实例

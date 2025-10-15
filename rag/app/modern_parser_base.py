@@ -105,6 +105,30 @@ class ModernParserBase(ABC):
         """
         return result if isinstance(result, list) else result.get('chunks', [])
 
+    def _extract_vision_config(self, parser_config):
+        """
+        从 parser_config 中提取图片理解配置
+
+        Args:
+            parser_config: 解析器配置
+
+        Returns:
+            dict: 图片理解配置
+        """
+        vision_config = {}
+
+        # 提取图片理解相关配置
+        if 'enable_vision_enhancement' in parser_config:
+            vision_config['enable_vision_enhancement'] = parser_config['enable_vision_enhancement']
+
+        if 'vision_description_format' in parser_config:
+            vision_config['vision_description_format'] = parser_config['vision_description_format']
+
+        if 'vision_batch_size' in parser_config:
+            vision_config['vision_batch_size'] = parser_config['vision_batch_size']
+
+        return vision_config
+
     def chunk(self, filename, binary=None, from_page=0, to_page=100000,
               lang="Chinese", callback=None, **kwargs):
         """
