@@ -2158,7 +2158,38 @@ def _create_ast_parent_chunk_obj(nodes, header_info, order, doc_id):
     """创建父分块对象"""
     import hashlib
 
+    # 生成原始内容
     content = "\n\n".join([n['content'] for n in nodes if n['content'].strip()])
+
+    # 生成标题层级路径前缀
+    context_prefix = ""
+    context_depth = 0
+    if header_info and header_info.get('context_stack'):
+        context_stack = header_info['context_stack']
+        current_level = header_info.get('level', 0)
+
+        # 只有当当前标题层级 > 1 时，才需要添加上级标题上下文
+        if current_level > 1 and len(context_stack) > 1:
+            # 构建标题路径：从 H1 到当前层级的前一级
+            # 例如：当前是 H3，则包含 H1 > H2
+            title_path_parts = []
+            for ctx in context_stack[:-1]:  # 排除当前层级（最后一个）
+                level = ctx.get('level', 1)
+                title = ctx.get('title', '')
+                if title:
+                    # 生成 markdown 标题格式
+                    prefix_mark = '#' * level
+                    title_path_parts.append(f"{prefix_mark} {title}")
+
+            # 如果有上级标题，生成前缀
+            if title_path_parts:
+                context_prefix = " > ".join(title_path_parts) + "\n\n"
+                context_depth = len(title_path_parts)
+
+    # 将前缀添加到内容开头
+    if context_prefix:
+        content = context_prefix + content
+
     chunk_id = f"{doc_id}_parent_ast_{order:04d}_{hashlib.md5(content.encode('utf-8')).hexdigest()[:8]}"
 
     return ASTChunkInfo(
@@ -2176,7 +2207,9 @@ def _create_ast_parent_chunk_obj(nodes, header_info, order, doc_id):
             'header_level': header_info['level'] if header_info else 0,
             'context_stack': header_info['context_stack'] if header_info else [],
             'semantic_completeness': True,
-            'ast_node_count': len(nodes)
+            'ast_node_count': len(nodes),
+            'has_context_prefix': bool(context_prefix),
+            'context_depth': context_depth
         }
     )
 
