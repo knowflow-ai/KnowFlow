@@ -1660,6 +1660,135 @@ def _save_parent_child_mappings(relationships, kb_id, doc_id):
         raise
 
 
+def _write_parent_child_debug_file(parent_chunks, child_chunks, relationships, doc_id, kb_id, tenant_id):
+    """
+    在 dev_mode 下输出父子分块调试日志
+
+    Args:
+        parent_chunks: 父块列表
+        child_chunks: 子块列表
+        relationships: 父子关系列表
+        doc_id: 文档ID
+        kb_id: 知识库ID
+        tenant_id: 租户ID
+    """
+    try:
+        # 创建调试日志目录
+        log_dir = "/tmp/knowflow_chunk_logs"
+        os.makedirs(log_dir, exist_ok=True)
+
+        # 生成日志文件名（包含时间戳和doc_id）
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        log_file = os.path.join(log_dir, f"parent_child_debug_{doc_id}_{timestamp}.txt")
+
+        with open(log_file, 'w', encoding='utf-8') as f:
+            # 1. 基本信息
+            f.write("=" * 80 + "\n")
+            f.write("父子分块调试日志\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(f"文档ID: {doc_id}\n")
+            f.write(f"知识库ID: {kb_id}\n")
+            f.write(f"租户ID: {tenant_id}\n")
+            f.write(f"生成时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"父块数量: {len(parent_chunks)}\n")
+            f.write(f"子块数量: {len(child_chunks)}\n")
+            f.write(f"映射关系数量: {len(relationships)}\n")
+            f.write("\n")
+
+            # 2. 父块详情
+            f.write("=" * 80 + "\n")
+            f.write("父块详情\n")
+            f.write("=" * 80 + "\n\n")
+            for idx, parent in enumerate(parent_chunks):
+                f.write(f"[父块 #{idx + 1}]\n")
+                f.write(f"  ID: {parent.id}\n")
+                f.write(f"  顺序: {parent.order}\n")
+                f.write(f"  行号范围: {parent.start_line} - {parent.end_line}\n")
+                f.write(f"  Token数: {num_tokens_from_string(parent.content)}\n")
+                f.write(f"  元数据: {parent.metadata}\n")
+                f.write(f"  内容:\n")
+                f.write("-" * 60 + "\n")
+                f.write(parent.content[:500] + ("..." if len(parent.content) > 500 else "") + "\n")
+                f.write("-" * 60 + "\n\n")
+
+            # 3. 子块详情
+            f.write("=" * 80 + "\n")
+            f.write("子块详情\n")
+            f.write("=" * 80 + "\n\n")
+            for idx, child in enumerate(child_chunks):
+                f.write(f"[子块 #{idx + 1}]\n")
+                f.write(f"  ID: {child.id}\n")
+                f.write(f"  顺序: {child.order}\n")
+                f.write(f"  行号范围: {child.start_line} - {child.end_line}\n")
+                f.write(f"  Token数: {num_tokens_from_string(child.content)}\n")
+                f.write(f"  元数据: {child.metadata}\n")
+                f.write(f"  内容:\n")
+                f.write("-" * 60 + "\n")
+                f.write(child.content[:500] + ("..." if len(child.content) > 500 else "") + "\n")
+                f.write("-" * 60 + "\n\n")
+
+            # 4. 父子关系映射
+            f.write("=" * 80 + "\n")
+            f.write("父子关系映射\n")
+            f.write("=" * 80 + "\n\n")
+
+            # 创建映射字典便于查找
+            child_to_parent = {rel.get('child_id', ''): rel.get('parent_id', '')
+                              for rel in relationships}
+
+            # 按子块顺序显示映射
+            for idx, child in enumerate(child_chunks):
+                parent_id = child_to_parent.get(child.id, '未找到映射')
+
+                # 查找父块顺序
+                parent_order = "N/A"
+                for p_idx, parent in enumerate(parent_chunks):
+                    if parent.id == parent_id:
+                        parent_order = p_idx + 1
+                        break
+
+                f.write(f"[映射 #{idx + 1}]\n")
+                f.write(f"  子块ID: {child.id}\n")
+                f.write(f"  子块顺序: {idx + 1}\n")
+                f.write(f"  子块行范围: {child.start_line} - {child.end_line}\n")
+                f.write(f"  ↓\n")
+                f.write(f"  父块ID: {parent_id}\n")
+                f.write(f"  父块顺序: {parent_order}\n")
+
+                if parent_id != '未找到映射':
+                    # 查找父块行范围
+                    for parent in parent_chunks:
+                        if parent.id == parent_id:
+                            f.write(f"  父块行范围: {parent.start_line} - {parent.end_line}\n")
+                            break
+
+                f.write("\n")
+
+            # 5. 统计信息
+            f.write("=" * 80 + "\n")
+            f.write("统计信息\n")
+            f.write("=" * 80 + "\n\n")
+
+            mapped_count = len([c for c in child_chunks if c.id in child_to_parent])
+            unmapped_count = len(child_chunks) - mapped_count
+
+            f.write(f"成功映射的子块数: {mapped_count}/{len(child_chunks)}\n")
+            f.write(f"未映射的子块数: {unmapped_count}\n")
+
+            if unmapped_count > 0:
+                f.write("\n未映射的子块:\n")
+                for child in child_chunks:
+                    if child.id not in child_to_parent:
+                        f.write(f"  - {child.id} (行 {child.start_line}-{child.end_line})\n")
+
+            f.write("\n")
+
+        logging.info(f"[DEV_MODE] 父子分块调试日志已保存: {log_file}")
+
+    except Exception as e:
+        logging.warning(f"[DEV_MODE] 写入父子分块调试日志失败: {e}")
+
+
 def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10,
                                          parent_config=None, doc_id='unknown', kb_id='unknown', tenant_id='unknown'):
     """
@@ -1733,7 +1862,14 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
         _save_parent_chunks_to_es(parent_chunks, kb_id, doc_id, tenant_id)
         _save_parent_child_mappings(updated_relationships, kb_id, doc_id)
 
-        # 5. 返回子块（带真实 ID）
+        # 5. 【DEV_MODE】输出调试日志
+        if is_dev_mode():
+            _write_parent_child_debug_file(
+                parent_chunks, child_chunks, updated_relationships,
+                doc_id, kb_id, tenant_id
+            )
+
+        # 6. 返回子块（带真实 ID）
         result = [{"content": chunk.content, "id": chunk.id} for chunk in child_chunks]
 
         logging.info(f"父子分块完成: 返回 {len(result)} 个子块")
@@ -2021,10 +2157,10 @@ def _create_ast_parent_chunks(enhanced_nodes, parent_split_level, doc_id):
 def _create_ast_parent_chunk_obj(nodes, header_info, order, doc_id):
     """创建父分块对象"""
     import hashlib
-    
+
     content = "\n\n".join([n['content'] for n in nodes if n['content'].strip()])
     chunk_id = f"{doc_id}_parent_ast_{order:04d}_{hashlib.md5(content.encode('utf-8')).hexdigest()[:8]}"
-    
+
     return ASTChunkInfo(
         id=chunk_id,
         content=content,
