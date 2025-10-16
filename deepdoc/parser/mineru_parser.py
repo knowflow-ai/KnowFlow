@@ -36,7 +36,6 @@ class MinerUParser:
             'KNOWFLOW_API_URL',
             'http://localhost:5000'
         )
-        self.timeout = int(os.getenv('MINERU_FASTAPI_TIMEOUT', '60000'))  
 
     def __call__(
         self,
@@ -90,8 +89,7 @@ class MinerUParser:
             response = requests.post(
                 api_url,
                 files=files,
-                data=data,
-                timeout=self.timeout
+                data=data
             )
 
             if response.status_code != 200:
@@ -203,10 +201,7 @@ class MinerUParser:
 
                 logging.info(f"MinerU parsed {len(sections)} lines from PDF")
                 return sections, []
-
-        except requests.exceptions.Timeout:
-            logging.error(f"MinerU API timeout after {self.timeout}s")
-            raise RuntimeError(f"MinerU parsing timeout (>{self.timeout}s)")
+                
         except requests.exceptions.ConnectionError as e:
             logging.error(f"Cannot connect to KnowFlow Server: {e}")
             raise RuntimeError(f"Cannot connect to KnowFlow Server at {self.knowflow_server_url}")

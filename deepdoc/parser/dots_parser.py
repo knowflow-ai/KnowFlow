@@ -36,7 +36,6 @@ class DOTSParser:
             'KNOWFLOW_API_URL',
             'http://localhost:5000'
         )
-        self.timeout = int(os.getenv('DOTS_PARSE_TIMEOUT', '300'))  # 5分钟超时
 
     def __call__(
         self,
@@ -90,8 +89,7 @@ class DOTSParser:
             response = requests.post(
                 api_url,
                 files=files,
-                data=data,
-                timeout=self.timeout
+                data=data
             )
 
             if response.status_code != 200:
@@ -204,9 +202,6 @@ class DOTSParser:
                 logging.info(f"DOTS parsed {len(sections)} lines from PDF")
                 return sections, []
 
-        except requests.exceptions.Timeout:
-            logging.error(f"DOTS API timeout after {self.timeout}s")
-            raise RuntimeError(f"DOTS parsing timeout (>{self.timeout}s)")
         except requests.exceptions.ConnectionError as e:
             logging.error(f"Cannot connect to KnowFlow Server: {e}")
             raise RuntimeError(f"Cannot connect to KnowFlow Server at {self.knowflow_server_url}")
