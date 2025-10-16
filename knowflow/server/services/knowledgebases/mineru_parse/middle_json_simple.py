@@ -559,7 +559,7 @@ class SimpleMiddleJsonConverter:
                 path = f"/minio/{self.kb_id}/{image_name}"
             # 将多行 caption 合并为单行用于 alt 属性
             alt_text = (text or '图片').replace('\n', ' ').replace('"', "'")
-            lines = [f'<img src="{path}" style="max-width: 500px;max-height: 800px;" alt="{alt_text}">']
+            lines = [f'<img src="{path}" style="max-width: 300px;max-height: 500px;" alt="{alt_text}">']
             if text:
                 lines.append(text)
             return '\n'.join(lines)

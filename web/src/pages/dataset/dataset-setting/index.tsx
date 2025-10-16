@@ -35,11 +35,11 @@ export default function DatasetSettings() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
-      parser_id: DocumentParserType.Naive,
+      parser_id: DocumentParserType.Smart,
       permission: PermissionRole.Me,
       parser_config: {
-        layout_recognize: DocumentType.DeepDOC,
-        chunk_token_num: 512,
+        layout_recognize: 'MinerU',
+        chunk_token_num: 256,
         delimiter: `\n`,
         auto_keywords: 0,
         auto_questions: 0,
