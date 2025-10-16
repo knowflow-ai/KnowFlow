@@ -32,10 +32,9 @@ except ImportError:
 class MinerUFastAPIAdapter:
     """MinerU FastAPI 适配器 - 统一配置管理版本"""
     
-    def __init__(self, 
+    def __init__(self,
                  base_url: str = "http://localhost:8888",
                  backend: str = "pipeline",
-                 timeout: int = 30000,
                  # VLM 配置参数
                  server_url: Optional[str] = None,
                  # Pipeline 配置参数
@@ -45,11 +44,10 @@ class MinerUFastAPIAdapter:
                  table_enable: bool = True):
         """
         初始化适配器 - 统一配置管理
-        
+
         Args:
             base_url: FastAPI 服务地址
             backend: 默认后端类型
-            timeout: 请求超时时间（秒）
             server_url: SGLang 服务器地址（vlm-sglang-client 后端）
             parse_method: 解析方法（pipeline 后端）
             lang: 语言设置（pipeline 后端）
@@ -58,7 +56,6 @@ class MinerUFastAPIAdapter:
         """
         self.base_url = base_url.rstrip('/')
         self.backend = backend
-        self.timeout = timeout
         
         # VLM 配置
         self.server_url = server_url
@@ -190,8 +187,7 @@ class MinerUFastAPIAdapter:
                 response = self.session.post(
                     f"{self.base_url}/file_parse",
                     files=files,
-                    data=data,
-                    timeout=self.timeout
+                    data=data
                 )
                 
             if response.status_code == 200:
@@ -219,7 +215,7 @@ class MinerUFastAPIAdapter:
                 raise Exception(error_msg)
                 
         except requests.exceptions.Timeout:
-            error_msg = f"FastAPI 请求超时 ({self.timeout}秒)"
+            error_msg = "FastAPI 请求超时"
             logger.error(error_msg)
             raise Exception(error_msg)
         except Exception as e:
@@ -257,53 +253,49 @@ def get_global_adapter() -> MinerUFastAPIAdapter:
             # 从统一配置系统读取
             fastapi_url = MINERU_CONFIG.fastapi.url
             backend = MINERU_CONFIG.default_backend
-            timeout = MINERU_CONFIG.fastapi.timeout
-            
+
             # VLM 配置
             server_url = MINERU_CONFIG.vlm.http_client.server_url
-            
+
             # Pipeline 配置
             parse_method = MINERU_CONFIG.pipeline.parse_method
             lang = MINERU_CONFIG.pipeline.lang
             formula_enable = MINERU_CONFIG.pipeline.formula_enable
             table_enable = MINERU_CONFIG.pipeline.table_enable
-            
+
             logger.info("从统一配置系统加载MinerU完整配置")
         else:
             # 环境变量备用方案
             fastapi_url = os.environ.get('MINERU_FASTAPI_URL', 'http://localhost:8888')
             backend = os.environ.get('MINERU_FASTAPI_BACKEND', 'pipeline')
-            timeout = int(os.environ.get('MINERU_FASTAPI_TIMEOUT', '30'))
-            
+
             # VLM 配置环境变量
             server_url = os.environ.get('MINERU_VLM_HTTP_SERVER_URL')
-            
+
             # Pipeline 配置环境变量
             parse_method = os.environ.get('MINERU_PARSE_METHOD', 'auto')
             lang = os.environ.get('MINERU_LANG', 'ch')
             formula_enable = os.environ.get('MINERU_FORMULA_ENABLE', 'true').lower() == 'true'
             table_enable = os.environ.get('MINERU_TABLE_ENABLE', 'true').lower() == 'true'
-            
+
             logger.warning("统一配置系统不可用，从环境变量加载MinerU配置")
-        
+
         _global_adapter = MinerUFastAPIAdapter(
             base_url=fastapi_url,
             backend=backend,
-            timeout=timeout,
             server_url=server_url,
             parse_method=parse_method,
             lang=lang,
             formula_enable=formula_enable,
             table_enable=table_enable
         )
-        
+
         logger.info("MinerU FastAPI适配器统一配置加载完成")
     return _global_adapter
 
 
-def configure_adapter(base_url: str = None, 
-                     backend: str = None, 
-                     timeout: int = None,
+def configure_adapter(base_url: str = None,
+                     backend: str = None,
                      server_url: str = None,
                      parse_method: str = None,
                      lang: str = None,
@@ -311,12 +303,11 @@ def configure_adapter(base_url: str = None,
                      table_enable: bool = None):
     """配置全局适配器 - 扩展版本，支持所有配置项"""
     global _global_adapter
-    
+
     # 获取当前配置作为默认值
     if CONFIG_AVAILABLE:
         current_url = MINERU_CONFIG.fastapi.url
         current_backend = MINERU_CONFIG.default_backend
-        current_timeout = MINERU_CONFIG.fastapi.timeout
         current_server_url = MINERU_CONFIG.vlm.http_client.server_url
         current_parse_method = MINERU_CONFIG.pipeline.parse_method
         current_lang = MINERU_CONFIG.pipeline.lang
@@ -326,24 +317,22 @@ def configure_adapter(base_url: str = None,
         # 环境变量备用
         current_url = os.environ.get('MINERU_FASTAPI_URL', 'http://localhost:8888')
         current_backend = os.environ.get('MINERU_FASTAPI_BACKEND', 'pipeline')
-        current_timeout = int(os.environ.get('MINERU_FASTAPI_TIMEOUT', '30'))
         current_server_url = os.environ.get('MINERU_VLM_HTTP_SERVER_URL')
         current_parse_method = os.environ.get('MINERU_PARSE_METHOD', 'auto')
         current_lang = os.environ.get('MINERU_LANG', 'ch')
         current_formula_enable = os.environ.get('MINERU_FORMULA_ENABLE', 'true').lower() == 'true'
         current_table_enable = os.environ.get('MINERU_TABLE_ENABLE', 'true').lower() == 'true'
-    
+
     _global_adapter = MinerUFastAPIAdapter(
         base_url=base_url or current_url,
         backend=backend or current_backend,
-        timeout=timeout or current_timeout,
         server_url=server_url or current_server_url,
         parse_method=parse_method or current_parse_method,
         lang=lang or current_lang,
         formula_enable=formula_enable if formula_enable is not None else current_formula_enable,
         table_enable=table_enable if table_enable is not None else current_table_enable
     )
-    
+
     logger.info(f"FastAPI 适配器配置已更新 - 统一配置管理")
 
 
@@ -383,8 +372,7 @@ def get_adapter_config_info() -> Dict[str, Any]:
     return {
         'fastapi_config': {
             'base_url': adapter.base_url,
-            'backend': adapter.backend,
-            'timeout': adapter.timeout
+            'backend': adapter.backend
         },
         'vlm_config': {
             'server_url': adapter.server_url

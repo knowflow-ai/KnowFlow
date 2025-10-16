@@ -90,7 +90,6 @@ def _load_mineru_env_vars() -> Dict[str, Any]:
     env_mappings = {
         # FastAPI客户端配置
         'MINERU_FASTAPI_URL': 'fastapi.url',
-        'MINERU_FASTAPI_TIMEOUT': 'fastapi.timeout',
         'MINERU_FASTAPI_BACKEND': 'default_backend',
         
         # Pipeline后端配置
@@ -142,7 +141,6 @@ def _load_dots_env_vars() -> Dict[str, Any]:
         # VLLM服务配置
         'DOTS_VLLM_URL': 'vllm.url',
         'DOTS_MODEL_NAME': 'vllm.model_name',
-        'DOTS_TIMEOUT': 'vllm.timeout',
         'DOTS_TEMPERATURE': 'vllm.temperature',
         'DOTS_TOP_P': 'vllm.top_p',
         'DOTS_MAX_COMPLETION_TOKENS': 'vllm.max_completion_tokens',
@@ -209,7 +207,6 @@ def get_mineru_env_mapping() -> Dict[str, str]:
     """获取MinerU环境变量到配置路径的映射"""
     return {
         'MINERU_FASTAPI_URL': 'mineru.fastapi.url',
-        'MINERU_FASTAPI_TIMEOUT': 'mineru.fastapi.timeout',
         'MINERU_FASTAPI_BACKEND': 'mineru.default_backend',
         'MINERU_PARSE_METHOD': 'mineru.pipeline.parse_method',
         'MINERU_LANG': 'mineru.pipeline.lang',

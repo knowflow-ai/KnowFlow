@@ -103,42 +103,7 @@ def parent_child_retrieval(query, embd_mdl, tenant_ids, kb_ids, page, top_n, sim
             logging.info("1-------------")
             if not child_chunk_id or not doc_id:
                 continue
-            
-            # # 检查该文档是否启用了父子分块
-            # try:
-            #     from api.db.services.document_service import DocumentService
-            #     document = DocumentService.get_by_id(doc_id)
-            #     if not document or not document.parser_config:
-            #         continue
-                    
-            #     import json
-            #     if isinstance(document.parser_config, str):
-            #         parser_config = json.loads(document.parser_config)
-            #     else:
-            #         parser_config = document.parser_config
-                
-            #     chunking_config = parser_config.get('chunking_config', {})
-            #     strategy = chunking_config.get('strategy', 'smart')
-                
-            #     # 只对父子分块策略的文档进行父子检索
-            #     if strategy != 'parent_child':
-            #         continue
-                
-            #     # 检查retrieval_mode配置，只有parent模式才进行父子转换
-            #     parent_config = chunking_config.get('parent_config', {})
-            #     retrieval_mode = parent_config.get('retrieval_mode', 'parent')
-                
-            #     logging.info(f"Document {doc_id}: strategy={strategy}, retrieval_mode={retrieval_mode}")
-                
-            #     # 如果配置为child模式，保留子分块，不转换为父分块
-            #     if retrieval_mode != 'parent':
-            #         logging.info(f"Skipping parent-child conversion for doc {doc_id}: retrieval_mode={retrieval_mode}")
-            #         continue
-                    
-            # except Exception as e:
-            #     logging.warning(f"Failed to check document strategy for {doc_id}: {e}")
-            #     continue
-            
+                        
             # 默认使用子分块作为结果（标记为作为父分块使用的子分块）
             current_chunk_result = {
                 **chunk,  # 保留子分块的所有原始字段
@@ -190,20 +155,20 @@ def parent_child_retrieval(query, embd_mdl, tenant_ids, kb_ids, page, top_n, sim
                         logging.info(f"Successfully retrieved parent chunk {parent_id} from separate index {parent_index} for child {child_chunk_id}")
 
                         # 保存父分块内容到本地文件用于调试
-                        try:
-                            import os
-                            debug_dir = "/tmp/parent_chunks_debug"
-                            os.makedirs(debug_dir, exist_ok=True)
-                            with open(f"{debug_dir}/{parent_id}.txt", "w", encoding="utf-8") as f:
-                                f.write(f"Parent ID: {parent_id}\n")
-                                f.write(f"Child ID: {child_chunk_id}\n")
-                                f.write(f"Doc ID: {mapping.doc_id}\n")
-                                f.write(f"Similarity: {chunk.get('similarity', 0.5)}\n")
-                                f.write(f"\n{'='*80}\nCONTENT:\n{'='*80}\n\n")
-                                f.write(parent_content)
-                            logging.info(f"Saved parent chunk content to {debug_dir}/{parent_id}.txt")
-                        except Exception as e:
-                            logging.warning(f"Failed to save parent chunk debug file: {e}")
+                        # try:
+                        #     import os
+                        #     debug_dir = "/tmp/parent_chunks_debug"
+                        #     os.makedirs(debug_dir, exist_ok=True)
+                        #     with open(f"{debug_dir}/{parent_id}.txt", "w", encoding="utf-8") as f:
+                        #         f.write(f"Parent ID: {parent_id}\n")
+                        #         f.write(f"Child ID: {child_chunk_id}\n")
+                        #         f.write(f"Doc ID: {mapping.doc_id}\n")
+                        #         f.write(f"Similarity: {chunk.get('similarity', 0.5)}\n")
+                        #         f.write(f"\n{'='*80}\nCONTENT:\n{'='*80}\n\n")
+                        #         f.write(parent_content)
+                        #     logging.info(f"Saved parent chunk content to {debug_dir}/{parent_id}.txt")
+                        # except Exception as e:
+                        #     logging.warning(f"Failed to save parent chunk debug file: {e}")
 
                         # 成功获取父分块，替换默认的子分块
                         current_chunk_result = {

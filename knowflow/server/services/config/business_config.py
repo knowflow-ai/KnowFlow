@@ -37,7 +37,6 @@ class DOTSVLLMConfig:
     """DOTS VLLM 服务配置"""
     url: str = "http://8.134.177.47:30001"
     model_name: str = "dotsocr-model"
-    timeout: int = 300
     temperature: float = 0.1
     top_p: float = 1.0
     max_completion_tokens: int = 16384
@@ -55,7 +54,6 @@ class DOTSConfig:
 class MinerUFastAPIConfig:
     """MinerU FastAPI 客户端配置"""
     url: str = "http://localhost:8888"
-    timeout: int = 30
 
 @dataclass
 class MinerUPipelineConfig:
