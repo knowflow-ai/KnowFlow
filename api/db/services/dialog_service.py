@@ -34,14 +34,6 @@ from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.langfuse_service import TenantLangfuseService
 from api.db.services.llm_service import LLMBundle
 from api.db.services.tenant_llm_service import TenantLLMService
-from api.db.services.llm_service import LLMBundle, TenantLLMService
-
-# 添加父子分块支持
-try:
-    from api.db.parent_child_models import ParentChildMapping
-    PARENT_CHILD_AVAILABLE = True
-except ImportError:
-    PARENT_CHILD_AVAILABLE = False
 from api.utils import current_timestamp, datetime_format
 from graphrag.general.mind_map_extractor import MindMapExtractor
 from rag.app.resume import forbidden_select_fields4resume
@@ -51,177 +43,6 @@ from rag.prompts import chunks_format, citation_prompt, cross_languages, full_qu
 from rag.prompts.prompts import gen_meta_filter, PROMPT_JINJA_ENV, ASK_SUMMARY
 from rag.utils import num_tokens_from_string, rmSpace
 from rag.utils.tavily_conn import Tavily
-
-
-def check_kb_parent_child_enabled(kb_ids):
-    """检查知识库中是否有使用父子分块方法的文档
-
-    检查逻辑：查找 parser_id == 'parent_child' 的文档
-    """
-    if not PARENT_CHILD_AVAILABLE:
-        return False, []
-
-    enabled_kbs = []
-    try:
-        from api.db.db_models import Document
-
-        for kb_id in kb_ids:
-            # 查询该知识库下是否有使用 parent_child 解析方法的文档
-            documents = Document.select().where(Document.kb_id == kb_id)
-
-            for doc in documents:
-                # 检查文档的解析方法 (parser_id)
-                if doc.parser_id and str(doc.parser_id).lower() == 'parent_child':
-                    enabled_kbs.append(kb_id)
-                    break  # 该知识库有父子分块文档，跳出内层循环
-    except Exception as e:
-        logging.warning(f"Failed to check parent_child enabled for kb_ids {kb_ids}: {e}")
-
-    return len(enabled_kbs) > 0, enabled_kbs
-
-
-def parent_child_retrieval(query, embd_mdl, tenant_ids, kb_ids, page, top_n, similarity_threshold, vector_similarity_weight, doc_ids=None, top=1024, aggs=False, rerank_mdl=None, rank_feature=None):
-    """父子分块检索逻辑"""
-    try:
-        # 先进行标准检索获取子分块
-        child_results = settings.retrievaler.retrieval(
-            query, embd_mdl, tenant_ids, kb_ids, page, top_n,
-            similarity_threshold, vector_similarity_weight,
-            doc_ids=doc_ids, top=top, aggs=aggs, rerank_mdl=rerank_mdl,
-            rank_feature=rank_feature
-        )
-        
-        # 获取父分块内容
-        parent_chunks = []
-        processed_parents = set()  # 避免重复的父分块
-        
-        for chunk in child_results.get("chunks", []):
-            # retrieval() returns chunks with key 'chunk_id' for the chunk identifier
-            # and 'doc_id' for the document identifier. Fall back to alternative keys if present.
-            child_chunk_id = chunk.get("chunk_id", chunk.get("id"))
-            doc_id = chunk.get("doc_id", chunk.get("document_id"))
-            logging.info("1-------------")
-            if not child_chunk_id or not doc_id:
-                continue
-                        
-            # 默认使用子分块作为结果（标记为作为父分块使用的子分块）
-            current_chunk_result = {
-                **chunk,  # 保留子分块的所有原始字段
-                "chunk_type": "child_as_parent",  # 标记这是作为父分块使用的子分块
-                "fallback_reason": "default"  # 默认使用子分块
-            }
-
-            # 尝试查找并使用父分块
-            try:
-                mappings = ParentChildMapping.select().where(
-                    ParentChildMapping.child_chunk_id == child_chunk_id
-                ).limit(1)
-                logging.info("2-------------")
-                logging.info("child_chunk_id=%s, doc_id=%s", child_chunk_id, doc_id)
-                count = ParentChildMapping.select().where(
-                     ParentChildMapping.child_chunk_id == child_chunk_id
-                ).count()
-                logging.info("mapping_count=%s", count)
-
-                for mapping in mappings:
-                    parent_id = mapping.parent_chunk_id
-                    if parent_id in processed_parents:
-                        # 父分块已处理过，跳过当前映射，继续查找其他映射
-                        continue
-                    processed_parents.add(parent_id)
-                    logging.info("3-------------")
-
-                    # 获取正确的tenant_id
-                    try:
-                        from api.db.services.document_service import DocumentService
-                        tenant_id = DocumentService.get_tenant_id(mapping.doc_id)
-                        if not tenant_id:
-                            logging.warning(f"Failed to get tenant_id for doc {mapping.doc_id}")
-                            continue
-                    except Exception as e:
-                        logging.warning(f"Failed to get tenant_id for doc {mapping.doc_id}: {e}")
-                        continue
-
-                    # 从单独的父分块ES索引中获取父分块内容
-                    parent_index = f"{index_name(tenant_id)}_parent"
-                    parent_chunk_data = settings.docStoreConn.get(
-                        parent_id,
-                        parent_index,
-                        [mapping.kb_id]
-                    )
-
-                    if parent_chunk_data:
-                        parent_content = parent_chunk_data.get("content_with_weight", "")
-                        logging.info(f"Successfully retrieved parent chunk {parent_id} from separate index {parent_index} for child {child_chunk_id}")
-
-                        # 保存父分块内容到本地文件用于调试
-                        # try:
-                        #     import os
-                        #     debug_dir = "/tmp/parent_chunks_debug"
-                        #     os.makedirs(debug_dir, exist_ok=True)
-                        #     with open(f"{debug_dir}/{parent_id}.txt", "w", encoding="utf-8") as f:
-                        #         f.write(f"Parent ID: {parent_id}\n")
-                        #         f.write(f"Child ID: {child_chunk_id}\n")
-                        #         f.write(f"Doc ID: {mapping.doc_id}\n")
-                        #         f.write(f"Similarity: {chunk.get('similarity', 0.5)}\n")
-                        #         f.write(f"\n{'='*80}\nCONTENT:\n{'='*80}\n\n")
-                        #         f.write(parent_content)
-                        #     logging.info(f"Saved parent chunk content to {debug_dir}/{parent_id}.txt")
-                        # except Exception as e:
-                        #     logging.warning(f"Failed to save parent chunk debug file: {e}")
-
-                        # 成功获取父分块，替换默认的子分块
-                        current_chunk_result = {
-                            "id": parent_id,
-                            "content_with_weight": parent_content,
-                            "content_ltks": parent_chunk_data.get("content_ltks", ""),  # 添加缺失的字段
-                            "doc_id": mapping.doc_id,
-                            "docnm_kwd": parent_chunk_data.get("docnm_kwd", ""),
-                            "kb_id": mapping.kb_id,
-                            "similarity": chunk.get("similarity", 0.5),  # 继承子分块的相似度
-                            "term_similarity": chunk.get("term_similarity", 0.5),
-                            "vector": chunk.get("vector", []),
-                            "positions": parent_chunk_data.get("positions", []),
-                            "img_id": parent_chunk_data.get("img_id", ""),
-                            "important_kwd": parent_chunk_data.get("important_kwd", []),
-                            "question_kwd": parent_chunk_data.get("question_kwd", []),
-                            "chunk_type": "parent"  # 标记为父分块
-                        }
-                        break  # 找到父分块后退出循环
-                    else:
-                        logging.warning(f"Failed to retrieve parent chunk data from ES: {parent_id}")
-
-            except Exception as e:
-                logging.warning(f"Failed to get parent chunk for child {child_chunk_id}: {e}")
-
-            # 将结果添加到列表（保持原始顺序）
-            parent_chunks.append(current_chunk_result)
-        
-        # 如果找到父分块，返回父分块结果；否则返回原始子分块结果
-        if parent_chunks:
-            # 统计父分块和子分块的数量
-            actual_parent_count = sum(1 for chunk in parent_chunks if chunk.get("chunk_type") == "parent")
-            child_as_parent_count = sum(1 for chunk in parent_chunks if chunk.get("chunk_type") == "child_as_parent")
-
-            logging.info(f"Parent-child retrieval: {len(parent_chunks)} total chunks "
-                        f"({actual_parent_count} parent chunks, {child_as_parent_count} child chunks used as fallback)")
-            # 保持原有的结果结构
-            result = deepcopy(child_results)
-            result["chunks"] = parent_chunks[:top_n]  # 限制返回数量
-            return result
-        else:
-            logging.info("Parent-child retrieval: no parent chunks found, using child chunks")
-            return child_results
-            
-    except Exception as e:
-        logging.error(f"Parent-child retrieval failed: {e}")
-        # 回退到标准检索
-        return settings.retrievaler.retrieval(
-            query, embd_mdl, tenant_ids, kb_ids, page, top_n,
-            similarity_threshold, vector_similarity_weight,
-            doc_ids=doc_ids, top=top, aggs=aggs, rerank_mdl=rerank_mdl,
-            rank_feature=rank_feature
-        )
 
 
 class DialogService(CommonService):
@@ -612,42 +433,21 @@ def chat(dialog, messages, stream=True, **kwargs):
                     yield think
         else:
             if embd_mdl:
-                # 检查是否启用父子分块检索
-                parent_child_enabled, enabled_kb_ids = check_kb_parent_child_enabled(dialog.kb_ids)
-                
-                if parent_child_enabled:
-                    logging.info(f"Using parent-child retrieval for KBs: {enabled_kb_ids}")
-                    kbinfos = parent_child_retrieval(
-                        " ".join(questions),
-                        embd_mdl,
-                        tenant_ids,
-                        dialog.kb_ids,
-                        1,
-                        dialog.top_n,
-                        dialog.similarity_threshold,
-                        dialog.vector_similarity_weight,
-                        doc_ids=attachments,
-                        top=dialog.top_k,
-                        aggs=False,
-                        rerank_mdl=rerank_mdl,
-                        rank_feature=label_question(" ".join(questions), kbs),
-                    )
-                else:
-                    kbinfos = retriever.retrieval(
-                        " ".join(questions),
-                        embd_mdl,
-                        tenant_ids,
-                        dialog.kb_ids,
-                        1,
-                        dialog.top_n,
-                        dialog.similarity_threshold,
-                        dialog.vector_similarity_weight,
-                        doc_ids=attachments,
-                        top=dialog.top_k,
-                        aggs=False,
-                        rerank_mdl=rerank_mdl,
-                        rank_feature=label_question(" ".join(questions), kbs),
-                    )
+                kbinfos = retriever.retrieval(
+                    " ".join(questions),
+                    embd_mdl,
+                    tenant_ids,
+                    dialog.kb_ids,
+                    1,
+                    dialog.top_n,
+                    dialog.similarity_threshold,
+                    dialog.vector_similarity_weight,
+                    doc_ids=attachments,
+                    top=dialog.top_k,
+                    aggs=False,
+                    rerank_mdl=rerank_mdl,
+                    rank_feature=label_question(" ".join(questions), kbs),
+                )
             if prompt_config.get("tavily_api_key"):
                 tav = Tavily(prompt_config["tavily_api_key"])
                 tav_res = tav.retrieve_chunks(" ".join(questions))

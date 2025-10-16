@@ -25,7 +25,7 @@ from api.db import VALID_FILE_TYPES, VALID_TASK_STATUS, FileType, LLMType, Parse
 from api.db.db_models import APIToken, Task, File
 from api.db.services import duplicate_name
 from api.db.services.api_service import APITokenService, API4ConversationService
-from api.db.services.dialog_service import DialogService, chat, check_kb_parent_child_enabled, parent_child_retrieval
+from api.db.services.dialog_service import DialogService, chat
 from api.db.services.document_service import DocumentService, doc_upload_and_parse
 from api.db.services.file2document_service import File2DocumentService
 from api.db.services.file_service import FileService
@@ -884,26 +884,10 @@ def retrieval():
         if req.get("keyword", False):
             chat_mdl = LLMBundle(kbs[0].tenant_id, LLMType.CHAT)
             question += keyword_extraction(chat_mdl, question)
-
-        # Check if parent-child chunking is enabled
-        parent_child_enabled, enabled_kb_ids = check_kb_parent_child_enabled(kb_ids)
-
-        if parent_child_enabled:
-            import logging
-            logging.info(f"Using parent-child retrieval for /retrieval API, KBs: {enabled_kb_ids}")
-            ranks = parent_child_retrieval(
-                question, embd_mdl, kbs[0].tenant_id, kb_ids, page, size,
-                similarity_threshold, vector_similarity_weight,
-                doc_ids=doc_ids, top=top, aggs=False,
-                rerank_mdl=rerank_mdl,
-                rank_feature=label_question(question, kbs)
-            )
-        else:
-            ranks = settings.retrievaler.retrieval(question, embd_mdl, kbs[0].tenant_id, kb_ids, page, size,
-                                                   similarity_threshold, vector_similarity_weight, top,
-                                                   doc_ids, rerank_mdl=rerank_mdl, highlight= highlight,
-                                                   rank_feature=label_question(question, kbs))
-
+        ranks = settings.retrievaler.retrieval(question, embd_mdl, kbs[0].tenant_id, kb_ids, page, size,
+                                               similarity_threshold, vector_similarity_weight, top,
+                                               doc_ids, rerank_mdl=rerank_mdl, highlight= highlight,
+                                               rank_feature=label_question(question, kbs))
         for c in ranks["chunks"]:
             c.pop("vector", None)
         return get_json_result(data=ranks)
