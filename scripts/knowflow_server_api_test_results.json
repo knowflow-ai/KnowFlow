@@ -1,0 +1,1415 @@
+[
+  {
+    "category": "Authentication",
+    "endpoint": "/health",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "database_ready": true,
+        "rbac_initialized": true,
+        "required_tables": {
+          "tenant": true,
+          "user": true,
+          "user_tenant": true
+        },
+        "status": "healthy",
+        "timestamp": "2025-10-17T12:34:35.407758"
+      },
+      "message": "服务运行正常"
+    },
+    "error": null
+  },
+  {
+    "category": "Authentication",
+    "endpoint": "/api/v1/admin/rbac/status",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "background_init_status": true,
+        "database_ready": true,
+        "default_admin_exists": true,
+        "permissions_count": 10,
+        "rbac_initialized": true,
+        "required_tables": {
+          "tenant": true,
+          "user": true,
+          "user_tenant": true
+        },
+        "system_roles_count": 5,
+        "timestamp": "2025-10-17T12:34:35.501908"
+      },
+      "message": "获取RBAC状态成功"
+    },
+    "error": null
+  },
+  {
+    "category": "User Management",
+    "endpoint": "/api/v1/users/me",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "email": "admin@gmail.com",
+        "id": "36712aa3b36740958c08fb94d2309d8b",
+        "role": "super_admin",
+        "roles": [
+          "admin",
+          "super_admin"
+        ],
+        "username": "系统管理员"
+      },
+      "message": "获取用户信息成功"
+    },
+    "error": null
+  },
+  {
+    "category": "User Management",
+    "endpoint": "/api/v1/users",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "list": [
+          {
+            "createTime": "2025-10-17 09:38:08",
+            "email": "1@qq.com",
+            "id": "ef04b268aaf911f09a8966fc51ac58de",
+            "updateTime": "2025-10-17 09:42:40",
+            "username": "1"
+          },
+          {
+            "createTime": "2025-10-03 15:11:25",
+            "email": "admin@gmail.com",
+            "id": "36712aa3b36740958c08fb94d2309d8b",
+            "updateTime": "2025-10-17 09:46:29",
+            "username": "系统管理员"
+          },
+          {
+            "createTime": "2025-10-17 09:40:04",
+            "email": "2@qq.com",
+            "id": "341d1b2eaafa11f09a8966fc51ac58de",
+            "updateTime": "2025-10-17 09:46:23",
+            "username": "2"
+          }
+        ],
+        "total": 3
+      },
+      "message": "获取用户列表成功"
+    },
+    "error": null
+  },
+  {
+    "category": "User Management",
+    "endpoint": "/api/v1/users/assignable",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "list": [
+          {
+            "createTime": "2025-10-17 09:38:08",
+            "email": "1@qq.com",
+            "id": "ef04b268aaf911f09a8966fc51ac58de",
+            "updateTime": "2025-10-17 09:42:40",
+            "username": "1"
+          },
+          {
+            "createTime": "2025-10-17 09:40:04",
+            "email": "2@qq.com",
+            "id": "341d1b2eaafa11f09a8966fc51ac58de",
+            "updateTime": "2025-10-17 09:46:23",
+            "username": "2"
+          }
+        ],
+        "total": 2
+      },
+      "message": "获取可分配权限用户列表成功"
+    },
+    "error": null
+  },
+  {
+    "category": "User Management",
+    "endpoint": "/api/v1/users",
+    "method": "POST",
+    "status": "FAILED",
+    "request": {
+      "email": "test_user_1760675675@test.com",
+      "password": "Test@123456",
+      "nickname": "Test User",
+      "status": "1"
+    },
+    "response": {
+      "code": 400,
+      "message": "用户创建失败"
+    },
+    "error": "用户创建失败"
+  },
+  {
+    "category": "User Management",
+    "endpoint": "/api/v1/users/69736c5e723611efb51b0242ac120007",
+    "method": "PUT",
+    "status": "SUCCESS",
+    "request": {
+      "nickname": "Updated Test User"
+    },
+    "response": {
+      "code": 0,
+      "message": "用户更新成功"
+    },
+    "error": null
+  },
+  {
+    "category": "User Management",
+    "endpoint": "/api/v1/users/69736c5e723611efb51b0242ac120007/roles",
+    "method": "GET",
+    "status": "FAILED",
+    "request": null,
+    "response": {
+      "code": 500,
+      "message": "获取用户角色失败: PermissionService.get_user_roles() got an unexpected keyword argument 'resource_type'"
+    },
+    "error": "获取用户角色失败: PermissionService.get_user_roles() got an unexpected keyword argument 'resource_type'"
+  },
+  {
+    "category": "User Management",
+    "endpoint": "/api/v1/users/69736c5e723611efb51b0242ac120007/roles",
+    "method": "POST",
+    "status": "SUCCESS",
+    "request": {
+      "role_code": "user",
+      "tenant_id": "default"
+    },
+    "response": {
+      "code": 0,
+      "message": "成功为用户分配角色: user"
+    },
+    "error": null
+  },
+  {
+    "category": "User Management",
+    "endpoint": "/api/v1/users/69736c5e723611efb51b0242ac120007/permissions",
+    "method": "GET",
+    "status": "FAILED",
+    "request": null,
+    "response": {
+      "code": 500,
+      "message": "获取用户权限失败: PermissionService.get_user_permissions() got an unexpected keyword argument 'resource_id'"
+    },
+    "error": "获取用户权限失败: PermissionService.get_user_permissions() got an unexpected keyword argument 'resource_id'"
+  },
+  {
+    "category": "User Management",
+    "endpoint": "/api/v1/users/69736c5e723611efb51b0242ac120007/roles/user",
+    "method": "DELETE",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "message": "成功撤销用户角色: user"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases",
+    "method": "POST",
+    "status": "SUCCESS",
+    "request": {
+      "name": "test_kb_1760675675",
+      "description": "Test KB for API testing",
+      "embedding_model": "BAAI/bge-m3",
+      "chunk_method": "smart",
+      "parser_config": {
+        "layout_recognize": "mineru",
+        "chunk_token_num": 256
+      }
+    },
+    "response": {
+      "code": 0,
+      "data": {
+        "avatar": null,
+        "create_date": "2025-10-17 12:34:35",
+        "description": "Test KB for API testing",
+        "doc_num": 0,
+        "id": "95c46c70ab1211f0851666fc51ac58de",
+        "name": "test_kb_1760675675",
+        "update_date": "Fri, 17 Oct 2025 12:34:35 GMT"
+      },
+      "message": "创建成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "list": [
+          {
+            "create_date": "2025-10-17 12:34:35",
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "description": "Test KB for API testing",
+            "doc_num": 0,
+            "id": "95c46c70ab1211f0851666fc51ac58de",
+            "language": "Chinese",
+            "name": "test_kb_1760675675",
+            "parser_id": "smart",
+            "permission": "me",
+            "permission_stats": {
+              "team_count": 0,
+              "total_count": 0,
+              "user_count": 0
+            },
+            "update_date": "Fri, 17 Oct 2025 12:34:35 GMT"
+          },
+          {
+            "create_date": "2025-10-17 12:33:24",
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "description": "Updated KB description",
+            "doc_num": 0,
+            "id": "6b1c10ccab1211f0851666fc51ac58de",
+            "language": "Chinese",
+            "name": "test_kb_1760675603",
+            "parser_id": "smart",
+            "permission": "me",
+            "permission_stats": {
+              "team_count": 0,
+              "total_count": 0,
+              "user_count": 0
+            },
+            "update_date": "Fri, 17 Oct 2025 12:33:24 GMT"
+          },
+          {
+            "create_date": "2025-10-17 12:19:52",
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "description": "Updated KB description",
+            "doc_num": 0,
+            "id": "877cfd8cab1011f0854366fc51ac58de",
+            "language": "Chinese",
+            "name": "test_kb_1760674792",
+            "parser_id": "smart",
+            "permission": "me",
+            "permission_stats": {
+              "team_count": 0,
+              "total_count": 0,
+              "user_count": 0
+            },
+            "update_date": "Fri, 17 Oct 2025 12:19:53 GMT"
+          },
+          {
+            "create_date": "2025-10-17 09:41:32",
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "description": "Updated KB description",
+            "doc_num": 1,
+            "id": "689df954aafa11f09a8966fc51ac58de",
+            "language": "Chinese",
+            "name": "全局知识库",
+            "parser_id": "smart",
+            "permission": "me",
+            "permission_stats": {
+              "team_count": 0,
+              "total_count": 1,
+              "user_count": 1
+            },
+            "update_date": "Fri, 17 Oct 2025 12:11:33 GMT"
+          }
+        ],
+        "total": 4
+      },
+      "message": "操作成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases/95c46c70ab1211f0851666fc51ac58de",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "avatar": null,
+        "create_date": "2025-10-17 12:34:35",
+        "description": "Test KB for API testing",
+        "doc_num": 0,
+        "id": "95c46c70ab1211f0851666fc51ac58de",
+        "name": "test_kb_1760675675",
+        "update_date": "Fri, 17 Oct 2025 12:34:35 GMT"
+      },
+      "message": "操作成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases/95c46c70ab1211f0851666fc51ac58de",
+    "method": "PUT",
+    "status": "SUCCESS",
+    "request": {
+      "description": "Updated KB description"
+    },
+    "response": {
+      "code": 0,
+      "data": {
+        "avatar": null,
+        "create_date": "2025-10-17 12:34:35",
+        "description": "Updated KB description",
+        "doc_num": 0,
+        "id": "95c46c70ab1211f0851666fc51ac58de",
+        "name": "test_kb_1760675675",
+        "update_date": "Fri, 17 Oct 2025 12:34:35 GMT"
+      },
+      "message": "操作成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases/95c46c70ab1211f0851666fc51ac58de/permissions",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "permissions": [],
+        "team_permissions": [],
+        "total": 0,
+        "user_permissions": []
+      },
+      "message": "操作成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases/95c46c70ab1211f0851666fc51ac58de/permissions/users",
+    "method": "POST",
+    "status": "SUCCESS",
+    "request": {
+      "user_id": "69736c5e723611efb51b0242ac120007",
+      "permission_level": "read"
+    },
+    "response": {
+      "code": 0,
+      "data": {
+        "message": "成功为用户授予read权限"
+      },
+      "message": "权限授予成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases/95c46c70ab1211f0851666fc51ac58de/permissions/check",
+    "method": "POST",
+    "status": "SUCCESS",
+    "request": {
+      "user_id": "69736c5e723611efb51b0242ac120007",
+      "permission_type": "read"
+    },
+    "response": {
+      "code": 0,
+      "data": {
+        "granted_roles": [
+          "查看者"
+        ],
+        "has_permission": true,
+        "permission_type": "read",
+        "reason": "角色权限授权",
+        "resource_id": "95c46c70ab1211f0851666fc51ac58de",
+        "user_id": "69736c5e723611efb51b0242ac120007"
+      },
+      "message": "操作成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases/95c46c70ab1211f0851666fc51ac58de/documents",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "list": [],
+        "total": 0
+      },
+      "message": "操作成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases/system_embedding_config",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "api_base": "https://api.siliconflow.cn/v1/embeddings",
+        "api_key": "sk-quulryophlvgbwggvbdeleiitkquijtquysdjyqgmkzhfqtj",
+        "llm_name": "Qwen/Qwen3-Embedding-8B"
+      },
+      "message": "操作成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Knowledgebase Management",
+    "endpoint": "/api/v1/knowledgebases/95c46c70ab1211f0851666fc51ac58de/permissions/users/69736c5e723611efb51b0242ac120007",
+    "method": "DELETE",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "message": "成功撤销3个权限"
+      },
+      "message": "权限撤销成功"
+    },
+    "error": null
+  },
+  {
+    "category": "File Management",
+    "endpoint": "/api/v1/files",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "list": [
+          {
+            "create_time": 1760665947538,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "ef376b0caafb11f082fa66fc51ac58de",
+            "location": "艾瑞咨询：2024年中国微短剧行业研究报告_加水印.pdf",
+            "name": "艾瑞咨询：2024年中国微短剧行业研究报告_加水印.pdf",
+            "parent_id": "ee891520aafb11f082fa66fc51ac58de",
+            "size": 2878438,
+            "source_type": "knowledgebase",
+            "type": "pdf"
+          },
+          {
+            "create_time": 1760606885310,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "6b62938aaa7211f0ab1a66fc51ac58de",
+            "location": "福建省交通运输厅关于印发《福建省普通国省道多功能交通调查站布局和建设方案》的通知.pdf",
+            "name": "福建省交通运输厅关于印发《福建省普通国省道多功能交通调查站布局和建设方案》的通知.pdf",
+            "parent_id": "cbde082caa5c11f09dc866fc51ac58de",
+            "size": 169100,
+            "source_type": "knowledgebase",
+            "type": "pdf"
+          },
+          {
+            "create_time": 1760597598325,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "cbe92eaaaa5c11f09dc866fc51ac58de",
+            "location": "副本2024年机电、运输管理制度汇编.doc",
+            "name": "副本2024年机电、运输管理制度汇编.doc",
+            "parent_id": "cbde082caa5c11f09dc866fc51ac58de",
+            "size": 136192,
+            "source_type": "knowledgebase",
+            "type": "doc"
+          },
+          {
+            "create_time": 1760523716709,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "c7091b36a9b011f0ae6d66fc51ac58de",
+            "location": "2024年机电、运输管理制度汇编.doc",
+            "name": "2024年机电、运输管理制度汇编.doc",
+            "parent_id": "a8f6b532a03611f080f766fc51ac58de",
+            "size": 1094820,
+            "source_type": "knowledgebase",
+            "type": "doc"
+          },
+          {
+            "create_time": 1760511170958,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "912f7acca99311f098e766fc51ac58de",
+            "location": "TWEPP2019_010 (1).pdf",
+            "name": "TWEPP2019_010 (1).pdf",
+            "parent_id": "a8f6b532a03611f080f766fc51ac58de",
+            "size": 499780,
+            "source_type": "knowledgebase",
+            "type": "pdf"
+          },
+          {
+            "create_time": 1760440075220,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "08d2df16a8ee11f099bb66fc51ac58de",
+            "location": "艾瑞咨询：2024年中国微短剧行业研究报告_加水印.pdf",
+            "name": "艾瑞咨询：2024年中国微短剧行业研究报告_加水印.pdf",
+            "parent_id": "a8f6b532a03611f080f766fc51ac58de",
+            "size": 2878438,
+            "source_type": "knowledgebase",
+            "type": "pdf"
+          },
+          {
+            "create_time": 1760413510166,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "2ed15668a8b011f0a69d66fc51ac58de",
+            "location": "F-CM324C.pdf",
+            "name": "F-CM324C.pdf",
+            "parent_id": "2e8af9caa8b011f0a69d66fc51ac58de",
+            "size": 4971386,
+            "source_type": "knowledgebase",
+            "type": "pdf"
+          },
+          {
+            "create_time": 1760341465758,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "710100f4a80811f0b13766fc51ac58de",
+            "location": "艾瑞咨询：2024年中国微短剧行业研究报告.pdf",
+            "name": "艾瑞咨询：2024年中国微短剧行业研究报告.pdf",
+            "parent_id": "a3d08306a5c411f0a6f466fc51ac58de",
+            "size": 2826023,
+            "source_type": "knowledgebase",
+            "type": "pdf"
+          },
+          {
+            "create_time": 1760092442977,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "a3dc2b8ea5c411f0a6f466fc51ac58de",
+            "location": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
+            "name": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
+            "parent_id": "a3d08306a5c411f0a6f466fc51ac58de",
+            "size": 70627,
+            "source_type": "knowledgebase",
+            "type": "doc"
+          },
+          {
+            "create_time": 1760092255941,
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "created_by_name": "系统管理员",
+            "id": "3460c1b6a5c411f0a6f466fc51ac58de",
+            "location": "副本KnowFlow 软件合同-0911.docx",
+            "name": "副本KnowFlow 软件合同-0911.docx",
+            "parent_id": "a8f6b532a03611f080f766fc51ac58de",
+            "size": 25853,
+            "source_type": "knowledgebase",
+            "type": "doc"
+          }
+        ],
+        "total": 21
+      },
+      "message": "获取文件列表成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Document Management",
+    "endpoint": "/api/v1/documents/c6db195ea4b811f097ee66fc51ac58df/chunking-config",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "chunking_config": {
+          "chunk_token_num": 512,
+          "min_chunk_tokens": 20,
+          "regex_pattern": "",
+          "strategy": "smart"
+        }
+      },
+      "message": "操作成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Document Management",
+    "endpoint": "/api/v1/documents/c6db195ea4b811f097ee66fc51ac58df/chunking-config",
+    "method": "PUT",
+    "status": "SUCCESS",
+    "request": {
+      "chunking_config": {
+        "strategy": "smart",
+        "chunk_token_num": 512,
+        "min_chunk_tokens": 20,
+        "regex_pattern": ""
+      }
+    },
+    "response": {
+      "code": 0,
+      "data": {
+        "message": "分块配置更新成功"
+      },
+      "message": "操作成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Team Management",
+    "endpoint": "/api/v1/teams",
+    "method": "POST",
+    "status": "SUCCESS",
+    "request": {
+      "name": "test_team_1760675675",
+      "description": "Test team for API testing"
+    },
+    "response": {
+      "code": 0,
+      "data": {
+        "id": "95f9ff84ab1211f0851666fc51ac58de"
+      },
+      "message": "团队创建成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Team Management",
+    "endpoint": "/api/v1/teams",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "list": [
+          {
+            "createTime": "2025-10-17 12:34:36",
+            "id": "95f9ff84ab1211f0851666fc51ac58de",
+            "memberCount": 1,
+            "name": "test_team_1760675675",
+            "ownerName": "系统管理员",
+            "status": "1",
+            "updateTime": "2025-10-17 12:34:36"
+          },
+          {
+            "createTime": "2025-10-17 12:33:24",
+            "id": "6b572612ab1211f0851666fc51ac58de",
+            "memberCount": 1,
+            "name": "test_team_1760675603",
+            "ownerName": "系统管理员",
+            "status": "1",
+            "updateTime": "2025-10-17 12:33:24"
+          },
+          {
+            "createTime": "2025-10-17 12:19:53",
+            "id": "87c6ce30ab1011f0854366fc51ac58de",
+            "memberCount": 1,
+            "name": "test_team_1760674792",
+            "ownerName": "系统管理员",
+            "status": "1",
+            "updateTime": "2025-10-17 12:19:53"
+          },
+          {
+            "createTime": "2025-10-17 09:39:51",
+            "id": "2ca74e28aafa11f09a8966fc51ac58de",
+            "memberCount": 2,
+            "name": "整个公司",
+            "ownerName": "系统管理员",
+            "status": "1",
+            "updateTime": "2025-10-17 09:39:51"
+          }
+        ],
+        "total": 4
+      },
+      "message": "获取团队列表成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Team Management",
+    "endpoint": "/api/v1/teams/95f9ff84ab1211f0851666fc51ac58de",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "createTime": "2025-10-17 12:34:36",
+        "credit": 0,
+        "id": "95f9ff84ab1211f0851666fc51ac58de",
+        "name": "test_team_1760675675",
+        "status": "1",
+        "updateTime": "2025-10-17 12:34:36"
+      },
+      "message": "获取团队详情成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Team Management",
+    "endpoint": "/api/v1/teams/95f9ff84ab1211f0851666fc51ac58de",
+    "method": "PUT",
+    "status": "FAILED",
+    "request": {
+      "name": "test_team_1760675675_updated",
+      "description": "Updated description"
+    },
+    "response": {
+      "code": 500,
+      "message": "更新团队失败: update_team() got an unexpected keyword argument 'team_data'"
+    },
+    "error": "更新团队失败: update_team() got an unexpected keyword argument 'team_data'"
+  },
+  {
+    "category": "Team Management",
+    "endpoint": "/api/v1/teams/95f9ff84ab1211f0851666fc51ac58de/members",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": [
+        {
+          "joinTime": "2025-10-17 12:34:36",
+          "role": "owner",
+          "userId": "36712aa3b36740958c08fb94d2309d8b",
+          "username": "系统管理员"
+        }
+      ],
+      "message": "获取团队成员成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Team Management",
+    "endpoint": "/api/v1/teams/95f9ff84ab1211f0851666fc51ac58de/members",
+    "method": "POST",
+    "status": "FAILED",
+    "request": {
+      "user_id": "69736c5e723611efb51b0242ac120007",
+      "role": "member"
+    },
+    "response": {
+      "code": 400,
+      "message": "添加团队成员失败"
+    },
+    "error": "添加团队成员失败"
+  },
+  {
+    "category": "Team Management",
+    "endpoint": "/api/v1/teams/95f9ff84ab1211f0851666fc51ac58de/roles",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": [],
+      "message": "获取团队角色成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Team Management",
+    "endpoint": "/api/v1/teams/95f9ff84ab1211f0851666fc51ac58de/roles",
+    "method": "POST",
+    "status": "FAILED",
+    "request": {
+      "role_code": "editor",
+      "resource_type": "knowledgebase",
+      "resource_id": "689df954aafa11f09a8966fc51ac58de"
+    },
+    "response": {
+      "code": 400,
+      "message": "缺少必要参数: role_code, resource_type, granted_by"
+    },
+    "error": "缺少必要参数: role_code, resource_type, granted_by"
+  },
+  {
+    "category": "Team Management",
+    "endpoint": "/api/v1/teams/95f9ff84ab1211f0851666fc51ac58de/members/69736c5e723611efb51b0242ac120007",
+    "method": "DELETE",
+    "status": "FAILED",
+    "request": null,
+    "response": {
+      "code": 400,
+      "message": "移除团队成员失败"
+    },
+    "error": "移除团队成员失败"
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/health",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "service": "RBAC权限管理系统",
+      "status": "healthy",
+      "timestamp": "2025-10-17T12:34:36.407980",
+      "version": "1.0.0"
+    },
+    "error": null
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/roles",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "data": [
+        {
+          "code": "viewer",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "只能查看资源",
+          "id": 4,
+          "is_system": true,
+          "name": "查看者",
+          "role_type": "viewer",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        },
+        {
+          "code": "user",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "基础用户权限",
+          "id": 5,
+          "is_system": true,
+          "name": "用户",
+          "role_type": "user",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        },
+        {
+          "code": "admin",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "拥有租户内所有权限",
+          "id": 2,
+          "is_system": true,
+          "name": "管理员",
+          "role_type": "admin",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        },
+        {
+          "code": "editor",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "可以读取、编辑和分享资源",
+          "id": 3,
+          "is_system": true,
+          "name": "编辑者",
+          "role_type": "editor",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        },
+        {
+          "code": "super_admin",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "拥有系统所有权限",
+          "id": 1,
+          "is_system": true,
+          "name": "超级管理员",
+          "role_type": "super_admin",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        }
+      ],
+      "success": true,
+      "total": 5
+    },
+    "error": null
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/assignable-roles",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "data": [
+        {
+          "code": "viewer",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "只能查看资源",
+          "id": 4,
+          "is_system": true,
+          "name": "查看者",
+          "role_type": "viewer",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        },
+        {
+          "code": "user",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "基础用户权限",
+          "id": 5,
+          "is_system": true,
+          "name": "用户",
+          "role_type": "user",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        },
+        {
+          "code": "admin",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "拥有租户内所有权限",
+          "id": 2,
+          "is_system": true,
+          "name": "管理员",
+          "role_type": "admin",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        },
+        {
+          "code": "editor",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "可以读取、编辑和分享资源",
+          "id": 3,
+          "is_system": true,
+          "name": "编辑者",
+          "role_type": "editor",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        },
+        {
+          "code": "super_admin",
+          "created_at": "2025-10-03T15:11:25",
+          "description": "拥有系统所有权限",
+          "id": 1,
+          "is_system": true,
+          "name": "超级管理员",
+          "role_type": "super_admin",
+          "tenant_id": null,
+          "updated_at": "2025-10-03T15:11:25"
+        }
+      ],
+      "success": true,
+      "total": 5
+    },
+    "error": null
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/my/roles",
+    "method": "GET",
+    "status": "FAILED",
+    "request": null,
+    "response": {
+      "code": 400,
+      "error": "缺少必需参数: user_id"
+    },
+    "error": "缺少必需参数: user_id"
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/my/permissions",
+    "method": "GET",
+    "status": "FAILED",
+    "request": null,
+    "response": {
+      "code": 400,
+      "error": "缺少必需参数: user_id"
+    },
+    "error": "缺少必需参数: user_id"
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/permissions",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": [
+      {
+        "code": "kb_read",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 1,
+        "name": "查看知识库",
+        "permission_type": "read",
+        "resource_type": "knowledgebase",
+        "updated_at": "2025-10-03T15:11:25"
+      },
+      {
+        "code": "kb_write",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 2,
+        "name": "编辑知识库",
+        "permission_type": "write",
+        "resource_type": "knowledgebase",
+        "updated_at": "2025-10-03T15:11:25"
+      },
+      {
+        "code": "kb_delete",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 3,
+        "name": "删除知识库",
+        "permission_type": "delete",
+        "resource_type": "knowledgebase",
+        "updated_at": "2025-10-03T15:11:25"
+      },
+      {
+        "code": "kb_admin",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 4,
+        "name": "管理知识库",
+        "permission_type": "admin",
+        "resource_type": "knowledgebase",
+        "updated_at": "2025-10-03T15:11:25"
+      },
+      {
+        "code": "kb_share",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 5,
+        "name": "分享知识库",
+        "permission_type": "share",
+        "resource_type": "knowledgebase",
+        "updated_at": "2025-10-03T15:11:25"
+      },
+      {
+        "code": "doc_read",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 6,
+        "name": "查看文档",
+        "permission_type": "read",
+        "resource_type": "document",
+        "updated_at": "2025-10-03T15:11:25"
+      },
+      {
+        "code": "doc_write",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 7,
+        "name": "编辑文档",
+        "permission_type": "write",
+        "resource_type": "document",
+        "updated_at": "2025-10-03T15:11:25"
+      },
+      {
+        "code": "doc_delete",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 8,
+        "name": "删除文档",
+        "permission_type": "delete",
+        "resource_type": "document",
+        "updated_at": "2025-10-03T15:11:25"
+      },
+      {
+        "code": "team_read",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 9,
+        "name": "查看团队",
+        "permission_type": "read",
+        "resource_type": "team",
+        "updated_at": "2025-10-03T15:11:25"
+      },
+      {
+        "code": "team_admin",
+        "created_at": "2025-10-03T15:11:25",
+        "description": "",
+        "id": 10,
+        "name": "管理团队",
+        "permission_type": "admin",
+        "resource_type": "team",
+        "updated_at": "2025-10-03T15:11:25"
+      }
+    ],
+    "error": null
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/roles/admin/permissions",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": [
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "kb_read",
+        "permission_id": 1,
+        "permission_name": "查看知识库",
+        "permission_type": "read",
+        "resource_type": "knowledgebase",
+        "role_name": "管理员"
+      },
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "kb_write",
+        "permission_id": 2,
+        "permission_name": "编辑知识库",
+        "permission_type": "write",
+        "resource_type": "knowledgebase",
+        "role_name": "管理员"
+      },
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "kb_delete",
+        "permission_id": 3,
+        "permission_name": "删除知识库",
+        "permission_type": "delete",
+        "resource_type": "knowledgebase",
+        "role_name": "管理员"
+      },
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "kb_admin",
+        "permission_id": 4,
+        "permission_name": "管理知识库",
+        "permission_type": "admin",
+        "resource_type": "knowledgebase",
+        "role_name": "管理员"
+      },
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "kb_share",
+        "permission_id": 5,
+        "permission_name": "分享知识库",
+        "permission_type": "share",
+        "resource_type": "knowledgebase",
+        "role_name": "管理员"
+      },
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "doc_read",
+        "permission_id": 6,
+        "permission_name": "查看文档",
+        "permission_type": "read",
+        "resource_type": "document",
+        "role_name": "管理员"
+      },
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "doc_write",
+        "permission_id": 7,
+        "permission_name": "编辑文档",
+        "permission_type": "write",
+        "resource_type": "document",
+        "role_name": "管理员"
+      },
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "doc_delete",
+        "permission_id": 8,
+        "permission_name": "删除文档",
+        "permission_type": "delete",
+        "resource_type": "document",
+        "role_name": "管理员"
+      },
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "team_read",
+        "permission_id": 9,
+        "permission_name": "查看团队",
+        "permission_type": "read",
+        "resource_type": "team",
+        "role_name": "管理员"
+      },
+      {
+        "description": "",
+        "granted_at": "2025-10-03T15:11:25",
+        "permission_code": "team_admin",
+        "permission_id": 10,
+        "permission_name": "管理团队",
+        "permission_type": "admin",
+        "resource_type": "team",
+        "role_name": "管理员"
+      }
+    ],
+    "error": null
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/permissions/check",
+    "method": "POST",
+    "status": "SUCCESS",
+    "request": {
+      "user_id": "69736c5e723611efb51b0242ac120007",
+      "resource_type": "knowledgebase",
+      "resource_id": "95c46c70ab1211f0851666fc51ac58de",
+      "permission_type": "read",
+      "tenant_id": "default"
+    },
+    "response": {
+      "granted_roles": [],
+      "has_permission": false,
+      "permission_type": "read",
+      "reason": "无相关权限",
+      "resource_id": "95c46c70ab1211f0851666fc51ac58de",
+      "resource_type": "knowledgebase",
+      "user_id": "69736c5e723611efb51b0242ac120007"
+    },
+    "error": null
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/permissions/batch-check",
+    "method": "POST",
+    "status": "FAILED",
+    "request": {
+      "checks": [
+        {
+          "user_id": "69736c5e723611efb51b0242ac120007",
+          "resource_type": "knowledgebase",
+          "resource_id": "95c46c70ab1211f0851666fc51ac58de",
+          "permission_type": "read"
+        }
+      ]
+    },
+    "response": {
+      "code": 400,
+      "error": "缺少必需参数: user_id"
+    },
+    "error": "缺少必需参数: user_id"
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/permissions/simple-check",
+    "method": "POST",
+    "status": "SUCCESS",
+    "request": {
+      "user_id": "69736c5e723611efb51b0242ac120007",
+      "permission_code": "kb:read"
+    },
+    "response": {
+      "has_permission": false,
+      "permission_code": "kb:read",
+      "resource_id": null,
+      "tenant_id": "default",
+      "user_id": "69736c5e723611efb51b0242ac120007"
+    },
+    "error": null
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/users/69736c5e723611efb51b0242ac120007/roles",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "roles": [],
+      "total": 0,
+      "user_id": "69736c5e723611efb51b0242ac120007"
+    },
+    "error": null
+  },
+  {
+    "category": "RBAC Management",
+    "endpoint": "/api/v1/rbac/users/69736c5e723611efb51b0242ac120007/permissions",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "permissions": [],
+      "resource_type_filter": null,
+      "total": 0,
+      "user_id": "69736c5e723611efb51b0242ac120007"
+    },
+    "error": null
+  },
+  {
+    "category": "Tenant Management",
+    "endpoint": "/api/v1/tenants",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "list": [
+          {
+            "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+            "createTime": "2025-10-17 09:40:04",
+            "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+            "id": "341d1b2eaafa11f09a8966fc51ac58de",
+            "updateTime": "2025-10-17 09:40:04",
+            "username": "2"
+          },
+          {
+            "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+            "createTime": "2025-10-17 09:38:08",
+            "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+            "id": "ef04b268aaf911f09a8966fc51ac58de",
+            "updateTime": "2025-10-17 09:38:08",
+            "username": "1"
+          },
+          {
+            "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+            "createTime": "2025-10-03 15:11:25",
+            "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+            "id": "36712aa3b36740958c08fb94d2309d8b",
+            "updateTime": "2025-10-16 20:45:29",
+            "username": "系统管理员"
+          }
+        ],
+        "total": 3
+      },
+      "message": "获取租户列表成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Tenant Management",
+    "endpoint": "/api/v1/tenants/models",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "chat_models": [
+          "Qwen/Qwen3-32B@SILICONFLOW"
+        ],
+        "embedding_models": [
+          "BAAI/bge-m3@SILICONFLOW"
+        ]
+      },
+      "message": "获取已配置模型列表成功"
+    },
+    "error": null
+  },
+  {
+    "category": "Tenant Management",
+    "endpoint": "/api/v1/tenants/admin-defaults",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
+    "response": {
+      "code": 0,
+      "data": {
+        "chat_model": "Qwen/Qwen3-32B@SILICONFLOW",
+        "embedding_model": "BAAI/bge-m3@SILICONFLOW"
+      },
+      "message": "获取管理员默认配置成功"
+    },
+    "error": null
+  }
+]
