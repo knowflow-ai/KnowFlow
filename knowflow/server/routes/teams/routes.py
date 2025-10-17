@@ -1,7 +1,7 @@
 from flask import jsonify, request, g
 from services.teams.service import (
-    get_teams_with_pagination, get_team_by_id, create_team, update_team, delete_team,
-    get_team_members, add_team_member, remove_team_member
+    get_teams_with_pagination, get_team_by_id, create_team, delete_team,
+    get_team_members, remove_team_member
 )
 from services.rbac.permission_service import permission_service
 from models.rbac_models import ResourceType, RoleType
@@ -104,28 +104,6 @@ def create_team_route():
             "message": f"创建团队失败: {str(e)}"
         }), 500
 
-@teams_bp.route('/<string:team_id>', methods=['PUT'])
-def update_team_route(team_id):
-    """更新团队的API端点"""
-    try:
-        data = request.json
-        success = update_team(team_id=team_id, team_data=data)
-        if success:
-            return jsonify({
-                "code": 0,
-                "message": f"团队 {team_id} 更新成功"
-            })
-        else:
-            return jsonify({
-                "code": 404,
-                "message": f"团队 {team_id} 不存在或更新失败"
-            }), 404
-    except Exception as e:
-        return jsonify({
-            "code": 500,
-            "message": f"更新团队失败: {str(e)}"
-        }), 500
-
 @teams_bp.route('/<string:team_id>', methods=['DELETE'])
 def delete_team_route(team_id):
     """删除团队的API端点"""
@@ -165,30 +143,6 @@ def get_team_members_route(team_id):
         return jsonify({
             "code": 500,
             "message": f"获取团队成员失败: {str(e)}"
-        }), 500
-
-@teams_bp.route('/<string:team_id>/members', methods=['POST'])
-def add_team_member_route(team_id):
-    """添加团队成员的API端点"""
-    try:
-        data = request.json
-        user_id = data.get('userId')
-        role = data.get('role', 'member')
-        success = add_team_member(team_id, user_id, role)
-        if success:
-            return jsonify({
-                "code": 0,
-                "message": "添加团队成员成功"
-            })
-        else:
-            return jsonify({
-                "code": 400,
-                "message": "添加团队成员失败"
-            }), 400
-    except Exception as e:
-        return jsonify({
-            "code": 500,
-            "message": f"添加团队成员失败: {str(e)}"
         }), 500
 
 @teams_bp.route('/<string:team_id>/members/<string:user_id>', methods=['DELETE'])

@@ -183,11 +183,11 @@ class KnowFlowAPITester:
         )
 
         # 4. 创建用户
+        # 注意：前端使用 username, email, password 字段
         create_user_data = {
+            "username": "test_user",
             "email": TEST_USER_EMAIL,
-            "password": TEST_USER_PASSWORD,
-            "nickname": "Test User",
-            "status": "1"
+            "password": TEST_USER_PASSWORD
         }
         success, resp = self.test_request(
             "User Management", "POST", "/api/v1/users",
@@ -213,40 +213,8 @@ class KnowFlowAPITester:
                 data=update_user_data
             )
 
-        # 6. 获取用户角色
-        if self.created_user_id:
-            self.test_request(
-                "User Management", "GET", f"/api/v1/users/{self.created_user_id}/roles",
-                params={"tenant_id": "default"}
-            )
-
-        # 7. 分配角色给用户
-        if self.created_user_id:
-            assign_role_data = {
-                "role_code": "user",
-                "tenant_id": "default"
-            }
-            self.test_request(
-                "User Management", "POST", f"/api/v1/users/{self.created_user_id}/roles",
-                data=assign_role_data
-            )
-
-        # 8. 获取用户权限
-        if self.created_user_id:
-            self.test_request(
-                "User Management", "GET", f"/api/v1/users/{self.created_user_id}/permissions",
-                params={"tenant_id": "default"}
-            )
-
-        # 9. 重置用户密码（仅测试，不实际重置）
-        # 跳过以避免影响测试用户
-
-        # 10. 撤销用户角色
-        if self.created_user_id:
-            self.test_request(
-                "User Management", "DELETE", f"/api/v1/users/{self.created_user_id}/roles/user",
-                params={"tenant_id": "default"}
-            )
+        # 注意：用户角色和权限管理已迁移到 RBAC API
+        # 使用 /api/v1/rbac/users/{user_id}/roles 和 /api/v1/rbac/users/{user_id}/permissions
 
     # ==================== 团队管理 APIs ====================
 
@@ -282,57 +250,37 @@ class KnowFlowAPITester:
                 "Team Management", "GET", f"/api/v1/teams/{self.created_team_id}"
             )
 
-        # 4. 更新团队信息
-        if self.created_team_id:
-            update_team_data = {
-                "name": f"{TEST_TEAM_NAME}_updated",
-                "description": "Updated description"
-            }
-            self.test_request(
-                "Team Management", "PUT", f"/api/v1/teams/{self.created_team_id}",
-                data=update_team_data
-            )
-
-        # 5. 获取团队成员
+        # 4. 获取团队成员
         if self.created_team_id:
             self.test_request(
                 "Team Management", "GET", f"/api/v1/teams/{self.created_team_id}/members"
             )
 
-        # 6. 添加团队成员
-        if self.created_team_id and self.created_user_id:
-            add_member_data = {
-                "user_id": self.created_user_id,
-                "role": "member"
-            }
-            self.test_request(
-                "Team Management", "POST", f"/api/v1/teams/{self.created_team_id}/members",
-                data=add_member_data
-            )
-
-        # 7. 获取团队角色
+        # 5. 获取团队角色
         if self.created_team_id:
             self.test_request(
                 "Team Management", "GET", f"/api/v1/teams/{self.created_team_id}/roles"
             )
 
-        # 8. 分配团队角色
+        # 6. 分配团队角色
+        # 注意：前端传递 granted_by（当前用户ID）和 tenant_id
         if self.created_team_id:
+            # 获取当前用户ID（从/users/me接口获取）
+            success, user_resp = self.test_request(
+                "Team Management", "GET", "/api/v1/users/me"
+            )
+            granted_by = user_resp.get("data", {}).get("id", "system") if success else "system"
+
             assign_role_data = {
                 "role_code": "editor",
-                "resource_type": "knowledgebase",
-                "resource_id": EXISTING_KB_ID
+                "resource_type": "system",  # 前端使用 system
+                "resource_id": None,  # 系统级别角色不需要 resource_id
+                "tenant_id": "default",
+                "granted_by": granted_by
             }
             self.test_request(
                 "Team Management", "POST", f"/api/v1/teams/{self.created_team_id}/roles",
                 data=assign_role_data
-            )
-
-        # 9. 删除团队成员
-        if self.created_team_id and self.created_user_id:
-            self.test_request(
-                "Team Management", "DELETE",
-                f"/api/v1/teams/{self.created_team_id}/members/{self.created_user_id}"
             )
 
     # ==================== 租户管理 APIs ====================
@@ -565,31 +513,22 @@ class KnowFlowAPITester:
             expect_non_standard_response=True
         )
 
-        # 4. 获取我的角色
-        self.test_request(
-            "RBAC Management", "GET", "/api/v1/rbac/my/roles",
-            expect_non_standard_response=True
-        )
+        # 注意：my/roles 和 my/permissions 已删除
+        # 用户角色和权限信息通过 /api/v1/users/me 获取
 
-        # 5. 获取我的权限
-        self.test_request(
-            "RBAC Management", "GET", "/api/v1/rbac/my/permissions",
-            expect_non_standard_response=True
-        )
-
-        # 6. 获取权限列表
+        # 4. 获取权限列表
         self.test_request(
             "RBAC Management", "GET", "/api/v1/rbac/permissions",
             expect_non_standard_response=True
         )
 
-        # 7. 获取角色权限
+        # 5. 获取角色权限
         self.test_request(
             "RBAC Management", "GET", "/api/v1/rbac/roles/admin/permissions",
             expect_non_standard_response=True
         )
 
-        # 8. 检查权限
+        # 6. 检查权限
         if self.created_user_id and self.created_kb_id:
             check_permission_data = {
                 "user_id": self.created_user_id,
@@ -604,17 +543,14 @@ class KnowFlowAPITester:
                 expect_non_standard_response=True
             )
 
-        # 9. 批量检查权限
+        # 7. 批量检查权限
         if self.created_user_id and self.created_kb_id:
             batch_check_data = {
-                "checks": [
-                    {
-                        "user_id": self.created_user_id,
-                        "resource_type": "knowledgebase",
-                        "resource_id": self.created_kb_id,
-                        "permission_type": "read"
-                    }
-                ]
+                "user_id": self.created_user_id,
+                "resource_type": "knowledgebase",
+                "resource_ids": [self.created_kb_id],
+                "permission_type": "read",
+                "tenant_id": "default"
             }
             self.test_request(
                 "RBAC Management", "POST", "/api/v1/rbac/permissions/batch-check",
@@ -622,7 +558,7 @@ class KnowFlowAPITester:
                 expect_non_standard_response=True
             )
 
-        # 10. 简单权限检查
+        # 8. 简单权限检查
         if self.created_user_id:
             simple_check_data = {
                 "user_id": self.created_user_id,
@@ -634,14 +570,14 @@ class KnowFlowAPITester:
                 expect_non_standard_response=True
             )
 
-        # 11. 获取用户角色（RBAC接口）
+        # 9. 获取用户角色（RBAC接口）
         if self.created_user_id:
             self.test_request(
                 "RBAC Management", "GET", f"/api/v1/rbac/users/{self.created_user_id}/roles",
                 expect_non_standard_response=True
             )
 
-        # 12. 获取用户权限（RBAC接口）
+        # 10. 获取用户权限（RBAC接口）
         if self.created_user_id:
             self.test_request(
                 "RBAC Management", "GET", f"/api/v1/rbac/users/{self.created_user_id}/permissions",

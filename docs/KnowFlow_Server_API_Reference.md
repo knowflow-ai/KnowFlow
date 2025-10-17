@@ -721,6 +721,8 @@ Success (HTTP 200):
 
 ## 团队管理 APIs
 
+> **注意**: 团队成员的添加功能实际通过 RAGFlow 的租户 API (`POST /v1/tenant/{team_id}/user`) 实现。团队在系统中被当做租户使用，成员管理复用了 RAGFlow 的租户用户管理功能。
+
 ### List Teams
 
 **GET** `/api/v1/teams`
@@ -877,46 +879,6 @@ Success (HTTP 200):
 
 ---
 
-### Update Team
-
-**PUT** `/api/v1/teams/{team_id}`
-
-更新团队信息。
-
-#### Request
-
-- Method: PUT
-- URL: `/api/v1/teams/{team_id}`
-- Headers:
-  - `Content-Type: application/json`
-  - `Authorization: Bearer <YOUR_API_KEY>`
-
-##### Request Example
-
-```bash
-curl --request PUT \
-     --url http://localhost:5000/api/v1/teams/team_12345 \
-     --header 'Content-Type: application/json' \
-     --header 'Authorization: Bearer <YOUR_API_KEY>' \
-     --data '{
-       "name": "核心开发团队",
-       "description": "核心系统开发和维护"
-     }'
-```
-
-#### Response
-
-Success (HTTP 200):
-
-```json
-{
-  "code": 0,
-  "message": "更新团队成功"
-}
-```
-
----
-
 ### Delete Team
 
 **DELETE** `/api/v1/teams/{team_id}`
@@ -991,59 +953,6 @@ Success (HTTP 200):
     ],
     "total": 1
   }
-}
-```
-
----
-
-### Add Team Member
-
-**POST** `/api/v1/teams/{team_id}/members`
-
-添加成员到团队。
-
-#### Request
-
-- Method: POST
-- URL: `/api/v1/teams/{team_id}/members`
-- Headers:
-  - `Content-Type: application/json`
-  - `Authorization: Bearer <YOUR_API_KEY>`
-
-##### Request Example
-
-```bash
-curl --request POST \
-     --url http://localhost:5000/api/v1/teams/team_12345/members \
-     --header 'Content-Type: application/json' \
-     --header 'Authorization: Bearer <YOUR_API_KEY>' \
-     --data '{
-       "user_id": "user_456",
-       "role": "member"
-     }'
-```
-
-##### Request Parameters
-
-- `team_id` (*Path parameter*) `string`, **Required**
-  - 团队ID
-
-- `user_id` (*Body parameter*) `string`, **Required**
-  - 用户ID
-
-- `role` (*Body parameter*) `string`
-  - 团队内角色
-  - 可选值: `"admin"`, `"member"`
-  - Default: `"member"`
-
-#### Response
-
-Success (HTTP 200):
-
-```json
-{
-  "code": 0,
-  "message": "添加团队成员成功"
 }
 ```
 
