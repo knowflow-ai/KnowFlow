@@ -11,214 +11,51 @@
         {
           "avatar": null,
           "chunk_count": 0,
-          "chunk_method": "smart",
-          "create_date": "Thu, 16 Oct 2025 15:35:57 GMT",
-          "create_time": 1760600157540,
-          "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "description": null,
-          "document_count": 0,
-          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "c1508b36aa6211f09dc866fc51ac58de",
-          "language": "English",
-          "name": "44",
-          "pagerank": 0,
-          "parser_config": {
-            "pages": [
-              [
-                1,
-                1000000
-              ]
-            ]
-          },
-          "permission": "me",
-          "similarity_threshold": 0.2,
-          "status": "1",
-          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 0,
-          "update_date": "Thu, 16 Oct 2025 15:35:57 GMT",
-          "update_time": 1760600157540,
-          "vector_similarity_weight": 0.3
-        },
-        {
-          "avatar": "",
-          "chunk_count": 139,
-          "chunk_method": "parent_child",
-          "create_date": "Thu, 16 Oct 2025 14:52:50 GMT",
-          "create_time": 1760597570067,
-          "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "description": null,
-          "document_count": 2,
-          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "bb1063d2aa5c11f09dc866fc51ac58de",
-          "language": "English",
-          "name": "dots",
-          "pagerank": 0,
-          "parser_config": {
-            "auto_keywords": 0,
-            "auto_questions": 0,
-            "chunk_token_num": 128,
-            "delimiter": "\\n!?;。；！？",
-            "graphrag": {
-              "use_graphrag": false
-            },
-            "html4excel": false,
-            "layout_recognize": "DOTS",
-            "raptor": {
-              "use_raptor": false
-            }
-          },
-          "permission": "me",
-          "similarity_threshold": 0.2,
-          "status": "1",
-          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 9795,
-          "update_date": "Thu, 16 Oct 2025 20:47:35 GMT",
-          "update_time": 1760618855050,
-          "vector_similarity_weight": 0.3
-        },
-        {
-          "avatar": null,
-          "chunk_count": 0,
-          "chunk_method": "smart",
-          "create_date": "Thu, 16 Oct 2025 14:13:22 GMT",
-          "create_time": 1760595202563,
-          "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "description": null,
-          "document_count": 0,
-          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "37ebe3c8aa5711f09dc866fc51ac58de",
-          "language": "English",
-          "name": "123(2)",
-          "pagerank": 0,
-          "parser_config": {
-            "pages": [
-              [
-                1,
-                1000000
-              ]
-            ]
-          },
-          "permission": "me",
-          "similarity_threshold": 0.2,
-          "status": "1",
-          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 0,
-          "update_date": "Thu, 16 Oct 2025 14:13:22 GMT",
-          "update_time": 1760595202563,
-          "vector_similarity_weight": 0.3
-        },
-        {
-          "avatar": null,
-          "chunk_count": 0,
-          "chunk_method": "smart",
-          "create_date": "Thu, 16 Oct 2025 14:13:08 GMT",
-          "create_time": 1760595188517,
-          "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "description": null,
-          "document_count": 0,
-          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "2f8cd5e8aa5711f09dc866fc51ac58de",
-          "language": "English",
-          "name": "123(1)",
-          "pagerank": 0,
-          "parser_config": {
-            "pages": [
-              [
-                1,
-                1000000
-              ]
-            ]
-          },
-          "permission": "me",
-          "similarity_threshold": 0.2,
-          "status": "1",
-          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 0,
-          "update_date": "Thu, 16 Oct 2025 14:13:08 GMT",
-          "update_time": 1760595188517,
-          "vector_similarity_weight": 0.3
-        },
-        {
-          "avatar": "",
-          "chunk_count": 377,
-          "chunk_method": "parent_child",
-          "create_date": "Fri, 10 Oct 2025 18:33:46 GMT",
-          "create_time": 1760092426704,
-          "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "description": null,
-          "document_count": 2,
-          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "9a28e050a5c411f0a6f466fc51ac58de",
-          "language": "English",
-          "name": "mineru",
-          "pagerank": 0,
-          "parser_config": {
-            "auto_keywords": 0,
-            "auto_questions": 0,
-            "chunk_token_num": 128,
-            "delimiter": "\\n!?;。；！？",
-            "graphrag": {
-              "use_graphrag": false
-            },
-            "html4excel": false,
-            "layout_recognize": "MinerU",
-            "raptor": {
-              "use_raptor": false
-            }
-          },
-          "permission": "me",
-          "similarity_threshold": 0.2,
-          "status": "1",
-          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 37974,
-          "update_date": "Mon, 13 Oct 2025 19:32:40 GMT",
-          "update_time": 1760355160583,
-          "vector_similarity_weight": 0.3
-        },
-        {
-          "avatar": null,
-          "chunk_count": 274,
           "chunk_method": "naive",
-          "create_date": "Fri, 10 Oct 2025 14:26:55 GMT",
-          "create_time": 1760077615224,
+          "create_date": "Fri, 17 Oct 2025 13:31:54 GMT",
+          "create_time": 1760679114485,
           "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "description": null,
-          "document_count": 1,
+          "description": "Updated test dataset description",
+          "document_count": 0,
           "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "1dd2fd6ea5a211f0b33466fc51ac58de",
+          "id": "974fa87cab1a11f082fa66fc51ac58de",
           "language": "English",
-          "name": "33(1)",
+          "name": "Updated Test Dataset 1760679114",
           "pagerank": 0,
           "parser_config": {
-            "pages": [
-              [
-                1,
-                1000000
-              ]
-            ]
+            "chunk_token_num": 512,
+            "delimiter": "\\n",
+            "graphrag": {
+              "use_graphrag": false
+            },
+            "html4excel": false,
+            "layout_recognize": "DeepDOC",
+            "raptor": {
+              "use_raptor": false
+            }
           },
           "permission": "me",
           "similarity_threshold": 0.2,
           "status": "1",
           "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 28969,
-          "update_date": "Fri, 10 Oct 2025 14:41:50 GMT",
-          "update_time": 1760078510843,
+          "token_num": 0,
+          "update_date": "Fri, 17 Oct 2025 13:31:54 GMT",
+          "update_time": 1760679114579,
           "vector_similarity_weight": 0.3
         },
         {
           "avatar": null,
-          "chunk_count": 176,
+          "chunk_count": 0,
           "chunk_method": "smart",
-          "create_date": "Thu, 09 Oct 2025 22:28:06 GMT",
-          "create_time": 1760020086086,
+          "create_date": "Fri, 17 Oct 2025 13:28:26 GMT",
+          "create_time": 1760678906492,
           "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "description": "",
-          "document_count": 2,
+          "description": "Updated KB description",
+          "document_count": 0,
           "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "2bcad74ca51c11f0a4fc66fc51ac58de",
+          "id": "1b5afb4aab1a11f0bcd566fc51ac58de",
           "language": "Chinese",
-          "name": "41",
+          "name": "test_kb_1760678905",
           "pagerank": 0,
           "parser_config": {
             "auto_keywords": 0,
@@ -237,83 +74,261 @@
           "similarity_threshold": 0.7,
           "status": "1",
           "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 25805,
-          "update_date": "Tue, 14 Oct 2025 11:56:50 GMT",
-          "update_time": 1760414210155,
+          "token_num": 0,
+          "update_date": "Fri, 17 Oct 2025 13:28:26 GMT",
+          "update_time": 1760678906492,
           "vector_similarity_weight": 0.3
         },
         {
-          "avatar": "",
+          "avatar": null,
+          "chunk_count": 0,
+          "chunk_method": "smart",
+          "create_date": "Fri, 17 Oct 2025 13:16:12 GMT",
+          "create_time": 1760678172196,
+          "created_by": "36712aa3b36740958c08fb94d2309d8b",
+          "description": "Updated KB description",
+          "document_count": 0,
+          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
+          "id": "65ae3b3cab1811f0bcd566fc51ac58de",
+          "language": "Chinese",
+          "name": "test_kb_1760678171",
+          "pagerank": 0,
+          "parser_config": {
+            "auto_keywords": 0,
+            "auto_questions": 0,
+            "chunk_token_num": 512,
+            "delimiter": "\n!?;。；！？",
+            "graphrag": {
+              "use_graphrag": false
+            },
+            "html4excel": false,
+            "raptor": {
+              "use_raptor": false
+            }
+          },
+          "permission": "me",
+          "similarity_threshold": 0.7,
+          "status": "1",
+          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
+          "token_num": 0,
+          "update_date": "Fri, 17 Oct 2025 13:16:12 GMT",
+          "update_time": 1760678172196,
+          "vector_similarity_weight": 0.3
+        },
+        {
+          "avatar": null,
+          "chunk_count": 0,
+          "chunk_method": "smart",
+          "create_date": "Fri, 17 Oct 2025 13:15:11 GMT",
+          "create_time": 1760678111809,
+          "created_by": "36712aa3b36740958c08fb94d2309d8b",
+          "description": "Updated KB description",
+          "document_count": 0,
+          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
+          "id": "41afea64ab1811f0bcd566fc51ac58de",
+          "language": "Chinese",
+          "name": "test_kb_1760678110",
+          "pagerank": 0,
+          "parser_config": {
+            "auto_keywords": 0,
+            "auto_questions": 0,
+            "chunk_token_num": 512,
+            "delimiter": "\n!?;。；！？",
+            "graphrag": {
+              "use_graphrag": false
+            },
+            "html4excel": false,
+            "raptor": {
+              "use_raptor": false
+            }
+          },
+          "permission": "me",
+          "similarity_threshold": 0.7,
+          "status": "1",
+          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
+          "token_num": 0,
+          "update_date": "Fri, 17 Oct 2025 13:15:12 GMT",
+          "update_time": 1760678111809,
+          "vector_similarity_weight": 0.3
+        },
+        {
+          "avatar": null,
+          "chunk_count": 0,
+          "chunk_method": "smart",
+          "create_date": "Fri, 17 Oct 2025 13:06:49 GMT",
+          "create_time": 1760677609323,
+          "created_by": "36712aa3b36740958c08fb94d2309d8b",
+          "description": "Updated KB description",
+          "document_count": 0,
+          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
+          "id": "162e968eab1711f0bcd566fc51ac58de",
+          "language": "Chinese",
+          "name": "test_kb_1760677608",
+          "pagerank": 0,
+          "parser_config": {
+            "auto_keywords": 0,
+            "auto_questions": 0,
+            "chunk_token_num": 512,
+            "delimiter": "\n!?;。；！？",
+            "graphrag": {
+              "use_graphrag": false
+            },
+            "html4excel": false,
+            "raptor": {
+              "use_raptor": false
+            }
+          },
+          "permission": "me",
+          "similarity_threshold": 0.7,
+          "status": "1",
+          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
+          "token_num": 0,
+          "update_date": "Fri, 17 Oct 2025 13:06:49 GMT",
+          "update_time": 1760677609323,
+          "vector_similarity_weight": 0.3
+        },
+        {
+          "avatar": null,
+          "chunk_count": 0,
+          "chunk_method": "smart",
+          "create_date": "Fri, 17 Oct 2025 13:02:22 GMT",
+          "create_time": 1760677342791,
+          "created_by": "36712aa3b36740958c08fb94d2309d8b",
+          "description": "Updated KB description",
+          "document_count": 0,
+          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
+          "id": "7751194cab1611f08adb66fc51ac58de",
+          "language": "Chinese",
+          "name": "test_kb_1760677342",
+          "pagerank": 0,
+          "parser_config": {
+            "auto_keywords": 0,
+            "auto_questions": 0,
+            "chunk_token_num": 512,
+            "delimiter": "\n!?;。；！？",
+            "graphrag": {
+              "use_graphrag": false
+            },
+            "html4excel": false,
+            "raptor": {
+              "use_raptor": false
+            }
+          },
+          "permission": "me",
+          "similarity_threshold": 0.7,
+          "status": "1",
+          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
+          "token_num": 0,
+          "update_date": "Fri, 17 Oct 2025 13:02:22 GMT",
+          "update_time": 1760677342791,
+          "vector_similarity_weight": 0.3
+        },
+        {
+          "avatar": null,
+          "chunk_count": 0,
+          "chunk_method": "smart",
+          "create_date": "Fri, 17 Oct 2025 12:54:40 GMT",
+          "create_time": 1760676880565,
+          "created_by": "36712aa3b36740958c08fb94d2309d8b",
+          "description": "Updated KB description",
+          "document_count": 0,
+          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
+          "id": "63cef6baab1511f08adb66fc51ac58de",
+          "language": "Chinese",
+          "name": "test_kb_1760676879",
+          "pagerank": 0,
+          "parser_config": {
+            "auto_keywords": 0,
+            "auto_questions": 0,
+            "chunk_token_num": 512,
+            "delimiter": "\n!?;。；！？",
+            "graphrag": {
+              "use_graphrag": false
+            },
+            "html4excel": false,
+            "raptor": {
+              "use_raptor": false
+            }
+          },
+          "permission": "me",
+          "similarity_threshold": 0.7,
+          "status": "1",
+          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
+          "token_num": 0,
+          "update_date": "Fri, 17 Oct 2025 12:54:40 GMT",
+          "update_time": 1760676880565,
+          "vector_similarity_weight": 0.3
+        },
+        {
+          "avatar": null,
+          "chunk_count": 0,
+          "chunk_method": "smart",
+          "create_date": "Fri, 17 Oct 2025 12:53:49 GMT",
+          "create_time": 1760676829616,
+          "created_by": "36712aa3b36740958c08fb94d2309d8b",
+          "description": "",
+          "document_count": 0,
+          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
+          "id": "4570e714ab1511f08adb66fc51ac58de",
+          "language": "Chinese",
+          "name": "344",
+          "pagerank": 0,
+          "parser_config": {
+            "auto_keywords": 0,
+            "auto_questions": 0,
+            "chunk_token_num": 512,
+            "delimiter": "\n!?;。；！？",
+            "graphrag": {
+              "use_graphrag": false
+            },
+            "html4excel": false,
+            "raptor": {
+              "use_raptor": false
+            }
+          },
+          "permission": "me",
+          "similarity_threshold": 0.7,
+          "status": "1",
+          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
+          "token_num": 0,
+          "update_date": "Fri, 17 Oct 2025 12:53:49 GMT",
+          "update_time": 1760676829616,
+          "vector_similarity_weight": 0.3
+        },
+        {
+          "avatar": null,
           "chunk_count": 49,
-          "chunk_method": "title",
-          "create_date": "Thu, 09 Oct 2025 21:43:33 GMT",
-          "create_time": 1760017413123,
+          "chunk_method": "smart",
+          "create_date": "Fri, 17 Oct 2025 09:41:32 GMT",
+          "create_time": 1760665292220,
           "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "description": null,
-          "document_count": 5,
+          "description": "Updated KB description",
+          "document_count": 1,
           "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "f29484cea51511f0a14966fc51ac58de",
-          "language": "English",
-          "name": "33",
+          "id": "689df954aafa11f09a8966fc51ac58de",
+          "language": "Chinese",
+          "name": "全局知识库",
           "pagerank": 0,
           "parser_config": {
             "auto_keywords": 0,
             "auto_questions": 0,
-            "chunk_token_num": 128,
-            "delimiter": "\\n!?;。；！？",
+            "chunk_token_num": 512,
+            "delimiter": "\n!?;。；！？",
             "graphrag": {
               "use_graphrag": false
             },
             "html4excel": false,
-            "layout_recognize": "MinerU",
             "raptor": {
               "use_raptor": false
             }
           },
           "permission": "me",
-          "similarity_threshold": 0.2,
+          "similarity_threshold": 0.7,
           "status": "1",
           "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 11156,
-          "update_date": "Wed, 15 Oct 2025 18:21:56 GMT",
-          "update_time": 1760523716701,
-          "vector_similarity_weight": 0.3
-        },
-        {
-          "avatar": "",
-          "chunk_count": 339,
-          "chunk_method": "naive",
-          "create_date": "Sun, 05 Oct 2025 12:25:02 GMT",
-          "create_time": 1759638302894,
-          "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "description": "更新后的描述",
-          "document_count": 7,
-          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "4345aa0ea1a311f0b45566fc51ac58df",
-          "language": "English",
-          "name": "123",
-          "pagerank": 0,
-          "parser_config": {
-            "auto_keywords": 0,
-            "auto_questions": 0,
-            "chunk_token_num": 128,
-            "delimiter": "\\n!?;。；！？",
-            "graphrag": {
-              "use_graphrag": false
-            },
-            "html4excel": false,
-            "layout_recognize": "MinerU",
-            "raptor": {
-              "use_raptor": false
-            }
-          },
-          "permission": "me",
-          "similarity_threshold": 0.2,
-          "status": "1",
-          "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 50596,
-          "update_date": "Thu, 16 Oct 2025 23:04:09 GMT",
-          "update_time": 1760627049172,
+          "token_num": 7613,
+          "update_date": "Fri, 17 Oct 2025 12:11:33 GMT",
+          "update_time": 1760667480731,
           "vector_similarity_weight": 0.3
         }
       ]
@@ -322,7 +337,7 @@
   },
   {
     "category": "Dataset Management",
-    "endpoint": "/api/v1/datasets/4345aa0ea1a311f0b45566fc51ac58df",
+    "endpoint": "/api/v1/datasets/974fa87cab1a11f082fa66fc51ac58de",
     "method": "PUT",
     "status": "SUCCESS",
     "request": {
@@ -331,29 +346,27 @@
     "response": {
       "code": 0,
       "data": {
-        "avatar": "",
-        "chunk_count": 339,
+        "avatar": null,
+        "chunk_count": 0,
         "chunk_method": "naive",
-        "create_date": "Sun, 05 Oct 2025 12:25:02 GMT",
-        "create_time": 1759638302894,
+        "create_date": "Fri, 17 Oct 2025 13:31:54 GMT",
+        "create_time": 1760679114485,
         "created_by": "36712aa3b36740958c08fb94d2309d8b",
         "description": "更新后的描述",
-        "document_count": 7,
+        "document_count": 0,
         "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-        "id": "4345aa0ea1a311f0b45566fc51ac58df",
+        "id": "974fa87cab1a11f082fa66fc51ac58de",
         "language": "English",
-        "name": "123",
+        "name": "Updated Test Dataset 1760679114",
         "pagerank": 0,
         "parser_config": {
-          "auto_keywords": 0,
-          "auto_questions": 0,
-          "chunk_token_num": 128,
-          "delimiter": "\\n!?;。；！？",
+          "chunk_token_num": 512,
+          "delimiter": "\\n",
           "graphrag": {
             "use_graphrag": false
           },
           "html4excel": false,
-          "layout_recognize": "MinerU",
+          "layout_recognize": "DeepDOC",
           "raptor": {
             "use_raptor": false
           }
@@ -362,9 +375,9 @@
         "similarity_threshold": 0.2,
         "status": "1",
         "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-        "token_num": 50596,
-        "update_date": "Thu, 16 Oct 2025 23:07:52 GMT",
-        "update_time": 1760627272728,
+        "token_num": 0,
+        "update_date": "Fri, 17 Oct 2025 13:33:13 GMT",
+        "update_time": 1760679193782,
         "vector_similarity_weight": 0.3
       }
     },
@@ -380,29 +393,27 @@
       "code": 0,
       "data": [
         {
-          "avatar": "",
-          "chunk_count": 339,
+          "avatar": null,
+          "chunk_count": 0,
           "chunk_method": "naive",
-          "create_date": "Sun, 05 Oct 2025 12:25:02 GMT",
-          "create_time": 1759638302894,
+          "create_date": "Fri, 17 Oct 2025 13:31:54 GMT",
+          "create_time": 1760679114485,
           "created_by": "36712aa3b36740958c08fb94d2309d8b",
           "description": "更新后的描述",
-          "document_count": 7,
+          "document_count": 0,
           "embedding_model": "BAAI/bge-m3@SILICONFLOW",
-          "id": "4345aa0ea1a311f0b45566fc51ac58df",
+          "id": "974fa87cab1a11f082fa66fc51ac58de",
           "language": "English",
-          "name": "123",
+          "name": "Updated Test Dataset 1760679114",
           "pagerank": 0,
           "parser_config": {
-            "auto_keywords": 0,
-            "auto_questions": 0,
-            "chunk_token_num": 128,
-            "delimiter": "\\n!?;。；！？",
+            "chunk_token_num": 512,
+            "delimiter": "\\n",
             "graphrag": {
               "use_graphrag": false
             },
             "html4excel": false,
-            "layout_recognize": "MinerU",
+            "layout_recognize": "DeepDOC",
             "raptor": {
               "use_raptor": false
             }
@@ -411,9 +422,9 @@
           "similarity_threshold": 0.2,
           "status": "1",
           "tenant_id": "36712aa3b36740958c08fb94d2309d8b",
-          "token_num": 50596,
-          "update_date": "Thu, 16 Oct 2025 23:07:52 GMT",
-          "update_time": 1760627272728,
+          "token_num": 0,
+          "update_date": "Fri, 17 Oct 2025 13:33:13 GMT",
+          "update_time": 1760679193782,
           "vector_similarity_weight": 0.3
         }
       ]
@@ -422,1242 +433,31 @@
   },
   {
     "category": "Document Management",
-    "endpoint": "/api/v1/datasets/4345aa0ea1a311f0b45566fc51ac58df/documents",
-    "method": "GET",
-    "status": "SUCCESS",
-    "request": null,
-    "response": {
-      "code": 0,
-      "data": {
-        "docs": [
-          {
-            "chunk_count": 35,
-            "chunk_method": "smart",
-            "create_date": "Thu, 09 Oct 2025 10:36:36 GMT",
-            "create_time": 1759977396970,
-            "created_by": "36712aa3b36740958c08fb94d2309d8b",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "id": "c6db195ea4b811f097ee66fc51ac58df",
-            "location": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "meta_fields": {},
-            "name": "updated_name.pdf",
-            "parser_config": {
-              "auto_keywords": 0,
-              "auto_questions": 0,
-              "chunk_token_num": 256,
-              "delimiter": "\\n!?;。；！？",
-              "graphrag": {
-                "use_graphrag": false
-              },
-              "html4excel": false,
-              "layout_recognize": "MinerU",
-              "min_chunk_tokens": 10,
-              "pages": [
-                [
-                  1,
-                  1024
-                ]
-              ],
-              "raptor": {
-                "use_raptor": false
-              },
-              "task_page_size": 12
-            },
-            "process_begin_at": "Thu, 09 Oct 2025 15:42:13 GMT",
-            "process_duration": 25.8938,
-            "progress": 1.0,
-            "progress_msg": "\n15:42:15 Task has been received.\n15:42:17 Page(1~11): Start to parse.\n15:42:17 Page(1~11): Parsing with MinerU...\n15:42:36 Page(1~11): MinerU parsing finished.\n15:42:36 Page(1~11): Calling Smart chunking service...\n15:42:36 Page(1~11): Smart chunking completed.\n15:42:37 Page(1~11): Completed: 35 chunks\n15:42:37 Page(1~11): Generate 35 chunks",
-            "run": "DONE",
-            "size": 689737,
-            "source_type": "local",
-            "status": "1",
-            "suffix": "pdf",
-            "thumbnail": "thumbnail_c6db195ea4b811f097ee66fc51ac58df.png",
-            "token_count": 23907,
-            "type": "pdf",
-            "update_date": "Thu, 16 Oct 2025 23:02:00 GMT",
-            "update_time": 1760626920623
-          },
-          {
-            "chunk_count": 77,
-            "chunk_method": "parent_child",
-            "create_date": "Mon, 06 Oct 2025 08:23:40 GMT",
-            "create_time": 1759710220077,
-            "created_by": "36712aa3b36740958c08fb94d2309d8b",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "id": "b537db08a24a11f09d7166fc51ac58df",
-            "location": "2506.12012v1 (1).pdf",
-            "meta_fields": {},
-            "name": "2506.12012v1 (1).pdf",
-            "parser_config": {
-              "auto_keywords": 0,
-              "auto_questions": 0,
-              "chunk_token_num": 256,
-              "delimiter": "\\n!?;。；！？",
-              "enable_vision_enhancement": false,
-              "graphrag": {
-                "use_graphrag": false
-              },
-              "html4excel": false,
-              "layout_recognize": "MinerU",
-              "min_chunk_tokens": 10,
-              "pages": [
-                [
-                  1,
-                  1024
-                ]
-              ],
-              "parent_config": {
-                "parent_chunk_size": 1024,
-                "parent_strategy": "nearest_heading",
-                "retrieval_mode": "parent"
-              },
-              "raptor": {
-                "use_raptor": false
-              },
-              "task_page_size": 12
-            },
-            "process_begin_at": "Wed, 15 Oct 2025 16:27:28 GMT",
-            "process_duration": 85.6366,
-            "progress": 1.0,
-            "progress_msg": "\n16:27:31 Task has been received.\n16:27:32 Page(1~20): Start to parse.\n16:27:32 Page(1~20): Parsing with MinerU...\n16:28:49 Page(1~20): MinerU parsing finished.\n16:28:49 Page(1~20): Calling Parent-Child chunking service...\n16:28:51 Page(1~20): Parent-Child chunking completed.\n16:28:52 Page(1~20): Completed: 77 chunks\n16:28:52 Page(1~20): Generate 77 chunks",
-            "run": "DONE",
-            "size": 1063468,
-            "source_type": "local",
-            "status": "1",
-            "suffix": "pdf",
-            "thumbnail": "thumbnail_b537db08a24a11f09d7166fc51ac58df.png",
-            "token_count": 21170,
-            "type": "pdf",
-            "update_date": "Wed, 15 Oct 2025 16:28:55 GMT",
-            "update_time": 1760516935602
-          },
-          {
-            "chunk_count": 4,
-            "chunk_method": "smart",
-            "create_date": "Sun, 05 Oct 2025 18:44:17 GMT",
-            "create_time": 1759661057817,
-            "created_by": "36712aa3b36740958c08fb94d2309d8b",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "id": "3e160fa8a1d811f0bc9d66fc51ac58df",
-            "location": "阿瓦提东北缘油气成藏评价与顺北112井区构造解析_结题报告_加水印.pdf",
-            "meta_fields": {},
-            "name": "阿瓦提东北缘油气成藏评价与顺北112井区构造解析_结题报告_加水印.pdf",
-            "parser_config": {
-              "auto_keywords": 0,
-              "auto_questions": 0,
-              "chunk_token_num": 256,
-              "delimiter": "\\n!?;。；！？",
-              "graphrag": {
-                "use_graphrag": false
-              },
-              "html4excel": false,
-              "layout_recognize": "MinerU",
-              "min_chunk_tokens": 10,
-              "pages": [
-                [
-                  1,
-                  1024
-                ]
-              ],
-              "raptor": {
-                "use_raptor": false
-              },
-              "task_page_size": 12
-            },
-            "process_begin_at": "Mon, 06 Oct 2025 09:12:33 GMT",
-            "process_duration": 15.1184,
-            "progress": 1.0,
-            "progress_msg": "\n09:12:34 Task has been received.\n09:12:34 Page(1~2): Start to parse.\n09:12:34 Page(1~2): Parsing with MinerU...\n09:12:46 Page(1~2): MinerU parsing finished.\n09:12:46 Page(1~2): Calling Smart chunking service...\n09:12:46 Page(1~2): Smart chunking completed.\n09:12:46 Page(1~2): Completed: 4 chunks\n09:12:46 Page(1~2): Generate 4 chunks\n09:12:47 Page(1~2): Embedding chunks (0.47s)\n09:12:47 Page(1~2): Indexing done (0.06s). Task done (13.26s)",
-            "run": "DONE",
-            "size": 772007,
-            "source_type": "local",
-            "status": "1",
-            "suffix": "pdf",
-            "thumbnail": "thumbnail_3e160fa8a1d811f0bc9d66fc51ac58df.png",
-            "token_count": 1596,
-            "type": "pdf",
-            "update_date": "Mon, 06 Oct 2025 09:12:48 GMT",
-            "update_time": 1759713168118
-          },
-          {
-            "chunk_count": 0,
-            "chunk_method": "picture",
-            "create_date": "Sun, 05 Oct 2025 18:33:41 GMT",
-            "create_time": 1759660421699,
-            "created_by": "36712aa3b36740958c08fb94d2309d8b",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "id": "c2f5394ea1d611f0bc9d66fc51ac58df",
-            "location": "001.png",
-            "meta_fields": {},
-            "name": "001.png",
-            "parser_config": {
-              "auto_keywords": 0,
-              "auto_questions": 0,
-              "chunk_token_num": 128,
-              "delimiter": "\\n!?;。；！？",
-              "graphrag": {
-                "use_graphrag": false
-              },
-              "html4excel": false,
-              "layout_recognize": "MinerU",
-              "pages": []
-            },
-            "process_begin_at": null,
-            "process_duration": 0.0,
-            "progress": 0.0,
-            "progress_msg": "",
-            "run": "UNSTART",
-            "size": 158367,
-            "source_type": "local",
-            "status": "1",
-            "suffix": "png",
-            "thumbnail": "thumbnail_c2f5394ea1d611f0bc9d66fc51ac58df.png",
-            "token_count": 0,
-            "type": "visual",
-            "update_date": "Sun, 05 Oct 2025 18:36:12 GMT",
-            "update_time": 1759660572040
-          },
-          {
-            "chunk_count": 72,
-            "chunk_method": "smart",
-            "create_date": "Sun, 05 Oct 2025 18:19:27 GMT",
-            "create_time": 1759659567204,
-            "created_by": "36712aa3b36740958c08fb94d2309d8b",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "id": "c5c9f206a1d411f0bc9d66fc51ac58df",
-            "location": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
-            "meta_fields": {},
-            "name": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
-            "parser_config": {
-              "auto_keywords": 0,
-              "auto_questions": 0,
-              "chunk_token_num": 256,
-              "delimiter": "\\n!?;。；！？",
-              "graphrag": {
-                "use_graphrag": false
-              },
-              "html4excel": false,
-              "layout_recognize": "MinerU",
-              "min_chunk_tokens": 10,
-              "pages": [],
-              "raptor": {
-                "use_raptor": false
-              }
-            },
-            "process_begin_at": "Sun, 05 Oct 2025 18:30:40 GMT",
-            "process_duration": 85.039,
-            "progress": 1.0,
-            "progress_msg": "\n18:30:43 Task has been received.\n18:30:46 Page(1~100000001): Start to parse.\n18:30:46 Page(1~100000001): Parsing with MinerU...\n18:32:02 Page(1~100000001): MinerU parsing finished.\n18:32:02 Page(1~100000001): Calling Smart chunking service...\n18:32:02 Page(1~100000001): Smart chunking completed.\n18:32:03 Page(1~100000001): Completed: 72 chunks\n18:32:03 Page(1~100000001): Generate 72 chunks",
-            "run": "DONE",
-            "size": 70627,
-            "source_type": "local",
-            "status": "1",
-            "suffix": "docx",
-            "thumbnail": "",
-            "token_count": 7981,
-            "type": "doc",
-            "update_date": "Sun, 05 Oct 2025 18:32:05 GMT",
-            "update_time": 1759660325767
-          },
-          {
-            "chunk_count": 17,
-            "chunk_method": "parent_child",
-            "create_date": "Sun, 05 Oct 2025 14:08:10 GMT",
-            "create_time": 1759644490867,
-            "created_by": "36712aa3b36740958c08fb94d2309d8b",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "id": "ab98977aa1b111f09f3466fc51ac58df",
-            "location": "TWEPP2019_010 (1).pdf",
-            "meta_fields": {},
-            "name": "TWEPP2019_010 (1).pdf",
-            "parser_config": {
-              "auto_keywords": 2,
-              "auto_questions": 0,
-              "chunk_token_num": 256,
-              "delimiter": "\n!?;。；！？",
-              "enable_vision_enhancement": false,
-              "graphrag": {
-                "use_graphrag": false
-              },
-              "html4excel": false,
-              "layout_recognize": "MinerU",
-              "min_chunk_tokens": 10,
-              "pages": [
-                [
-                  1,
-                  1024
-                ]
-              ],
-              "parent_config": {
-                "parent_chunk_size": 1024,
-                "parent_strategy": "nearest_heading",
-                "retrieval_mode": "parent"
-              },
-              "raptor": {
-                "use_raptor": false
-              },
-              "task_page_size": 12
-            },
-            "process_begin_at": "Wed, 15 Oct 2025 17:49:14 GMT",
-            "process_duration": 46.7001,
-            "progress": 1.0,
-            "progress_msg": "\n17:49:17 Task has been received.\n17:49:21 Page(1~6): Start to parse.\n17:49:21 Page(1~6): Parsing with MinerU...\n17:49:57 Page(1~6): MinerU parsing finished.\n17:49:57 Page(1~6): Calling Parent-Child chunking service...\n17:49:58 Page(1~6): Parent-Child chunking completed.\n17:49:58 Page(1~6): Completed: 17 chunks\n17:49:58 Page(1~6): Start to generate keywords for every chunk ...",
-            "run": "DONE",
-            "size": 499780,
-            "source_type": "local",
-            "status": "1",
-            "suffix": "pdf",
-            "thumbnail": null,
-            "token_count": 3711,
-            "type": "pdf",
-            "update_date": "Wed, 15 Oct 2025 17:50:47 GMT",
-            "update_time": 1760521847889
-          },
-          {
-            "chunk_count": 110,
-            "chunk_method": "parent_child",
-            "create_date": "Sun, 05 Oct 2025 14:08:10 GMT",
-            "create_time": 1759644490858,
-            "created_by": "36712aa3b36740958c08fb94d2309d8b",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "id": "ab974ceea1b111f09f3466fc51ac58df",
-            "location": "精简公路桥梁钢结构防腐涂装技术条件 (1).pdf",
-            "meta_fields": {},
-            "name": "精简公路桥梁钢结构防腐涂装技术条件 (1).pdf",
-            "parser_config": {
-              "auto_keywords": 0,
-              "auto_questions": 0,
-              "chunk_token_num": 256,
-              "delimiter": "\n!?;。；！？",
-              "graphrag": {
-                "use_graphrag": false
-              },
-              "html4excel": false,
-              "layout_recognize": "MinerU",
-              "min_chunk_tokens": 10,
-              "pages": [
-                [
-                  1,
-                  1024
-                ]
-              ],
-              "parent_config": {
-                "parent_chunk_overlap": 100,
-                "parent_chunk_size": 1024,
-                "parent_split_level": 2,
-                "retrieval_mode": "parent"
-              },
-              "raptor": {
-                "use_raptor": false
-              },
-              "task_page_size": 12
-            },
-            "process_begin_at": "Sun, 05 Oct 2025 16:40:09 GMT",
-            "process_duration": 62.9665,
-            "progress": 1.0,
-            "progress_msg": "\n16:40:09 Task has been received.\n16:40:10 Page(1~19): Start to parse.\n16:40:10 Page(1~19): Parsing with MinerU...\n16:41:08 Page(1~19): MinerU parsing finished.\n16:41:08 Page(1~19): Calling Parent-Child chunking service...\n16:41:08 Page(1~19): Parent-Child chunking completed.\n16:41:09 Page(1~19): Completed: 111 chunks\n16:41:09 Page(1~19): Generate 111 chunks",
-            "run": "DONE",
-            "size": 884813,
-            "source_type": "local",
-            "status": "1",
-            "suffix": "pdf",
-            "thumbnail": null,
-            "token_count": 10831,
-            "type": "pdf",
-            "update_date": "Sun, 05 Oct 2025 16:41:13 GMT",
-            "update_time": 1759653673223
-          }
-        ],
-        "total": 7
-      }
-    },
-    "error": null
-  },
-  {
-    "category": "Document Management",
-    "endpoint": "/api/v1/datasets/4345aa0ea1a311f0b45566fc51ac58df/documents/c6db195ea4b811f097ee66fc51ac58df",
-    "method": "GET",
-    "status": "ERROR",
-    "request": null,
-    "response": null,
-    "error": "Expecting value: line 1 column 1 (char 0)"
-  },
-  {
-    "category": "Document Management",
-    "endpoint": "/api/v1/datasets/4345aa0ea1a311f0b45566fc51ac58df/documents/c6db195ea4b811f097ee66fc51ac58df",
-    "method": "PUT",
-    "status": "SUCCESS",
-    "request": {
-      "name": "updated_name.pdf"
-    },
-    "response": {
-      "code": 0,
-      "data": {
-        "chunk_count": 35,
-        "chunk_method": "smart",
-        "create_date": "Thu, 09 Oct 2025 10:36:36 GMT",
-        "create_time": 1759977396970,
-        "created_by": "36712aa3b36740958c08fb94d2309d8b",
-        "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-        "id": "c6db195ea4b811f097ee66fc51ac58df",
-        "location": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-        "meta_fields": {},
-        "name": "updated_name.pdf",
-        "parser_config": {
-          "auto_keywords": 0,
-          "auto_questions": 0,
-          "chunk_token_num": 256,
-          "delimiter": "\\n!?;。；！？",
-          "graphrag": {
-            "use_graphrag": false
-          },
-          "html4excel": false,
-          "layout_recognize": "MinerU",
-          "min_chunk_tokens": 10,
-          "pages": [
-            [
-              1,
-              1024
-            ]
-          ],
-          "raptor": {
-            "use_raptor": false
-          },
-          "task_page_size": 12
-        },
-        "process_begin_at": "Thu, 09 Oct 2025 15:42:13 GMT",
-        "process_duration": 25.8938,
-        "progress": 1.0,
-        "progress_msg": "\n15:42:15 Task has been received.\n15:42:17 Page(1~11): Start to parse.\n15:42:17 Page(1~11): Parsing with MinerU...\n15:42:36 Page(1~11): MinerU parsing finished.\n15:42:36 Page(1~11): Calling Smart chunking service...\n15:42:36 Page(1~11): Smart chunking completed.\n15:42:37 Page(1~11): Completed: 35 chunks\n15:42:37 Page(1~11): Generate 35 chunks",
-        "run": "DONE",
-        "size": 689737,
-        "source_type": "local",
-        "status": "1",
-        "suffix": "pdf",
-        "thumbnail": "thumbnail_c6db195ea4b811f097ee66fc51ac58df.png",
-        "token_count": 23907,
-        "type": "pdf",
-        "update_date": "Thu, 16 Oct 2025 23:02:00 GMT",
-        "update_time": 1760626920623
-      }
-    },
-    "error": null
-  },
-  {
-    "category": "Chunk Management",
-    "endpoint": "/api/v1/datasets/4345aa0ea1a311f0b45566fc51ac58df/documents/c6db195ea4b811f097ee66fc51ac58df/chunks",
-    "method": "GET",
-    "status": "SUCCESS",
-    "request": null,
-    "response": {
-      "code": 0,
-      "data": {
-        "chunks": [
-          {
-            "available": true,
-            "content": "# 中国石油化工股份有限公司石油勘探开发研究院\n\n<img src=\"/minio/4345aa0ea1a311f0b45566fc51ac58df/ceb2b2f1e75353181079622064a96a1dd5357b7e4b60a5608ef3164cdff82fb1.jpg\" style=\"max-width: 500px;max-height: 800px;\" alt=\"图片\">\n\n\n<img src=\"/minio/4345aa0ea1a311f0b45566fc51ac58df/835e9e89b60b6087d28c475caa561de8378eaaa76432354da2462c414ee3a8d2.jpg\" style=\"max-width: 500px;max-height: 800px;\" alt=\"图片\">",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "8c204dcbb8955158",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                1,
-                115,
-                478,
-                165,
-                205
-              ],
-              [
-                1,
-                427,
-                470,
-                231,
-                295
-              ],
-              [
-                1,
-                326,
-                372,
-                239,
-                293
-              ]
-            ],
-            "questions": []
-          },
-          {
-            "available": true,
-            "content": "<img src=\"/minio/4345aa0ea1a311f0b45566fc51ac58df/d1355a6a5dcbff43b51c0704852e3f446101cb18f5ffdec1ea9453efef328fe9.jpg\" style=\"max-width: 500px;max-height: 800px;\" alt=\"图片\">\n\n\n2025 年 4 月 12 日",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "2b06af5cbeb51937",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                1,
-                127,
-                173,
-                240,
-                295
-              ],
-              [
-                1,
-                366,
-                477,
-                345,
-                363
-              ]
-            ],
-            "questions": []
-          },
-          {
-            "available": true,
-            "content": "# 基于时空相关性信息的三维地震相解\n\n释方法",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "95f2eaa827acd52f",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                1,
-                84,
-                510,
-                414,
-                444
-              ],
-              [
-                1,
-                253,
-                342,
-                437,
-                471
-              ]
-            ],
-            "questions": []
-          },
-          {
-            "available": true,
-            "content": "# 基于时空相关性信息的三维地震相解释方法\n\n田 淼 赵华伟 李 蒙 张文彪 段太忠",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "87233734a4865f77",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                2,
-                124,
-                471,
-                102,
-                127
-              ],
-              [
-                2,
-                201,
-                394,
-                129,
-                143
-              ]
-            ],
-            "questions": []
-          },
-          {
-            "available": true,
-            "content": "摘要：传统地震解释方法局限性大。近年来，深度学习算法在三维地震相解释方面\n取得了良好的效果。然而，前人重点强调某种算法的优势，对于算法选择标准和输\n入特征的影响，目前鲜有讨论。本文在使用卷积运算替代传统循环神经网络中的时\n序信息提取算法，提出了一种基于卷积长短期记忆网络地震相解释模型。该模型通\n过将卷积运算所提取的隐藏信息在时间步间传递的方式实现地震数据的时空相关\n性信息提取与利用。实例应用结果表明，根据地震属性与地震相之间的相关性进行\n输入属性优选将极大地增强模型性能。此外，通过与仅基于空间相关性的预测结果\n进行比较，本文方法在地震相形态、准确度等方面均占优势，证明时空相关性信息\n可使提高地震相解释准确度。",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "97cb4d9c182330ac",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                2,
-                84,
-                510,
-                150,
-                163
-              ],
-              [
-                2,
-                84,
-                510,
-                170,
-                183
-              ],
-              [
-                2,
-                84,
-                510,
-                188,
-                203
-              ],
-              [
-                2,
-                85,
-                510,
-                210,
-                223
-              ],
-              [
-                2,
-                84,
-                511,
-                229,
-                243
-              ],
-              [
-                2,
-                84,
-                511,
-                249,
-                263
-              ],
-              [
-                2,
-                84,
-                511,
-                269,
-                284
-              ],
-              [
-                2,
-                84,
-                510,
-                289,
-                303
-              ],
-              [
-                2,
-                85,
-                236,
-                310,
-                323
-              ]
-            ],
-            "questions": []
-          },
-          {
-            "available": true,
-            "content": "关键词：地震相解释；深度学习；时空相关性信息；卷积长短期记忆网络",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "b4a7a7a85c3f324a",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                2,
-                84,
-                469,
-                349,
-                363
-              ]
-            ],
-            "questions": []
-          },
-          {
-            "available": true,
-            "content": "# 1 引言\n\n地震解释是地球物理研究中最重要的任务之一，构造解释、地质体识别等研究\n的相应成果都为储层地质研究提供了重要支持[1-3]。然而，即使对于一个小型工区\n而言，三维地震体的数据量也是巨大的，完全依赖于人工解释费时费力。不仅如此，\n由于解释人员的认知差异，人工解释结果往往是主观的，其准确性无法保障。因此，\n可以自动进行定量地震解释的人工智能方法被广泛应用于地球物理解释与反演研\n究中[4-8]。",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "f82a6e81dc98f905",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                2,
-                81,
-                129,
-                386,
-                406
-              ],
-              [
-                2,
-                108,
-                510,
-                410,
-                423
-              ],
-              [
-                2,
-                84,
-                510,
-                429,
-                443
-              ],
-              [
-                2,
-                84,
-                509,
-                450,
-                464
-              ],
-              [
-                2,
-                84,
-                510,
-                469,
-                483
-              ],
-              [
-                2,
-                84,
-                510,
-                490,
-                503
-              ],
-              [
-                2,
-                82,
-                133,
-                507,
-                524
-              ]
-            ],
-            "questions": []
-          },
-          {
-            "available": true,
-            "content": "随着计算硬件的发展，深度学习方法因其易用性和有效性从人工智能算法中\n脱颖而出[4,9-11]。卷积运算是主要的深度学习算法之一，常用于通过捕捉和利用固\n定范围内的空间相关性信息来构建输入数据与所需预测结果之间的映射。例如，一\n维卷积神经网络（CNN）被用于测井和地震道反演。高维卷积神经网络是三维/四\n维地震智能解释中最主要的应用模型[12,13]。然而，传统卷积神经网络提供的研究成\n果也有相应的缺点：为了适应传统卷积神经网络的输入要求，整个地震体数据需要\n通过滑动窗口裁剪成分块样本。研究人员在这些“补丁”模型的训练过程中，通常将\n每个分块样本的几何中心点属性作为其标签。因此，传统的卷积神经网络模型倾向\n于从每个独立样本中提取隐藏信息，而忽略样本自身的位置和顺序细节。作为传统\n卷积神经网络的更新和升级版本，大型卷积模型具有更复杂的架构和更多的参数，\n可将整个地震数据作为输入并同时输出解释结果。深度生成模型和深度图像转换\n模型是其中最具代表性的算法，他们更倾向于一次性为每个样本内的所有测量点\n提供自己的标签，而不仅仅是中心点的一个标签。由于这一进展，它们能够作为一\n个整体为多维空间生成所需属性，从而避免数据的滑动切分。前人已在这两种模型\n的地震解释应用领域进行了一定探索，例如 Laloy 等使用生成对抗网络（GANs）\n模型在随机向量和少量地质系数的基础上准确的解释出了曲流河河道相[14]；专注\n于地震解释的研究人员引入了pix2pix 方法，利用足够多的三维解释结果与解释剖\n面，在三维地震数据与其解释结果间建立了非线性映射关系，并依此进行地震相解\n释研究[15]。然而，该类型的深度学习模型仍存在问题：其并未真正克服多点地质统\n计学的缺点，即在缺乏足够的、合适的训练图像时，模型无法给出令人满意的解释\n结果。",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "800275ab88814e6f",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                2,
-                108,
-                510,
-                529,
-                543
-              ],
-              [
-                2,
-                84,
-                511,
-                548,
-                563
-              ],
-              [
-                2,
-                85,
-                510,
-                570,
-                583
-              ],
-              [
-                2,
-                85,
-                510,
-                590,
-                603
-              ],
-              [
-                2,
-                84,
-                511,
-                608,
-                624
-              ],
-              [
-                2,
-                85,
-                511,
-                630,
-                644
-              ],
-              [
-                2,
-                84,
-                511,
-                649,
-                664
-              ],
-              [
-                2,
-                84,
-                511,
-                670,
-                684
-              ],
-              [
-                2,
-                85,
-                511,
-                690,
-                703
-              ],
-              [
-                2,
-                84,
-                510,
-                709,
-                723
-              ],
-              [
-                3,
-                84,
-                509,
-                109,
-                123
-              ],
-              [
-                3,
-                84,
-                510,
-                129,
-                143
-              ],
-              [
-                3,
-                84,
-                511,
-                149,
-                163
-              ],
-              [
-                3,
-                84,
-                511,
-                169,
-                183
-              ],
-              [
-                3,
-                83,
-                505,
-                189,
-                203
-              ],
-              [
-                3,
-                84,
-                511,
-                209,
-                223
-              ],
-              [
-                3,
-                84,
-                510,
-                230,
-                243
-              ],
-              [
-                3,
-                84,
-                510,
-                250,
-                263
-              ],
-              [
-                3,
-                83,
-                511,
-                268,
-                284
-              ],
-              [
-                3,
-                84,
-                511,
-                289,
-                303
-              ],
-              [
-                3,
-                82,
-                118,
-                308,
-                325
-              ]
-            ],
-            "questions": []
-          },
-          {
-            "available": true,
-            "content": "因此，地球物理学家们将注意力集中在了可结合生成模型与传统深度学习模\n型二者优势的补丁模型上。补丁模型拥有灵活的模型架构，可方便的调用卷积操作\n和循环操作等深度学习运算并通过不同运算的结合一次性的为样本提供解释结果。\n也就是说，该类模型吸收了传统深度学习模型与生成模型的优点，并在全局相关性\n信息与独立样本间取得了平衡。",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "b35dbd103d0e7f8e",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                3,
-                109,
-                510,
-                330,
-                342
-              ],
-              [
-                3,
-                84,
-                510,
-                350,
-                363
-              ],
-              [
-                3,
-                84,
-                516,
-                369,
-                383
-              ],
-              [
-                3,
-                84,
-                511,
-                389,
-                403
-              ],
-              [
-                3,
-                84,
-                247,
-                410,
-                423
-              ]
-            ],
-            "questions": []
-          },
-          {
-            "available": true,
-            "content": "在本文中，我们提出了一种改进的补丁模型，通过使用卷积运算替代循环神经\n网络中的时序信息提取运算使补丁模型可同时利用三维数据中的时空相关性并自\n动生成具有准确和平滑边界的地震相解释结果。与其他卷积神经网络与循环神经\n网络的联合模型不同，本文提出的补丁模型是将卷积运算内嵌至循环神经网络的\n计算核（kernel），以确保循环层直接传递由卷积操作提取的空间相关性信息。这一\n改进使我们的模型在数据处理过程中保持空间相关性信息的完整性，从而避免了\n传统循环神经网络层内部的“信息崩溃”问题。此外，与传统生成模型相比，我们所\n提出的方法充分考虑了每个样本内部的时空相关性信息，并通过滑动窗口建立起\n独立样本之间的关系，因此更适用于具有有限数据集或测井标定的地震解释研究。",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "docnm_kwd": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-            "document_id": "c6db195ea4b811f097ee66fc51ac58df",
-            "id": "1287181235a1e1a2",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                3,
-                108,
-                509,
-                429,
-                442
-              ],
-              [
-                3,
-                84,
-                509,
-                450,
-                463
-              ],
-              [
-                3,
-                84,
-                509,
-                470,
-                483
-              ],
-              [
-                3,
-                84,
-                510,
-                489,
-                504
-              ],
-              [
-                3,
-                84,
-                511,
-                510,
-                523
-              ],
-              [
-                3,
-                84,
-                510,
-                529,
-                543
-              ],
-              [
-                3,
-                84,
-                511,
-                549,
-                564
-              ],
-              [
-                3,
-                83,
-                511,
-                569,
-                583
-              ],
-              [
-                3,
-                84,
-                511,
-                590,
-                603
-              ]
-            ],
-            "questions": []
-          }
-        ],
-        "doc": {
-          "chunk_count": 35,
-          "chunk_method": "smart",
-          "create_date": "Thu, 09 Oct 2025 10:36:36 GMT",
-          "create_time": 1759977396970,
-          "created_by": "36712aa3b36740958c08fb94d2309d8b",
-          "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-          "id": "c6db195ea4b811f097ee66fc51ac58df",
-          "location": "2024研究动态第171期—基于时空相关性信息的三维地震相解释方法.pdf",
-          "meta_fields": {},
-          "name": "updated_name.pdf",
-          "parser_config": {
-            "auto_keywords": 0,
-            "auto_questions": 0,
-            "chunk_token_num": 256,
-            "delimiter": "\\n!?;。；！？",
-            "graphrag": {
-              "use_graphrag": false
-            },
-            "html4excel": false,
-            "layout_recognize": "MinerU",
-            "min_chunk_tokens": 10,
-            "pages": [
-              [
-                1,
-                1024
-              ]
-            ],
-            "raptor": {
-              "use_raptor": false
-            },
-            "task_page_size": 12
-          },
-          "process_begin_at": "Thu, 09 Oct 2025 15:42:13 GMT",
-          "process_duration": 25.8938,
-          "progress": 1.0,
-          "progress_msg": "\n15:42:15 Task has been received.\n15:42:17 Page(1~11): Start to parse.\n15:42:17 Page(1~11): Parsing with MinerU...\n15:42:36 Page(1~11): MinerU parsing finished.\n15:42:36 Page(1~11): Calling Smart chunking service...\n15:42:36 Page(1~11): Smart chunking completed.\n15:42:37 Page(1~11): Completed: 35 chunks\n15:42:37 Page(1~11): Generate 35 chunks",
-          "run": "DONE",
-          "size": 689737,
-          "source_type": "local",
-          "status": "1",
-          "suffix": "pdf",
-          "thumbnail": "thumbnail_c6db195ea4b811f097ee66fc51ac58df.png",
-          "token_count": 23907,
-          "type": "pdf",
-          "update_date": "Thu, 16 Oct 2025 23:02:00 GMT",
-          "update_time": 1760626920623
-        },
-        "total": 35
-      }
-    },
-    "error": null
-  },
-  {
-    "category": "Chunk Management",
-    "endpoint": "/api/v1/retrieval",
+    "endpoint": "/api/v1/datasets/974fa87cab1a11f082fa66fc51ac58de/documents",
     "method": "POST",
-    "status": "SUCCESS",
+    "status": "FAILED",
     "request": {
-      "question": "测试查询内容",
-      "dataset_ids": [
-        "4345aa0ea1a311f0b45566fc51ac58df"
-      ],
-      "page": 1,
-      "page_size": 5
+      "name": "test_doc.txt",
+      "content": "这是一个测试文档内容",
+      "parser_id": "smart"
     },
+    "response": {
+      "code": 101,
+      "message": "No file part!"
+    },
+    "error": "No file part!"
+  },
+  {
+    "category": "Document Management",
+    "endpoint": "/api/v1/datasets/974fa87cab1a11f082fa66fc51ac58de/documents",
+    "method": "GET",
+    "status": "SUCCESS",
+    "request": null,
     "response": {
       "code": 0,
       "data": {
-        "chunks": [
-          {
-            "chunk_type": "child_as_parent",
-            "content": "<table><tr><td>分类</td><td>采购内容</td><td>授权有效期/服务有效期</td><td>含税金额</td><td>采购参数(Android、iOS、Web、小程序等SDK)</td><td>备注</td></tr><tr><td>产品授权</td><td>标准神策商业化埋点</td><td>20xx年x月x日至</td><td></td><td></td><td>客户在约定软件中集成SDK</td></tr><tr><td></td><td>SiOS SDK-软件授权神策分析软件授权</td><td>20xx 年 x月x日</td><td></td><td></td><td>成功运行，并触发一条事件，视为客户对授权产品验收确认。软件授权以双方签订合同安装部署完成认为验收确认。授权范围，根据客户情况补充</td></tr><tr><td></td><td>神策分析软件授权</td><td>20xx 年-x月-x日至20xx 年-x月x日</td><td></td><td></td><td>软件授权以安装部署完成认为验收确认</td></tr><tr><td></td><td>神策智能运营软件授权</td><td>20xx 年-x月-x 日至20xx 年-x月-x 日</td><td></td><td></td><td>软件授权以安装部署完成认为验收确认</td></tr><tr><td></td><td>神策智能运营软件授权</td><td>20xx 年-x月-x 日至20xx 年-x月-x 日</td><td></td><td></td><td>软件授权以安装部署完成认为验收确认</td></tr><tr><td></td><td>神策智能运营软件授权</td><td>20xx 年-x月-x 日至20xx 年-x月-x 日</td><td></td><td></td><td>软件授权以安装部署完成认为验收确认</td></tr><tr><td></td><td>神策-AB 测试软件授权</td><td>20xx 年-x月-x 日至20xx 年-x月-x 日</td><td></td><td></td><td>软件授权以安装部署完成认为验收确认</td></tr><tr><td></td><td>神策-AB 测试</td><td>20xx 年-x</td><td></td><td></td><td>软件授权以安装部署完成认为验收确认</td></tr><tr><td></td><td>软件授权</td><td>月-x日至20xx年-x月x日</td><td></td><td></td><td>装部署完成认为验收确认</td></tr><tr><td></td><td>神策AB测试软件授权</td><td>20xx年-x月-x日至20xx年-x月x日</td><td></td><td></td><td>软件授权以安装部署完成认为验收确认</td></tr><tr><td></td><td>神策数界平台软件授权</td><td>20xx年-x月-x日至20xx年-x月x日</td><td></td><td></td><td>软件授权以安装部署完成认为验收确认</td></tr><tr><td></td><td>神策广告分析软件授权</td><td>20xx年-x月-x日至20xx年-x月x日</td><td></td><td></td><td>软件授权以安装部署完成认为验收确认</td></tr><tr><td></td><td>产品售后支持服务神策iOSSDK分析产</td><td>20xx年x月x日至20xx年x</td><td></td><td></td><td>必选服务</td></tr><tr><td></td><td>品售后服务</td><td>月x日</td><td></td><td></td><td></td></tr><tr><td></td><td>产品售后增值服务 神一策AndroidSDK智能运营产品售后服务</td><td>20xx 年 x月x日至20xx 年 x月x日</td><td></td><td></td><td>必可选服务</td></tr><tr><td></td><td>售后增值服务天服务</td><td>20xx 年-x月-x日至20xx 年-x月-x日</td><td></td><td></td><td>可选服务</td></tr><tr><td></td><td>普通渠道联调服务</td><td>20xx 年-x月-x日至20xx 年-x月-x日</td><td></td><td></td><td>可选服务</td></tr><tr><td></td><td>再营销渠道联调服务</td><td>20xx 年-x月-x日至</td><td></td><td></td><td>可选服务</td></tr><tr><td></td><td></td><td>20xx 年-x月-x日</td><td></td><td></td><td></td></tr><tr><td></td><td></td><td>20xx 年-x月-x 日至20xx 年-x月-x日</td><td></td><td></td><td>可选服务</td></tr></table>",
-            "content_ltks": "分类 采购 内容 授权 有效期 服务 有效期 含 税 金额 采购 参数 android io web 小程序 等 sdk 备注 产品 授权 标准 神策 商业化 埋 点 20xx 年 x 月 x 日 至 客户 在 约定 软件 中 集成 sdk sio sdk 软件 授权 神策 分析 软件 授权 20xx 年 x 月 x 日 成功 运行 并 触发 一条 事件 视为 客户 对 授权 产品 验收 确认 软件 授权 以 双方 签订合同 安装 部署 完成 认为 验收 确认 授权 范围 根据 客户 情况 补充 神策 分析 软件 授权 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 软件 授权 以 安装 部署 完成 认为 验收 确认 神策 智能 运营 软件 授权 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 软件 授权 以 安装 部署 完成 认为 验收 确认 神策 智能 运营 软件 授权 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 软件 授权 以 安装 部署 完成 认为 验收 确认 神策 智能 运营 软件 授权 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 软件 授权 以 安装 部署 完成 认为 验收 确认 神策 ab 测试软件 授权 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 软件 授权 以 安装 部署 完成 认为 验收 确认 神策 ab 测试 20xx 年 x 软件 授权 以 安装 部署 完成 认为 验收 确认 软件 授权 月 x 日 至 20xx 年 x 月 x 日 装 部署 完成 认为 验收 确认 神策 ab 测试软件 授权 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 软件 授权 以 安装 部署 完成 认为 验收 确认 神策 数 界 平台 软件 授权 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 软件 授权 以 安装 部署 完成 认为 验收 确认 神策 广告 分析 软件 授权 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 软件 授权 以 安装 部署 完成 认为 验收 确认 产品 售后 支持 服务 神策 iossdk 分析 产 20xx 年 x 月 x 日 至 20xx 年 x 必选 服务 品 售后服务 月 x 日 产品 售后 增值 服务 神 一 策 androidsdk 智能 运营 产品 售后服务 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 必 可 选 服务 售后 增值 服务 天 服务 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 可选 服务 普通 渠道 联调 服务 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 可选 服务 再 营销 渠道 联调 服务 20xx 年 x 月 x 日 至 可选 服务 20xx 年 x 月 x 日 20xx 年 x 月 x 日 至 20xx 年 x 月 x 日 可选 服务",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "doc_type_kwd": "",
-            "document_id": "c5c9f206a1d411f0bc9d66fc51ac58df",
-            "document_keyword": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
-            "highlight": "分类采购<em>内容</em>授权有效期服务有效期含税金额采购参数android io web小程序等 sdk备注产品授权标准神策商业化埋点20xx年x月x日至...授权以安装部署完成认为验收确认神策ab测试软件授权20xx年x月x日至 20xx年x月x日软件授权以安装部署完成认为验收确认神策ab <em>测试</em>",
-            "id": "29dcae0a335ec08a",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                17,
-                75,
-                575,
-                476,
-                698
-              ]
-            ],
-            "similarity": 0.6113544924213663,
-            "term_similarity": 0.6609807094623869,
-            "vector_similarity": 0.49555998599231843
-          },
-          {
-            "chunk_type": "child_as_parent",
-            "content": "<table><tr><td>服务\n项目</td><td>服务描述</td><td>限制说明</td></tr><tr><td>产品使用</td><td>1. 提供SDK商业授权\n2. 提供SDK免费更新到最新版，兼容最新系统\n3. SDK版本更新提供Release Notes说明\n4. 提供SDK使用方面的答疑\n5. 提供基于SDK功能的逻辑答疑</td><td>服务方式：官方文档和github项目说明，自助查询\n\n\n服务时间：长期支持</td></tr><tr><td>异常诊断</td><td>异常性诊断包含以下服务内容：",
-            "content_ltks": "服务 项目 服务 描述 限制 说明 产品 使用 1 提供 sdk 商业 授权 2 提供 sdk 免费 更新 到 最新版 兼容 最新 系统 3 sdk 版本 更新 提供 releas note 说明 4 提供 sdk 使用 方面 的 答疑 5 提供 基于 sdk 功能 的 逻辑 答疑 服务 方式 官方 文档 和 github 项目 说明 自助 查询 服务 时间 长期 支持 异常 诊断 异常 性 诊断 包含 以下 服务 内容",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "doc_type_kwd": "",
-            "document_id": "c5c9f206a1d411f0bc9d66fc51ac58df",
-            "document_keyword": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
-            "highlight": "sdk版本更新提供releas note说明4提供sdk使用方面的答疑5提供基于sdk功能的逻辑答疑服务方式官方文档和 github项目说明自助<em>查询</em>...服务时间长期支持异常诊断异常性诊断包含以下服务<em>内容</em>",
-            "id": "2343d436f6fbd715",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                29,
-                72,
-                553,
-                137,
-                673
-              ]
-            ],
-            "similarity": 0.509265407170734,
-            "term_similarity": 0.4818457487548923,
-            "vector_similarity": 0.5732446101410315
-          },
-          {
-            "chunk_type": "child_as_parent",
-            "content": "# 附件二 工作说明书\n\n附件二三 产品功能清单 (SKU 导出，根据授权的 SDK 范围补充)\n\n23.1 神策数据埋点 iOS SDK 功能清单分析产品功能清单23.2 神策数据埋点 Android SDK 功能清单智能运营产品功能清单3.3 神策 AB 测试产品功能清单3.4 神策数界平台产品功能清单3.5 神策广告分析产品功能清单附件三四售后支持服务清单（SKU导出）34.1 神策数据埋点SDK售后服务分析产品售后服务",
-            "content_ltks": "附件 二 工作 说明书 附件 二三 产品 功能 清单 sku 导出 根据 授权 的 sdk 范围 补充 23 1 神策数据 埋 点 io sdk 功能 清单 分析 产品 功能 清单 23 2 神策数据 埋 点 android sdk 功能 清单 智能 运营 产品 功能 清单 33 神策 ab 测试 产品 功能 清单 34 神策 数 界 平台 产品 功能 清单 35 神策 广告 分析 产品 功能 清单 附件 三四 售后 支持 服务 清单 sku 导出 34 1 神策数据 埋 点 sdk 售后服务 分析 产品 售后服务",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "doc_type_kwd": "",
-            "document_id": "c5c9f206a1d411f0bc9d66fc51ac58df",
-            "document_keyword": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
-            "highlight": "范围补充23 1神策数据埋点io sdk功能清单分析产品功能清单23 2神策数据埋点android sdk功能清单智能运营产品功能清单33神策ab <em>测试</em>",
-            "id": "f70c4a650c0a2eab",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                28,
-                74,
-                194,
-                116,
-                134
-              ],
-              [
-                28,
-                73,
-                477,
-                193,
-                212
-              ],
-              [
-                28,
-                73,
-                482,
-                269,
-                663
-              ]
-            ],
-            "similarity": 0.4100205872991214,
-            "term_similarity": 0.345869261973377,
-            "vector_similarity": 0.5597070130591917
-          },
-          {
-            "chunk_type": "child_as_parent",
-            "content": "<table><tr><td colspan=\"2\">服务项目</td><td>服务内容</td><td>限制说明</td></tr><tr><td colspan=\"2\">定开服务问题排查</td><td>1.定位确认问题2.确认修复方案和时间</td><td></td></tr><tr><td colspan=\"2\">定开服务 BUG 修复</td><td>修复 BUG 并确认重新部署时间,完成服务重新上线</td><td></td></tr><tr><td>服务项目</td><td colspan=\"2\">服务描述</td><td>限制说明</td></tr><tr><td>产品使用</td><td colspan=\"2\">1.提供SDK商业授权2.提供SDK免费更新到最新版,兼容最新系统3. SDK版本更新提供Release Notes说明4.提供SDK使用方面的答疑5.提供基于SDK功能的逻辑答疑</td><td>服务方式:企业微信群服务时间:5*8小时(法定工作日:10:00-19:00)首次响应时效:60分钟内响应</td></tr><tr><td></td><td></td><td>服务工程师：资深工程师</td></tr><tr><td>异常诊断</td><td>异常性诊断包含以下服务内容：\n1. 埋点采集异常：事件、属性和全埋点采集异常\n2. App 产生异常：因为 SDK 的使用，导致 App 或产品出现异常，包括明显卡顿、crash 和启动异常等</td><td>服务方式：企业微信群\n服务时间：5*8 小时\n(法定工作日：10:00 - 19:00)\n首次响应时效：60 分钟内响应\n服务工程师：资深工程师</td></tr><tr><td>重大故障报障</td><td>1. 提供重大故障的响应和处理服务\n2. 神策有权判定是否为重大故障</td><td>服务方式：电话\n服务时间：5*8 小时\n(法定工作日：10:00 - 19:00)</td></tr><tr><td>技术专家陪伴</td><td>将分派不同的技术专家陪伴您的使用，包括：\n1. SDK 技术专家陪伴，指导您如何集成、使用埋点 SDK；结合自身业务需求设计优雅的SDK 埋点方案和具体场景的解决方案；</td><td>服务方式：远程指导\n服务时间：5*8 小时\n(法定工作日：10:00 - 19:00)</td></tr><tr><td></td><td>2. 数据接入接出的技术专家陪伴，指导您如何使用神策SDK采集的数据进行上下游系统的数据对接；\n3. 第三方系统对接的技术专家陪伴，指导您如何与上下游系统的功能对接，比如渠道对接、API相关等；\n4. 需提前一个工作日进行预约</td><td>100小时</td></tr></table>",
-            "content_ltks": "服务项目 服务 内容 限制 说明 定 开 服务 问题 排查 1 定位 确认 问题 2 确认 修复 方案 和 时间 定 开 服务 bug 修复 修复 bug 并 确认 重新部署 时间 完成 服务 重新 上线 服务项目 服务 描述 限制 说明 产品 使用 1 提供 sdk 商业 授权 2 提供 sdk 免费 更新 到 最新版 兼容 最新 系统 3 sdk 版本 更新 提供 releas note 说明 4 提供 sdk 使用 方面 的 答疑 5 提供 基于 sdk 功能 的 逻辑 答疑 服务 方式 企业 微信 群 服务 时间 58 小时 法定 工作日 1000 19 00 首次 响应 时效 60 分钟 内 响应 服务 工程师 资深 工程师 异常 诊断 异常 性 诊断 包含 以下 服务 内容 1 埋 点 采集 异常 事件 属性 和 全 埋 点 采集 异常 2 app 产生 异常 因为 sdk 的 使用 导致 app 或 产品 出现异常 包括 明显 卡顿 crash 和 启动 异常 等 服务 方式 企业 微信 群 服务 时间 58 小时 法定 工作日 1000 19 00 首次 响应 时效 60 分钟 内 响应 服务 工程师 资深 工程师 重大 故障 报 障 1 提供 重大 故障 的 响应 和 处理 服务 2 神策 有权 判定 是否 为 重大 故障 服务 方式 电话 服务 时间 58 小时 法定 工作日 1000 19 00 技术 专家 陪伴 将 分派 不同 的 技术 专家 陪伴 您 的 使用 包括 1 sdk 技术 专家 陪伴 指导 您 如何 集成 使用 埋 点 sdk 结合 自身 业务 需求 设计 优雅 的 sdk 埋 点 方案 和 具体 场景 的 解决方案 服务 方式 远程 指导 服务 时间 58 小时 法定 工作日 1000 19 00 2 数据 接入 接 出 的 技术 专家 陪伴 指导 您 如何 使用 神策 sdk 采集 的 数据 进行 上下游 系统 的 数据 对接 3 第三方 系统 对接 的 技术 专家 陪伴 指导 您 如何 与 上下游 系统 的 功能 对接 比如 渠道 对接 api 相关 等 4 需 提前 一个 工作日 进行 预约 100 小时",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "doc_type_kwd": "",
-            "document_id": "c5c9f206a1d411f0bc9d66fc51ac58df",
-            "document_keyword": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
-            "highlight": "服务项目服务<em>内容</em>限制说明定开服务问题排查1定位确认问题2确认修复方案和时间定开服务bug修复修复bug并确认重新部署时间完成服务重新上线...服务方式企业微信群服务时间58小时法定工作日1000 19 00首次响应时效60分钟内响应服务工程师资深工程师异常诊断异常性诊断包含以下服务<em>内容</em>",
-            "id": "7535433ec501d13e",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                32,
-                72,
-                531,
-                107,
-                700
-              ],
-              [
-                29,
-                72,
-                553,
-                137,
-                673
-              ]
-            ],
-            "similarity": 0.38686498781082834,
-            "term_similarity": 0.3151114484890099,
-            "vector_similarity": 0.5542899128950716
-          },
-          {
-            "chunk_type": "child_as_parent",
-            "content": "# (2) 定制化开发成果的验收及维保\n\n甲方应在定制化开发服务相关交付成果上线两周内依照《工作说明书》中相关约定完成功能试用并确认验收结果。\n\n乙方自定制化开发服务成果验收确认之日起，就该定制化开发服务成果提供3个月的免费维保服务，服务内容包括定制化开发服务成果的功能性漏洞修复及已知安全漏洞修复。\n\n功能性漏洞修复响应标准按照本合同约定的标准产品售后服务标准执行。",
-            "content_ltks": "2 定制 化 开发 成果 的 验收 及 维保 甲方 应 在 定制 化 开发 服务 相关 交付 成果 上线 两周 内 依照 工作 说明书 中 相关 约定 完成 功能 试用 并 确认 验收 结果 乙方 自 定制 化 开 发 服务 成果 验收 确认 之日起 就 该 定制 化 开发 服务 成果 提供 3 个 月 的 免费 维保 服务 服务 内容 包括 定制 化 开发 服务 成果 的 功能性 漏洞 修复 及 已知 安全漏洞 修复 功能性 漏洞 修复 响应 标准 按照 本合同 约定 的 标准 产品 售后服务 标准 执行",
-            "dataset_id": "4345aa0ea1a311f0b45566fc51ac58df",
-            "doc_type_kwd": "",
-            "document_id": "c5c9f206a1d411f0bc9d66fc51ac58df",
-            "document_keyword": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
-            "highlight": "中相关约定完成功能试用并确认验收结果乙方自定制化开发服务成果验收确认之日起就该定制化开发服务成果提供3个月的免费维保服务服务<em>内容</em>",
-            "id": "1302aca1ffa344c3",
-            "image_id": "",
-            "important_keywords": [],
-            "positions": [
-              [
-                24,
-                74,
-                295,
-                333,
-                351
-              ],
-              [
-                24,
-                73,
-                536,
-                366,
-                415
-              ],
-              [
-                24,
-                73,
-                536,
-                430,
-                510
-              ],
-              [
-                24,
-                94,
-                545,
-                525,
-                544
-              ]
-            ],
-            "similarity": 0.37866724426969584,
-            "term_similarity": 0.3151114484890099,
-            "vector_similarity": 0.5269641010912964
-          }
-        ],
-        "doc_aggs": [
-          {
-            "count": 5,
-            "doc_id": "c5c9f206a1d411f0bc9d66fc51ac58df",
-            "doc_name": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx"
-          }
-        ],
-        "total": 18
+        "docs": [],
+        "total": 0
       }
     },
     "error": null

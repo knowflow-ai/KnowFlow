@@ -16,7 +16,7 @@
           "user_tenant": true
         },
         "status": "healthy",
-        "timestamp": "2025-10-17T13:16:11.594989"
+        "timestamp": "2025-10-17T13:28:25.871373"
       },
       "message": "服务运行正常"
     },
@@ -42,7 +42,7 @@
           "user_tenant": true
         },
         "system_roles_count": 5,
-        "timestamp": "2025-10-17T13:16:11.699019"
+        "timestamp": "2025-10-17T13:28:25.931614"
       },
       "message": "获取RBAC状态成功"
     },
@@ -95,6 +95,13 @@
             "username": "test_user"
           },
           {
+            "createTime": "2025-10-17 13:16:11",
+            "email": "test_user_1760678171@test.com",
+            "id": "65726152ab1811f0bcd566fc51ac58de",
+            "updateTime": "2025-10-17 13:16:11",
+            "username": "test_user"
+          },
+          {
             "createTime": "2025-10-17 12:54:01",
             "email": "3@qq.com",
             "id": "4c34cf02ab1511f08adb66fc51ac58de",
@@ -130,7 +137,7 @@
             "username": "test_user"
           }
         ],
-        "total": 7
+        "total": 8
       },
       "message": "获取用户列表成功"
     },
@@ -158,6 +165,13 @@
             "email": "test_user_1760677342@test.com",
             "id": "771585c6ab1611f08adb66fc51ac58de",
             "updateTime": "2025-10-17 13:02:22",
+            "username": "test_user"
+          },
+          {
+            "createTime": "2025-10-17 13:16:11",
+            "email": "test_user_1760678171@test.com",
+            "id": "65726152ab1811f0bcd566fc51ac58de",
+            "updateTime": "2025-10-17 13:16:11",
             "username": "test_user"
           },
           {
@@ -189,7 +203,7 @@
             "username": "test_user"
           }
         ],
-        "total": 6
+        "total": 7
       },
       "message": "获取可分配权限用户列表成功"
     },
@@ -202,7 +216,7 @@
     "status": "SUCCESS",
     "request": {
       "username": "test_user",
-      "email": "test_user_1760678171@test.com",
+      "email": "test_user_1760678905@test.com",
       "password": "Test@123456"
     },
     "response": {
@@ -231,7 +245,7 @@
     "method": "POST",
     "status": "SUCCESS",
     "request": {
-      "name": "test_kb_1760678171",
+      "name": "test_kb_1760678905",
       "description": "Test KB for API testing",
       "embedding_model": "BAAI/bge-m3",
       "chunk_method": "smart",
@@ -244,12 +258,12 @@
       "code": 0,
       "data": {
         "avatar": null,
-        "create_date": "2025-10-17 13:16:12",
+        "create_date": "2025-10-17 13:28:26",
         "description": "Test KB for API testing",
         "doc_num": 0,
-        "id": "65ae3b3cab1811f0bcd566fc51ac58de",
-        "name": "test_kb_1760678171",
-        "update_date": "Fri, 17 Oct 2025 13:16:12 GMT"
+        "id": "1b5afb4aab1a11f0bcd566fc51ac58de",
+        "name": "test_kb_1760678905",
+        "update_date": "Fri, 17 Oct 2025 13:28:26 GMT"
       },
       "message": "创建成功"
     },
@@ -266,9 +280,26 @@
       "data": {
         "list": [
           {
-            "create_date": "2025-10-17 13:16:12",
+            "create_date": "2025-10-17 13:28:26",
             "created_by": "36712aa3b36740958c08fb94d2309d8b",
             "description": "Test KB for API testing",
+            "doc_num": 0,
+            "id": "1b5afb4aab1a11f0bcd566fc51ac58de",
+            "language": "Chinese",
+            "name": "test_kb_1760678905",
+            "parser_id": "smart",
+            "permission": "me",
+            "permission_stats": {
+              "team_count": 0,
+              "total_count": 0,
+              "user_count": 0
+            },
+            "update_date": "Fri, 17 Oct 2025 13:28:26 GMT"
+          },
+          {
+            "create_date": "2025-10-17 13:16:12",
+            "created_by": "36712aa3b36740958c08fb94d2309d8b",
+            "description": "Updated KB description",
             "doc_num": 0,
             "id": "65ae3b3cab1811f0bcd566fc51ac58de",
             "language": "Chinese",
@@ -385,7 +416,7 @@
             "update_date": "Fri, 17 Oct 2025 12:11:33 GMT"
           }
         ],
-        "total": 7
+        "total": 8
       },
       "message": "操作成功"
     },
@@ -393,7 +424,7 @@
   },
   {
     "category": "Knowledgebase Management",
-    "endpoint": "/api/v1/knowledgebases/65ae3b3cab1811f0bcd566fc51ac58de",
+    "endpoint": "/api/v1/knowledgebases/1b5afb4aab1a11f0bcd566fc51ac58de",
     "method": "GET",
     "status": "SUCCESS",
     "request": null,
@@ -401,12 +432,12 @@
       "code": 0,
       "data": {
         "avatar": null,
-        "create_date": "2025-10-17 13:16:12",
+        "create_date": "2025-10-17 13:28:26",
         "description": "Test KB for API testing",
         "doc_num": 0,
-        "id": "65ae3b3cab1811f0bcd566fc51ac58de",
-        "name": "test_kb_1760678171",
-        "update_date": "Fri, 17 Oct 2025 13:16:12 GMT"
+        "id": "1b5afb4aab1a11f0bcd566fc51ac58de",
+        "name": "test_kb_1760678905",
+        "update_date": "Fri, 17 Oct 2025 13:28:26 GMT"
       },
       "message": "操作成功"
     },
@@ -414,7 +445,7 @@
   },
   {
     "category": "Knowledgebase Management",
-    "endpoint": "/api/v1/knowledgebases/65ae3b3cab1811f0bcd566fc51ac58de",
+    "endpoint": "/api/v1/knowledgebases/1b5afb4aab1a11f0bcd566fc51ac58de",
     "method": "PUT",
     "status": "SUCCESS",
     "request": {
@@ -424,12 +455,12 @@
       "code": 0,
       "data": {
         "avatar": null,
-        "create_date": "2025-10-17 13:16:12",
+        "create_date": "2025-10-17 13:28:26",
         "description": "Updated KB description",
         "doc_num": 0,
-        "id": "65ae3b3cab1811f0bcd566fc51ac58de",
-        "name": "test_kb_1760678171",
-        "update_date": "Fri, 17 Oct 2025 13:16:12 GMT"
+        "id": "1b5afb4aab1a11f0bcd566fc51ac58de",
+        "name": "test_kb_1760678905",
+        "update_date": "Fri, 17 Oct 2025 13:28:26 GMT"
       },
       "message": "操作成功"
     },
@@ -437,7 +468,7 @@
   },
   {
     "category": "Knowledgebase Management",
-    "endpoint": "/api/v1/knowledgebases/65ae3b3cab1811f0bcd566fc51ac58de/permissions",
+    "endpoint": "/api/v1/knowledgebases/1b5afb4aab1a11f0bcd566fc51ac58de/permissions",
     "method": "GET",
     "status": "SUCCESS",
     "request": null,
@@ -455,7 +486,7 @@
   },
   {
     "category": "Knowledgebase Management",
-    "endpoint": "/api/v1/knowledgebases/65ae3b3cab1811f0bcd566fc51ac58de/permissions/users",
+    "endpoint": "/api/v1/knowledgebases/1b5afb4aab1a11f0bcd566fc51ac58de/permissions/users",
     "method": "POST",
     "status": "SUCCESS",
     "request": {
@@ -473,7 +504,7 @@
   },
   {
     "category": "Knowledgebase Management",
-    "endpoint": "/api/v1/knowledgebases/65ae3b3cab1811f0bcd566fc51ac58de/permissions/check",
+    "endpoint": "/api/v1/knowledgebases/1b5afb4aab1a11f0bcd566fc51ac58de/permissions/check",
     "method": "POST",
     "status": "SUCCESS",
     "request": {
@@ -489,7 +520,7 @@
         "has_permission": true,
         "permission_type": "read",
         "reason": "角色权限授权",
-        "resource_id": "65ae3b3cab1811f0bcd566fc51ac58de",
+        "resource_id": "1b5afb4aab1a11f0bcd566fc51ac58de",
         "user_id": "69736c5e723611efb51b0242ac120007"
       },
       "message": "操作成功"
@@ -498,7 +529,7 @@
   },
   {
     "category": "Knowledgebase Management",
-    "endpoint": "/api/v1/knowledgebases/65ae3b3cab1811f0bcd566fc51ac58de/documents",
+    "endpoint": "/api/v1/knowledgebases/1b5afb4aab1a11f0bcd566fc51ac58de/documents",
     "method": "GET",
     "status": "SUCCESS",
     "request": null,
@@ -531,7 +562,7 @@
   },
   {
     "category": "Knowledgebase Management",
-    "endpoint": "/api/v1/knowledgebases/65ae3b3cab1811f0bcd566fc51ac58de/permissions/users/69736c5e723611efb51b0242ac120007",
+    "endpoint": "/api/v1/knowledgebases/1b5afb4aab1a11f0bcd566fc51ac58de/permissions/users/69736c5e723611efb51b0242ac120007",
     "method": "DELETE",
     "status": "SUCCESS",
     "request": null,
@@ -729,13 +760,13 @@
     "method": "POST",
     "status": "SUCCESS",
     "request": {
-      "name": "test_team_1760678171",
+      "name": "test_team_1760678905",
       "description": "Test team for API testing"
     },
     "response": {
       "code": 0,
       "data": {
-        "id": "65e86618ab1811f0bcd566fc51ac58de"
+        "id": "1b9b41e6ab1a11f0bcd566fc51ac58de"
       },
       "message": "团队创建成功"
     },
@@ -751,6 +782,15 @@
       "code": 0,
       "data": {
         "list": [
+          {
+            "createTime": "2025-10-17 13:28:26",
+            "id": "1b9b41e6ab1a11f0bcd566fc51ac58de",
+            "memberCount": 1,
+            "name": "test_team_1760678905",
+            "ownerName": "系统管理员",
+            "status": "1",
+            "updateTime": "2025-10-17 13:28:26"
+          },
           {
             "createTime": "2025-10-17 13:16:12",
             "id": "65e86618ab1811f0bcd566fc51ac58de",
@@ -781,7 +821,7 @@
           {
             "createTime": "2025-10-17 13:02:23",
             "id": "778bf454ab1611f08adb66fc51ac58de",
-            "memberCount": 3,
+            "memberCount": 2,
             "name": "test_team_1760677342",
             "ownerName": "系统管理员",
             "status": "1",
@@ -831,18 +871,9 @@
             "ownerName": "系统管理员",
             "status": "1",
             "updateTime": "2025-10-17 12:19:53"
-          },
-          {
-            "createTime": "2025-10-17 09:39:51",
-            "id": "2ca74e28aafa11f09a8966fc51ac58de",
-            "memberCount": 2,
-            "name": "整个公司",
-            "ownerName": "系统管理员",
-            "status": "1",
-            "updateTime": "2025-10-17 09:39:51"
           }
         ],
-        "total": 10
+        "total": 11
       },
       "message": "获取团队列表成功"
     },
@@ -850,19 +881,19 @@
   },
   {
     "category": "Team Management",
-    "endpoint": "/api/v1/teams/65e86618ab1811f0bcd566fc51ac58de",
+    "endpoint": "/api/v1/teams/1b9b41e6ab1a11f0bcd566fc51ac58de",
     "method": "GET",
     "status": "SUCCESS",
     "request": null,
     "response": {
       "code": 0,
       "data": {
-        "createTime": "2025-10-17 13:16:12",
+        "createTime": "2025-10-17 13:28:26",
         "credit": 0,
-        "id": "65e86618ab1811f0bcd566fc51ac58de",
-        "name": "test_team_1760678171",
+        "id": "1b9b41e6ab1a11f0bcd566fc51ac58de",
+        "name": "test_team_1760678905",
         "status": "1",
-        "updateTime": "2025-10-17 13:16:12"
+        "updateTime": "2025-10-17 13:28:26"
       },
       "message": "获取团队详情成功"
     },
@@ -870,7 +901,7 @@
   },
   {
     "category": "Team Management",
-    "endpoint": "/api/v1/teams/65e86618ab1811f0bcd566fc51ac58de/members",
+    "endpoint": "/api/v1/teams/1b9b41e6ab1a11f0bcd566fc51ac58de/members",
     "method": "GET",
     "status": "SUCCESS",
     "request": null,
@@ -878,7 +909,7 @@
       "code": 0,
       "data": [
         {
-          "joinTime": "2025-10-17 13:16:12",
+          "joinTime": "2025-10-17 13:28:26",
           "role": "owner",
           "userId": "36712aa3b36740958c08fb94d2309d8b",
           "username": "系统管理员"
@@ -890,7 +921,7 @@
   },
   {
     "category": "Team Management",
-    "endpoint": "/api/v1/teams/65e86618ab1811f0bcd566fc51ac58de/roles",
+    "endpoint": "/api/v1/teams/1b9b41e6ab1a11f0bcd566fc51ac58de/roles",
     "method": "GET",
     "status": "SUCCESS",
     "request": null,
@@ -925,7 +956,7 @@
   },
   {
     "category": "Team Management",
-    "endpoint": "/api/v1/teams/65e86618ab1811f0bcd566fc51ac58de/roles",
+    "endpoint": "/api/v1/teams/1b9b41e6ab1a11f0bcd566fc51ac58de/roles",
     "method": "POST",
     "status": "SUCCESS",
     "request": {
@@ -950,7 +981,7 @@
     "response": {
       "service": "RBAC权限管理系统",
       "status": "healthy",
-      "timestamp": "2025-10-17T13:16:12.771232",
+      "timestamp": "2025-10-17T13:28:27.086681",
       "version": "1.0.0"
     },
     "error": null
@@ -1321,7 +1352,7 @@
     "request": {
       "user_id": "69736c5e723611efb51b0242ac120007",
       "resource_type": "knowledgebase",
-      "resource_id": "65ae3b3cab1811f0bcd566fc51ac58de",
+      "resource_id": "1b5afb4aab1a11f0bcd566fc51ac58de",
       "permission_type": "read",
       "tenant_id": "default"
     },
@@ -1330,7 +1361,7 @@
       "has_permission": false,
       "permission_type": "read",
       "reason": "无相关权限",
-      "resource_id": "65ae3b3cab1811f0bcd566fc51ac58de",
+      "resource_id": "1b5afb4aab1a11f0bcd566fc51ac58de",
       "resource_type": "knowledgebase",
       "user_id": "69736c5e723611efb51b0242ac120007"
     },
@@ -1345,14 +1376,14 @@
       "user_id": "69736c5e723611efb51b0242ac120007",
       "resource_type": "knowledgebase",
       "resource_ids": [
-        "65ae3b3cab1811f0bcd566fc51ac58de"
+        "1b5afb4aab1a11f0bcd566fc51ac58de"
       ],
       "permission_type": "read",
       "tenant_id": "default"
     },
     "response": {
       "permissions": {
-        "65ae3b3cab1811f0bcd566fc51ac58de": false
+        "1b5afb4aab1a11f0bcd566fc51ac58de": false
       }
     },
     "error": null
@@ -1412,6 +1443,14 @@
       "code": 0,
       "data": {
         "list": [
+          {
+            "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+            "createTime": "2025-10-17 13:28:26",
+            "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+            "id": "1b272b80ab1a11f0bcd566fc51ac58de",
+            "updateTime": "2025-10-17 13:28:26",
+            "username": "test_user"
+          },
           {
             "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
             "createTime": "2025-10-17 13:16:11",
@@ -1477,7 +1516,7 @@
             "username": "系统管理员"
           }
         ],
-        "total": 8
+        "total": 9
       },
       "message": "获取租户列表成功"
     },
