@@ -1,0 +1,2276 @@
+{
+  "timestamp": "2025-10-17T15:34:49.361481",
+  "ragflow_apis": {
+    "results": [
+      {
+        "category": "Dataset Management",
+        "endpoint": "/api/v1/datasets",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "name": "complete_test_dataset_1760686447",
+          "description": "Complete API test dataset with document",
+          "embedding_model": "BAAI/bge-m3@SILICONFLOW",
+          "chunk_method": "naive"
+        },
+        "response": "{'code': 0, 'data': {'avatar': None, 'chunk_count': 0, 'chunk_method': 'naive', 'create_date': 'Fri, 17 Oct 2025 15:34:07 GMT', 'create_time': 1760686447390, 'created_by': '36712aa3b36740958c08fb94d2309d8b', 'description': 'Complete API test dataset with document', 'document_count': 0, 'embedding_model': 'BAAI/bge-m3@SILICONFLOW', 'id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'language': 'English', 'name': 'complete_test_dataset_1760686447', 'pagerank': 0, 'parser_config': {'chunk_token_num': 512, '",
+        "error": null
+      },
+      {
+        "category": "Dataset Management",
+        "endpoint": "/api/v1/datasets",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': [{'avatar': None, 'chunk_count': 0, 'chunk_method': 'naive', 'create_date': 'Fri, 17 Oct 2025 15:34:07 GMT', 'create_time': 1760686447390, 'created_by': '36712aa3b36740958c08fb94d2309d8b', 'description': 'Complete API test dataset with document', 'document_count': 0, 'embedding_model': 'BAAI/bge-m3@SILICONFLOW', 'id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'language': 'English', 'name': 'complete_test_dataset_1760686447', 'pagerank': 0, 'parser_config': {'chunk_token_num': 512, ",
+        "error": null
+      },
+      {
+        "category": "Dataset Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de",
+        "method": "PUT",
+        "status": "SUCCESS",
+        "request": {
+          "description": "Updated at 1760686447"
+        },
+        "response": "{'code': 0, 'data': {'avatar': None, 'chunk_count': 0, 'chunk_method': 'naive', 'create_date': 'Fri, 17 Oct 2025 15:34:07 GMT', 'create_time': 1760686447390, 'created_by': '36712aa3b36740958c08fb94d2309d8b', 'description': 'Updated at 1760686447', 'document_count': 0, 'embedding_model': 'BAAI/bge-m3@SILICONFLOW', 'id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'language': 'English', 'name': 'complete_test_dataset_1760686447', 'pagerank': 0, 'parser_config': {'chunk_token_num': 512, 'delimiter': '\\\\n',",
+        "error": null
+      },
+      {
+        "category": "Dataset Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/knowledge_graph",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': {'graph': {}, 'mind_map': {}}}",
+        "error": null
+      },
+      {
+        "category": "Dataset Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/knowledge_graph",
+        "method": "DELETE",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': True}",
+        "error": null
+      },
+      {
+        "category": "Document Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/documents",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "parser_id": "naive"
+        },
+        "response": "{'code': 0, 'data': [{'chunk_method': 'naive', 'created_by': '36712aa3b36740958c08fb94d2309d8b', 'dataset_id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'id': 'abc35d56ab2b11f0a1bb66fc51ac58de', 'location': 'TWEPP2019_010.pdf', 'name': 'TWEPP2019_010.pdf', 'parser_config': {'chunk_token_num': 512, 'delimiter': '\\\\n', 'graphrag': {'use_graphrag': False}, 'html4excel': False, 'layout_recognize': 'DeepDOC', 'raptor': {'use_raptor': False}}, 'run': 'UNSTART', 'size': 499780, 'suffix': 'pdf', 'thumbnail': ",
+        "error": null
+      },
+      {
+        "category": "Document Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/chunks",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "document_ids": [
+            "abc35d56ab2b11f0a1bb66fc51ac58de"
+          ]
+        },
+        "response": "{'code': 0}",
+        "error": null
+      },
+      {
+        "category": "Document Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/documents?id=abc35d56ab2b11f0a1bb66fc51ac58de",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': {'docs': [{'chunk_count': 0, 'chunk_method': 'naive', 'create_date': 'Fri, 17 Oct 2025 15:34:10 GMT', 'create_time': 1760686450706, 'created_by': '36712aa3b36740958c08fb94d2309d8b', 'dataset_id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'id': 'abc35d56ab2b11f0a1bb66fc51ac58de', 'location': 'TWEPP2019_010.pdf', 'meta_fields': {}, 'name': 'TWEPP2019_010.pdf', 'parser_config': {'chunk_token_num': 512, 'delimiter': '\\\\n', 'graphrag': {'use_graphrag': False}, 'html4excel': False, 'layo",
+        "error": null
+      },
+      {
+        "category": "Document Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/documents",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': {'docs': [{'chunk_count': 0, 'chunk_method': 'naive', 'create_date': 'Fri, 17 Oct 2025 15:34:10 GMT', 'create_time': 1760686450706, 'created_by': '36712aa3b36740958c08fb94d2309d8b', 'dataset_id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'id': 'abc35d56ab2b11f0a1bb66fc51ac58de', 'location': 'TWEPP2019_010.pdf', 'meta_fields': {}, 'name': 'TWEPP2019_010.pdf', 'parser_config': {'chunk_token_num': 512, 'delimiter': '\\\\n', 'graphrag': {'use_graphrag': False}, 'html4excel': False, 'layo",
+        "error": null
+      },
+      {
+        "category": "Document Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/documents/abc35d56ab2b11f0a1bb66fc51ac58de",
+        "method": "GET",
+        "status": "ERROR",
+        "request": null,
+        "response": null,
+        "error": "Expecting value: line 1 column 1 (char 0)"
+      },
+      {
+        "category": "Document Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/documents/abc35d56ab2b11f0a1bb66fc51ac58de",
+        "method": "PUT",
+        "status": "SUCCESS",
+        "request": {
+          "name": "updated_1760686454.pdf"
+        },
+        "response": "{'code': 0, 'data': {'chunk_count': 0, 'chunk_method': 'naive', 'create_date': 'Fri, 17 Oct 2025 15:34:10 GMT', 'create_time': 1760686450706, 'created_by': '36712aa3b36740958c08fb94d2309d8b', 'dataset_id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'id': 'abc35d56ab2b11f0a1bb66fc51ac58de', 'location': 'TWEPP2019_010.pdf', 'meta_fields': {}, 'name': 'updated_1760686454.pdf', 'parser_config': {'chunk_token_num': 512, 'delimiter': '\\\\n', 'graphrag': {'use_graphrag': False}, 'html4excel': False, 'layout_re",
+        "error": null
+      },
+      {
+        "category": "Chunk Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/documents/abc35d56ab2b11f0a1bb66fc51ac58de/chunks",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': {'chunks': [], 'doc': {'chunk_count': 0, 'chunk_method': 'naive', 'create_date': 'Fri, 17 Oct 2025 15:34:10 GMT', 'create_time': 1760686450706, 'created_by': '36712aa3b36740958c08fb94d2309d8b', 'dataset_id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'id': 'abc35d56ab2b11f0a1bb66fc51ac58de', 'location': 'TWEPP2019_010.pdf', 'meta_fields': {}, 'name': 'updated_1760686454.pdf', 'parser_config': {'chunk_token_num': 512, 'delimiter': '\\\\n', 'graphrag': {'use_graphrag': False}, 'html4exc",
+        "error": null
+      },
+      {
+        "category": "Chunk Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/chunks",
+        "method": "POST",
+        "status": "SKIP",
+        "request": {
+          "document_id": "abc35d56ab2b11f0a1bb66fc51ac58de",
+          "content": "Test chunk content for API testing",
+          "important_keywords": [
+            "test",
+            "api"
+          ]
+        },
+        "response": "{'code': 102, 'message': '`document_ids` is required'}",
+        "error": "`document_ids` is required"
+      },
+      {
+        "category": "Chunk Management",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/documents/abc35d56ab2b11f0a1bb66fc51ac58de/chunks",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "content": "Another test chunk",
+          "important_keywords": [
+            "document",
+            "chunk"
+          ]
+        },
+        "response": "{'code': 0, 'data': {'chunk': {'content': 'Another test chunk', 'create_time': '2025-10-17 15:34:14', 'create_timestamp': 1760686454.720689, 'dataset_id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'document_id': 'abc35d56ab2b11f0a1bb66fc51ac58de', 'id': '8e044a48932233e6', 'important_keywords': ['document', 'chunk'], 'questions': []}}}",
+        "error": null
+      },
+      {
+        "category": "Chunk Management",
+        "endpoint": "/api/v1/retrieval",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "question": "测试查询",
+          "dataset_ids": [
+            "aa0e6d20ab2b11f0a1bb66fc51ac58de"
+          ],
+          "page": 1,
+          "page_size": 5
+        },
+        "response": "{'code': 0, 'data': {'chunks': [], 'doc_aggs': [], 'total': 0}}",
+        "error": null
+      },
+      {
+        "category": "Chat Assistant",
+        "endpoint": "/api/v1/chats",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "name": "test_chat_1760686456",
+          "dataset_ids": [
+            "aa0e6d20ab2b11f0a1bb66fc51ac58de"
+          ],
+          "llm": {
+            "model_name": "Qwen/Qwen3-32B@SILICONFLOW",
+            "temperature": 0.1,
+            "top_p": 0.3
+          },
+          "prompt": {
+            "similarity_threshold": 0.2,
+            "top_n": 6
+          }
+        },
+        "response": "{'code': 0, 'data': {'avatar': '', 'create_date': 'Fri, 17 Oct 2025 15:34:16 GMT', 'create_time': 1760686456305, 'dataset_ids': ['aa0e6d20ab2b11f0a1bb66fc51ac58de'], 'description': 'A helpful Assistant', 'do_refer': '1', 'id': 'af648fcaab2b11f0a1bb66fc51ac58de', 'language': 'English', 'llm': {'model_name': 'Qwen/Qwen3-32B@SILICONFLOW', 'temperature': 0.1, 'top_p': 0.3}, 'meta_data_filter': {}, 'name': 'test_chat_1760686456', 'prompt': {'empty_response': 'Sorry! No relevant content was found in t",
+        "error": null
+      },
+      {
+        "category": "Chat Assistant",
+        "endpoint": "/api/v1/chats",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': [{'avatar': '', 'create_date': 'Fri, 17 Oct 2025 15:34:16 GMT', 'create_time': 1760686456305, 'datasets': [{'avatar': None, 'chunk_num': 1, 'create_date': 'Fri, 17 Oct 2025 15:34:07 GMT', 'create_time': 1760686447390, 'created_by': '36712aa3b36740958c08fb94d2309d8b', 'description': 'Updated at 1760686447', 'doc_num': 1, 'embd_id': 'BAAI/bge-m3@SILICONFLOW', 'id': 'aa0e6d20ab2b11f0a1bb66fc51ac58de', 'language': 'English', 'name': 'complete_test_dataset_1760686447', 'pagerank':",
+        "error": null
+      },
+      {
+        "category": "Chat Assistant",
+        "endpoint": "/api/v1/chats/af648fcaab2b11f0a1bb66fc51ac58de",
+        "method": "PUT",
+        "status": "SUCCESS",
+        "request": {
+          "description": "Updated description"
+        },
+        "response": "{'code': 0}",
+        "error": null
+      },
+      {
+        "category": "Chat Assistant",
+        "endpoint": "/api/v1/chats/af648fcaab2b11f0a1bb66fc51ac58de/completions",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "question": "你好，这是一个测试问题",
+          "stream": false
+        },
+        "response": "{'code': 0, 'data': {'answer': 'Sorry! No relevant content was found in the knowledge base!', 'audio_binary': None, 'id': 'b08e1e6c-b62a-4c8e-8908-4d3a4d0e31a8', 'prompt': '\\n\\n### Query:\\n', 'reference': {'chunks': [], 'doc_aggs': {}, 'total': 0}, 'session_id': 'af6c3d42ab2b11f0a1bb66fc51ac58de'}}",
+        "error": null
+      },
+      {
+        "category": "Chat Assistant",
+        "endpoint": "/api/v1/chats_openai/af648fcaab2b11f0a1bb66fc51ac58de/chat/completions",
+        "method": "POST",
+        "status": "SKIP",
+        "request": {
+          "model": "test",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Hello"
+            }
+          ],
+          "stream": false
+        },
+        "response": "{'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 'message': {'content': 'Sorry! No relevant content was found in the knowledge base!', 'role': 'assistant'}}], 'created': 1760686457, 'id': 'chatcmpl-af648fcaab2b11f0a1bb66fc51ac58de', 'model': 'test', 'object': 'chat.completion', 'usage': {'completion_tokens': 59, 'completion_tokens_details': {'accepted_prediction_tokens': 59, 'reasoning_tokens': 5, 'rejected_prediction_tokens': 0}, 'prompt_tokens': 5, 'total_tokens': 64}}",
+        "error": "{\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"logprobs\":null,\"message\":{\"content\":\"Sorry! No relevant content was found in the knowledge base!\",\"role\":\"assistant\"}}],\"created\":1760686457,\"id\":\"chatcm"
+      },
+      {
+        "category": "Session Management",
+        "endpoint": "/api/v1/chats/af648fcaab2b11f0a1bb66fc51ac58de/sessions",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "name": "test_session_1760686457"
+        },
+        "response": "{'code': 0, 'data': {'chat_id': 'af648fcaab2b11f0a1bb66fc51ac58de', 'create_date': 'Fri, 17 Oct 2025 15:34:17 GMT', 'create_time': 1760686457031, 'id': 'afd3ab12ab2b11f0a1bb66fc51ac58de', 'messages': [{'content': \"Hi! I'm your assistant. What can I do for you?\", 'role': 'assistant'}], 'name': 'test_session_1760686457', 'update_date': 'Fri, 17 Oct 2025 15:34:17 GMT', 'update_time': 1760686457031, 'user_id': ''}}",
+        "error": null
+      },
+      {
+        "category": "Session Management",
+        "endpoint": "/api/v1/chats/af648fcaab2b11f0a1bb66fc51ac58de/sessions",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': [{'chat_id': 'af648fcaab2b11f0a1bb66fc51ac58de', 'create_date': 'Fri, 17 Oct 2025 15:34:17 GMT', 'create_time': 1760686457031, 'id': 'afd3ab12ab2b11f0a1bb66fc51ac58de', 'messages': [{'content': \"Hi! I'm your assistant. What can I do for you?\", 'reference': [], 'role': 'assistant'}], 'name': 'test_session_1760686457', 'update_date': 'Fri, 17 Oct 2025 15:34:17 GMT', 'update_time': 1760686457031, 'user_id': ''}, {'chat_id': 'af648fcaab2b11f0a1bb66fc51ac58de', 'create_date': 'Fri",
+        "error": null
+      },
+      {
+        "category": "Session Management",
+        "endpoint": "/api/v1/chats/af648fcaab2b11f0a1bb66fc51ac58de/sessions/afd3ab12ab2b11f0a1bb66fc51ac58de",
+        "method": "PUT",
+        "status": "SUCCESS",
+        "request": {
+          "name": "Updated session name"
+        },
+        "response": "{'code': 0}",
+        "error": null
+      },
+      {
+        "category": "Session Management",
+        "endpoint": "/api/v1/sessions/related_questions",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "session_id": "afd3ab12ab2b11f0a1bb66fc51ac58de",
+          "question": "什么是机器学习？"
+        },
+        "response": "{'code': 0, 'data': ['机器学习应用场景  ', '机器学习基本原理  ', '人工智能与机器学习区别  ', '机器学习入门教程  ', '常见机器学习算法  ', '机器学习发展历程  ', '机器学习与深度学习关系  ', '机器学习实践案例  ', '机器学习入门书籍推荐  ']}",
+        "error": null
+      },
+      {
+        "category": "Agent Management",
+        "endpoint": "/api/v1/agents",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "title": "test_agent_1760686483",
+          "description": "Test agent",
+          "dsl": {
+            "components": {},
+            "history": [],
+            "path": [],
+            "answer": []
+          }
+        },
+        "response": "{'code': 0, 'data': True, 'message': 'success'}",
+        "error": null
+      },
+      {
+        "category": "Agent Management",
+        "endpoint": "/api/v1/agents",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': [{'avatar': None, 'canvas_category': 'agent_canvas', 'canvas_type': None, 'create_date': 'Fri, 17 Oct 2025 15:34:43 GMT', 'create_time': 1760686483654, 'description': 'Test agent', 'dsl': {'answer': [], 'components': {}, 'history': [], 'path': []}, 'id': 'bfb1eed6ab2b11f0a1bb66fc51ac58de', 'permission': 'me', 'title': 'test_agent_1760686483', 'update_date': 'Fri, 17 Oct 2025 15:34:43 GMT', 'update_time': 1760686483654, 'user_id': '36712aa3b36740958c08fb94d2309d8b'}, {'avatar'",
+        "error": null
+      },
+      {
+        "category": "Agent Management",
+        "endpoint": "/api/v1/agents/bfb1eed6ab2b11f0a1bb66fc51ac58de",
+        "method": "PUT",
+        "status": "SUCCESS",
+        "request": {
+          "description": "Updated agent description"
+        },
+        "response": "{'code': 0, 'data': True, 'message': 'success'}",
+        "error": null
+      },
+      {
+        "category": "Agent Management",
+        "endpoint": "/api/v1/agents/bfb1eed6ab2b11f0a1bb66fc51ac58de/sessions",
+        "method": "POST",
+        "status": "SKIP",
+        "request": {},
+        "response": "{'code': 100, 'data': None, 'message': \"KeyError('retrieval')\"}",
+        "error": "KeyError('retrieval')"
+      },
+      {
+        "category": "Agent Management",
+        "endpoint": "/api/v1/agents/bfb1eed6ab2b11f0a1bb66fc51ac58de/completions",
+        "method": "POST",
+        "status": "SKIP",
+        "request": {
+          "question": "Hello agent",
+          "stream": false
+        },
+        "response": "{'code': 100, 'data': None, 'message': \"KeyError('retrieval')\"}",
+        "error": "KeyError('retrieval')"
+      },
+      {
+        "category": "Agent Management",
+        "endpoint": "/api/v1/agents/bfb1eed6ab2b11f0a1bb66fc51ac58de/sessions",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': []}",
+        "error": null
+      },
+      {
+        "category": "Agent Management",
+        "endpoint": "/api/v1/agents_openai/bfb1eed6ab2b11f0a1bb66fc51ac58de/chat/completions",
+        "method": "POST",
+        "status": "SKIP",
+        "request": {
+          "model": "test",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Hello"
+            }
+          ],
+          "stream": false
+        },
+        "response": "{'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 'message': {'content': \"**ERROR**: 'retrieval'\", 'role': 'assistant'}}], 'created': None, 'id': '79a2c7b9-412e-43e8-b880-ab38799b5992', 'model': 'bfb1eed6ab2b11f0a1bb66fc51ac58de', 'object': 'chat.completion', 'param': None, 'usage': {'completion_tokens': 8, 'completion_tokens_details': {'accepted_prediction_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}, 'prompt_tokens': 1, 'total_tokens': 9}}",
+        "error": "{\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"logprobs\":null,\"message\":{\"content\":\"**ERROR**: 'retrieval'\",\"role\":\"assistant\"}}],\"created\":null,\"id\":\"79a2c7b9-412e-43e8-b880-ab38799b5992\",\"model\":\"bf"
+      },
+      {
+        "category": "Cleanup",
+        "endpoint": "/api/v1/chats/af648fcaab2b11f0a1bb66fc51ac58de/sessions",
+        "method": "DELETE",
+        "status": "SUCCESS",
+        "request": {
+          "ids": [
+            "afd3ab12ab2b11f0a1bb66fc51ac58de"
+          ]
+        },
+        "response": "{'code': 0}",
+        "error": null
+      },
+      {
+        "category": "Cleanup",
+        "endpoint": "/api/v1/chats",
+        "method": "DELETE",
+        "status": "SUCCESS",
+        "request": {
+          "ids": [
+            "af648fcaab2b11f0a1bb66fc51ac58de"
+          ]
+        },
+        "response": "{'code': 0}",
+        "error": null
+      },
+      {
+        "category": "Cleanup",
+        "endpoint": "/api/v1/agents/bfb1eed6ab2b11f0a1bb66fc51ac58de/sessions",
+        "method": "DELETE",
+        "status": "SKIP",
+        "request": {
+          "ids": []
+        },
+        "response": "{'code': 102, 'message': 'Agent bfb1eed6ab2b11f0a1bb66fc51ac58de has no sessions'}",
+        "error": "Agent bfb1eed6ab2b11f0a1bb66fc51ac58de has no sessions"
+      },
+      {
+        "category": "Cleanup",
+        "endpoint": "/api/v1/agents/bfb1eed6ab2b11f0a1bb66fc51ac58de",
+        "method": "DELETE",
+        "status": "SUCCESS",
+        "request": null,
+        "response": "{'code': 0, 'data': True, 'message': 'success'}",
+        "error": null
+      },
+      {
+        "category": "Cleanup",
+        "endpoint": "/api/v1/datasets/aa0e6d20ab2b11f0a1bb66fc51ac58de/documents",
+        "method": "DELETE",
+        "status": "SUCCESS",
+        "request": {
+          "ids": [
+            "abc35d56ab2b11f0a1bb66fc51ac58de"
+          ]
+        },
+        "response": "{'code': 0}",
+        "error": null
+      },
+      {
+        "category": "Cleanup",
+        "endpoint": "/api/v1/datasets",
+        "method": "DELETE",
+        "status": "SUCCESS",
+        "request": {
+          "ids": [
+            "aa0e6d20ab2b11f0a1bb66fc51ac58de"
+          ]
+        },
+        "response": "{'code': 0}",
+        "error": null
+      }
+    ],
+    "summary": {
+      "total": 37,
+      "success": 30,
+      "failed": 1,
+      "skipped": 6,
+      "success_rate": 81.08,
+      "effective_success_rate": 96.77,
+      "by_category": {
+        "Dataset Management": {
+          "total": 5,
+          "success": 5,
+          "failed": 0,
+          "skipped": 0
+        },
+        "Document Management": {
+          "total": 6,
+          "success": 5,
+          "failed": 1,
+          "skipped": 0
+        },
+        "Chunk Management": {
+          "total": 4,
+          "success": 3,
+          "failed": 0,
+          "skipped": 1
+        },
+        "Chat Assistant": {
+          "total": 5,
+          "success": 4,
+          "failed": 0,
+          "skipped": 1
+        },
+        "Session Management": {
+          "total": 4,
+          "success": 4,
+          "failed": 0,
+          "skipped": 0
+        },
+        "Agent Management": {
+          "total": 7,
+          "success": 4,
+          "failed": 0,
+          "skipped": 3
+        },
+        "Cleanup": {
+          "total": 6,
+          "success": 5,
+          "failed": 0,
+          "skipped": 1
+        }
+      }
+    }
+  },
+  "knowflow_server_apis": {
+    "results": [
+      {
+        "category": "Authentication",
+        "endpoint": "/health",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "database_ready": true,
+            "rbac_initialized": true,
+            "required_tables": {
+              "tenant": true,
+              "user": true,
+              "user_tenant": true
+            },
+            "status": "healthy",
+            "timestamp": "2025-10-17T15:34:45.280559"
+          },
+          "message": "服务运行正常"
+        },
+        "error": null
+      },
+      {
+        "category": "Authentication",
+        "endpoint": "/api/v1/admin/rbac/status",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "background_init_status": true,
+            "database_ready": true,
+            "default_admin_exists": true,
+            "permissions_count": 10,
+            "rbac_initialized": true,
+            "required_tables": {
+              "tenant": true,
+              "user": true,
+              "user_tenant": true
+            },
+            "system_roles_count": 5,
+            "timestamp": "2025-10-17T15:34:45.426426"
+          },
+          "message": "获取RBAC状态成功"
+        },
+        "error": null
+      },
+      {
+        "category": "User Management",
+        "endpoint": "/api/v1/users/me",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "email": "admin@gmail.com",
+            "id": "36712aa3b36740958c08fb94d2309d8b",
+            "role": "super_admin",
+            "roles": [
+              "admin",
+              "super_admin"
+            ],
+            "username": "系统管理员"
+          },
+          "message": "获取用户信息成功"
+        },
+        "error": null
+      },
+      {
+        "category": "User Management",
+        "endpoint": "/api/v1/users",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "list": [
+              {
+                "createTime": "2025-10-17 09:38:08",
+                "email": "1@qq.com",
+                "id": "ef04b268aaf911f09a8966fc51ac58de",
+                "updateTime": "2025-10-17 12:54:39",
+                "username": "1"
+              },
+              {
+                "createTime": "2025-10-17 13:02:22",
+                "email": "test_user_1760677342@test.com",
+                "id": "771585c6ab1611f08adb66fc51ac58de",
+                "updateTime": "2025-10-17 13:02:22",
+                "username": "test_user"
+              },
+              {
+                "createTime": "2025-10-17 13:16:11",
+                "email": "test_user_1760678171@test.com",
+                "id": "65726152ab1811f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 13:16:11",
+                "username": "test_user"
+              },
+              {
+                "createTime": "2025-10-17 12:54:01",
+                "email": "3@qq.com",
+                "id": "4c34cf02ab1511f08adb66fc51ac58de",
+                "updateTime": "2025-10-17 12:54:25",
+                "username": "3"
+              },
+              {
+                "createTime": "2025-10-17 13:15:10",
+                "email": "test_user_1760678110@test.com",
+                "id": "4106dd34ab1811f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 13:15:10",
+                "username": "test_user"
+              },
+              {
+                "createTime": "2025-10-03 15:11:25",
+                "email": "admin@gmail.com",
+                "id": "36712aa3b36740958c08fb94d2309d8b",
+                "updateTime": "2025-10-17 12:54:43",
+                "username": "系统管理员"
+              },
+              {
+                "createTime": "2025-10-17 09:40:04",
+                "email": "2@qq.com",
+                "id": "341d1b2eaafa11f09a8966fc51ac58de",
+                "updateTime": "2025-10-17 09:46:23",
+                "username": "2"
+              },
+              {
+                "createTime": "2025-10-17 13:28:26",
+                "email": "test_user_1760678905@test.com",
+                "id": "1b272b80ab1a11f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 13:28:26",
+                "username": "test_user"
+              },
+              {
+                "createTime": "2025-10-17 13:06:49",
+                "email": "test_user_1760677608@test.com",
+                "id": "15ea8cf0ab1711f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 13:06:49",
+                "username": "test_user"
+              }
+            ],
+            "total": 9
+          },
+          "message": "获取用户列表成功"
+        },
+        "error": null
+      },
+      {
+        "category": "User Management",
+        "endpoint": "/api/v1/users/assignable",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "list": [
+              {
+                "createTime": "2025-10-17 09:38:08",
+                "email": "1@qq.com",
+                "id": "ef04b268aaf911f09a8966fc51ac58de",
+                "updateTime": "2025-10-17 12:54:39",
+                "username": "1"
+              },
+              {
+                "createTime": "2025-10-17 13:02:22",
+                "email": "test_user_1760677342@test.com",
+                "id": "771585c6ab1611f08adb66fc51ac58de",
+                "updateTime": "2025-10-17 13:02:22",
+                "username": "test_user"
+              },
+              {
+                "createTime": "2025-10-17 13:16:11",
+                "email": "test_user_1760678171@test.com",
+                "id": "65726152ab1811f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 13:16:11",
+                "username": "test_user"
+              },
+              {
+                "createTime": "2025-10-17 12:54:01",
+                "email": "3@qq.com",
+                "id": "4c34cf02ab1511f08adb66fc51ac58de",
+                "updateTime": "2025-10-17 12:54:25",
+                "username": "3"
+              },
+              {
+                "createTime": "2025-10-17 13:15:10",
+                "email": "test_user_1760678110@test.com",
+                "id": "4106dd34ab1811f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 13:15:10",
+                "username": "test_user"
+              },
+              {
+                "createTime": "2025-10-17 09:40:04",
+                "email": "2@qq.com",
+                "id": "341d1b2eaafa11f09a8966fc51ac58de",
+                "updateTime": "2025-10-17 09:46:23",
+                "username": "2"
+              },
+              {
+                "createTime": "2025-10-17 13:28:26",
+                "email": "test_user_1760678905@test.com",
+                "id": "1b272b80ab1a11f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 13:28:26",
+                "username": "test_user"
+              },
+              {
+                "createTime": "2025-10-17 13:06:49",
+                "email": "test_user_1760677608@test.com",
+                "id": "15ea8cf0ab1711f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 13:06:49",
+                "username": "test_user"
+              }
+            ],
+            "total": 8
+          },
+          "message": "获取可分配权限用户列表成功"
+        },
+        "error": null
+      },
+      {
+        "category": "User Management",
+        "endpoint": "/api/v1/users",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "username": "test_user",
+          "email": "test_user_1760686485@test.com",
+          "password": "Test@123456"
+        },
+        "response": {
+          "code": 0,
+          "message": "用户创建成功"
+        },
+        "error": null
+      },
+      {
+        "category": "User Management",
+        "endpoint": "/api/v1/users/69736c5e723611efb51b0242ac120007",
+        "method": "PUT",
+        "status": "SUCCESS",
+        "request": {
+          "nickname": "Updated Test User"
+        },
+        "response": {
+          "code": 0,
+          "message": "用户更新成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "name": "test_kb_1760686485",
+          "description": "Test KB for API testing",
+          "embedding_model": "BAAI/bge-m3",
+          "chunk_method": "smart",
+          "parser_config": {
+            "layout_recognize": "mineru",
+            "chunk_token_num": 256
+          }
+        },
+        "response": {
+          "code": 0,
+          "data": {
+            "avatar": null,
+            "create_date": "2025-10-17 15:34:46",
+            "description": "Test KB for API testing",
+            "doc_num": 0,
+            "id": "c14e7ec6ab2b11f09b2b66fc51ac58de",
+            "name": "test_kb_1760686485",
+            "update_date": "Fri, 17 Oct 2025 15:34:46 GMT"
+          },
+          "message": "创建成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "list": [
+              {
+                "create_date": "2025-10-17 15:34:46",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "Test KB for API testing",
+                "doc_num": 0,
+                "id": "c14e7ec6ab2b11f09b2b66fc51ac58de",
+                "language": "Chinese",
+                "name": "test_kb_1760686485",
+                "parser_id": "smart",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 0,
+                  "user_count": 0
+                },
+                "update_date": "Fri, 17 Oct 2025 15:34:46 GMT"
+              },
+              {
+                "create_date": "2025-10-17 13:44:54",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "API test dataset",
+                "doc_num": 0,
+                "id": "68346af8ab1c11f082fa66fc51ac58de",
+                "language": "English",
+                "name": "test_dataset_1760679894",
+                "parser_id": "naive",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 0,
+                  "user_count": 0
+                },
+                "update_date": "Fri, 17 Oct 2025 13:44:54 GMT"
+              },
+              {
+                "create_date": "2025-10-17 13:31:54",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "Updated at 1760679894",
+                "doc_num": 0,
+                "id": "974fa87cab1a11f082fa66fc51ac58de",
+                "language": "English",
+                "name": "Updated Test Dataset 1760679114",
+                "parser_id": "naive",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 0,
+                  "user_count": 0
+                },
+                "update_date": "Fri, 17 Oct 2025 13:44:54 GMT"
+              },
+              {
+                "create_date": "2025-10-17 13:28:26",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "Updated KB description",
+                "doc_num": 0,
+                "id": "1b5afb4aab1a11f0bcd566fc51ac58de",
+                "language": "Chinese",
+                "name": "test_kb_1760678905",
+                "parser_id": "smart",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 0,
+                  "user_count": 0
+                },
+                "update_date": "Fri, 17 Oct 2025 13:28:26 GMT"
+              },
+              {
+                "create_date": "2025-10-17 13:16:12",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "Updated KB description",
+                "doc_num": 0,
+                "id": "65ae3b3cab1811f0bcd566fc51ac58de",
+                "language": "Chinese",
+                "name": "test_kb_1760678171",
+                "parser_id": "smart",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 0,
+                  "user_count": 0
+                },
+                "update_date": "Fri, 17 Oct 2025 13:16:12 GMT"
+              },
+              {
+                "create_date": "2025-10-17 13:15:11",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "Updated KB description",
+                "doc_num": 0,
+                "id": "41afea64ab1811f0bcd566fc51ac58de",
+                "language": "Chinese",
+                "name": "test_kb_1760678110",
+                "parser_id": "smart",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 0,
+                  "user_count": 0
+                },
+                "update_date": "Fri, 17 Oct 2025 13:15:12 GMT"
+              },
+              {
+                "create_date": "2025-10-17 13:06:49",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "Updated KB description",
+                "doc_num": 0,
+                "id": "162e968eab1711f0bcd566fc51ac58de",
+                "language": "Chinese",
+                "name": "test_kb_1760677608",
+                "parser_id": "smart",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 0,
+                  "user_count": 0
+                },
+                "update_date": "Fri, 17 Oct 2025 13:06:49 GMT"
+              },
+              {
+                "create_date": "2025-10-17 13:02:22",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "Updated KB description",
+                "doc_num": 0,
+                "id": "7751194cab1611f08adb66fc51ac58de",
+                "language": "Chinese",
+                "name": "test_kb_1760677342",
+                "parser_id": "smart",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 0,
+                  "user_count": 0
+                },
+                "update_date": "Fri, 17 Oct 2025 13:02:22 GMT"
+              },
+              {
+                "create_date": "2025-10-17 12:54:40",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "Updated KB description",
+                "doc_num": 0,
+                "id": "63cef6baab1511f08adb66fc51ac58de",
+                "language": "Chinese",
+                "name": "test_kb_1760676879",
+                "parser_id": "smart",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 0,
+                  "user_count": 0
+                },
+                "update_date": "Fri, 17 Oct 2025 12:54:40 GMT"
+              },
+              {
+                "create_date": "2025-10-17 12:53:49",
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "description": "暂无描述",
+                "doc_num": 0,
+                "id": "4570e714ab1511f08adb66fc51ac58de",
+                "language": "Chinese",
+                "name": "344",
+                "parser_id": "smart",
+                "permission": "me",
+                "permission_stats": {
+                  "team_count": 0,
+                  "total_count": 1,
+                  "user_count": 1
+                },
+                "update_date": "Fri, 17 Oct 2025 12:53:49 GMT"
+              }
+            ],
+            "total": 11
+          },
+          "message": "操作成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases/c14e7ec6ab2b11f09b2b66fc51ac58de",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "avatar": null,
+            "create_date": "2025-10-17 15:34:46",
+            "description": "Test KB for API testing",
+            "doc_num": 0,
+            "id": "c14e7ec6ab2b11f09b2b66fc51ac58de",
+            "name": "test_kb_1760686485",
+            "update_date": "Fri, 17 Oct 2025 15:34:46 GMT"
+          },
+          "message": "操作成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases/c14e7ec6ab2b11f09b2b66fc51ac58de",
+        "method": "PUT",
+        "status": "SUCCESS",
+        "request": {
+          "description": "Updated KB description"
+        },
+        "response": {
+          "code": 0,
+          "data": {
+            "avatar": null,
+            "create_date": "2025-10-17 15:34:46",
+            "description": "Updated KB description",
+            "doc_num": 0,
+            "id": "c14e7ec6ab2b11f09b2b66fc51ac58de",
+            "name": "test_kb_1760686485",
+            "update_date": "Fri, 17 Oct 2025 15:34:46 GMT"
+          },
+          "message": "操作成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases/c14e7ec6ab2b11f09b2b66fc51ac58de/permissions",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "permissions": [],
+            "team_permissions": [],
+            "total": 0,
+            "user_permissions": []
+          },
+          "message": "操作成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases/c14e7ec6ab2b11f09b2b66fc51ac58de/permissions/users",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "user_id": "69736c5e723611efb51b0242ac120007",
+          "permission_level": "read"
+        },
+        "response": {
+          "code": 0,
+          "data": {
+            "message": "成功为用户授予read权限"
+          },
+          "message": "权限授予成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases/c14e7ec6ab2b11f09b2b66fc51ac58de/permissions/check",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "user_id": "69736c5e723611efb51b0242ac120007",
+          "permission_type": "read"
+        },
+        "response": {
+          "code": 0,
+          "data": {
+            "granted_roles": [
+              "查看者"
+            ],
+            "has_permission": true,
+            "permission_type": "read",
+            "reason": "角色权限授权",
+            "resource_id": "c14e7ec6ab2b11f09b2b66fc51ac58de",
+            "user_id": "69736c5e723611efb51b0242ac120007"
+          },
+          "message": "操作成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases/c14e7ec6ab2b11f09b2b66fc51ac58de/documents",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "list": [],
+            "total": 0
+          },
+          "message": "操作成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases/system_embedding_config",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "api_base": "https://api.siliconflow.cn/v1/embeddings",
+            "api_key": "sk-quulryophlvgbwggvbdeleiitkquijtquysdjyqgmkzhfqtj",
+            "llm_name": "Qwen/Qwen3-Embedding-8B"
+          },
+          "message": "操作成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Knowledgebase Management",
+        "endpoint": "/api/v1/knowledgebases/c14e7ec6ab2b11f09b2b66fc51ac58de/permissions/users/69736c5e723611efb51b0242ac120007",
+        "method": "DELETE",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "message": "成功撤销3个权限"
+          },
+          "message": "权限撤销成功"
+        },
+        "error": null
+      },
+      {
+        "category": "File Management",
+        "endpoint": "/api/v1/files",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "list": [
+              {
+                "create_time": 1760665947538,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "ef376b0caafb11f082fa66fc51ac58de",
+                "location": "艾瑞咨询：2024年中国微短剧行业研究报告_加水印.pdf",
+                "name": "艾瑞咨询：2024年中国微短剧行业研究报告_加水印.pdf",
+                "parent_id": "ee891520aafb11f082fa66fc51ac58de",
+                "size": 2878438,
+                "source_type": "knowledgebase",
+                "type": "pdf"
+              },
+              {
+                "create_time": 1760606885310,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "6b62938aaa7211f0ab1a66fc51ac58de",
+                "location": "福建省交通运输厅关于印发《福建省普通国省道多功能交通调查站布局和建设方案》的通知.pdf",
+                "name": "福建省交通运输厅关于印发《福建省普通国省道多功能交通调查站布局和建设方案》的通知.pdf",
+                "parent_id": "cbde082caa5c11f09dc866fc51ac58de",
+                "size": 169100,
+                "source_type": "knowledgebase",
+                "type": "pdf"
+              },
+              {
+                "create_time": 1760597598325,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "cbe92eaaaa5c11f09dc866fc51ac58de",
+                "location": "副本2024年机电、运输管理制度汇编.doc",
+                "name": "副本2024年机电、运输管理制度汇编.doc",
+                "parent_id": "cbde082caa5c11f09dc866fc51ac58de",
+                "size": 136192,
+                "source_type": "knowledgebase",
+                "type": "doc"
+              },
+              {
+                "create_time": 1760523716709,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "c7091b36a9b011f0ae6d66fc51ac58de",
+                "location": "2024年机电、运输管理制度汇编.doc",
+                "name": "2024年机电、运输管理制度汇编.doc",
+                "parent_id": "a8f6b532a03611f080f766fc51ac58de",
+                "size": 1094820,
+                "source_type": "knowledgebase",
+                "type": "doc"
+              },
+              {
+                "create_time": 1760511170958,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "912f7acca99311f098e766fc51ac58de",
+                "location": "TWEPP2019_010 (1).pdf",
+                "name": "TWEPP2019_010 (1).pdf",
+                "parent_id": "a8f6b532a03611f080f766fc51ac58de",
+                "size": 499780,
+                "source_type": "knowledgebase",
+                "type": "pdf"
+              },
+              {
+                "create_time": 1760440075220,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "08d2df16a8ee11f099bb66fc51ac58de",
+                "location": "艾瑞咨询：2024年中国微短剧行业研究报告_加水印.pdf",
+                "name": "艾瑞咨询：2024年中国微短剧行业研究报告_加水印.pdf",
+                "parent_id": "a8f6b532a03611f080f766fc51ac58de",
+                "size": 2878438,
+                "source_type": "knowledgebase",
+                "type": "pdf"
+              },
+              {
+                "create_time": 1760413510166,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "2ed15668a8b011f0a69d66fc51ac58de",
+                "location": "F-CM324C.pdf",
+                "name": "F-CM324C.pdf",
+                "parent_id": "2e8af9caa8b011f0a69d66fc51ac58de",
+                "size": 4971386,
+                "source_type": "knowledgebase",
+                "type": "pdf"
+              },
+              {
+                "create_time": 1760341465758,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "710100f4a80811f0b13766fc51ac58de",
+                "location": "艾瑞咨询：2024年中国微短剧行业研究报告.pdf",
+                "name": "艾瑞咨询：2024年中国微短剧行业研究报告.pdf",
+                "parent_id": "a3d08306a5c411f0a6f466fc51ac58de",
+                "size": 2826023,
+                "source_type": "knowledgebase",
+                "type": "pdf"
+              },
+              {
+                "create_time": 1760092442977,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "a3dc2b8ea5c411f0a6f466fc51ac58de",
+                "location": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
+                "name": "0716神策 SDK 产品授权及技术服务合同(订阅制） (1).docx",
+                "parent_id": "a3d08306a5c411f0a6f466fc51ac58de",
+                "size": 70627,
+                "source_type": "knowledgebase",
+                "type": "doc"
+              },
+              {
+                "create_time": 1760092255941,
+                "created_by": "36712aa3b36740958c08fb94d2309d8b",
+                "created_by_name": "系统管理员",
+                "id": "3460c1b6a5c411f0a6f466fc51ac58de",
+                "location": "副本KnowFlow 软件合同-0911.docx",
+                "name": "副本KnowFlow 软件合同-0911.docx",
+                "parent_id": "a8f6b532a03611f080f766fc51ac58de",
+                "size": 25853,
+                "source_type": "knowledgebase",
+                "type": "doc"
+              }
+            ],
+            "total": 21
+          },
+          "message": "获取文件列表成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Document Management",
+        "endpoint": "/api/v1/documents/c6db195ea4b811f097ee66fc51ac58df/chunking-config",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "chunking_config": {
+              "chunk_token_num": 512,
+              "min_chunk_tokens": 20,
+              "regex_pattern": "",
+              "strategy": "smart"
+            }
+          },
+          "message": "操作成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Document Management",
+        "endpoint": "/api/v1/documents/c6db195ea4b811f097ee66fc51ac58df/chunking-config",
+        "method": "PUT",
+        "status": "SUCCESS",
+        "request": {
+          "chunking_config": {
+            "strategy": "smart",
+            "chunk_token_num": 512,
+            "min_chunk_tokens": 20,
+            "regex_pattern": ""
+          }
+        },
+        "response": {
+          "code": 0,
+          "data": {
+            "message": "分块配置更新成功"
+          },
+          "message": "操作成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Team Management",
+        "endpoint": "/api/v1/teams",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "name": "test_team_1760686485",
+          "description": "Test team for API testing"
+        },
+        "response": {
+          "code": 0,
+          "data": {
+            "id": "c202f8b0ab2b11f09b2b66fc51ac58de"
+          },
+          "message": "团队创建成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Team Management",
+        "endpoint": "/api/v1/teams",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "list": [
+              {
+                "createTime": "2025-10-17 15:34:47",
+                "id": "c202f8b0ab2b11f09b2b66fc51ac58de",
+                "memberCount": 1,
+                "name": "test_team_1760686485",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:34:47"
+              },
+              {
+                "createTime": "2025-10-17 13:28:26",
+                "id": "1b9b41e6ab1a11f0bcd566fc51ac58de",
+                "memberCount": 1,
+                "name": "test_team_1760678905",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:07:36"
+              },
+              {
+                "createTime": "2025-10-17 13:16:12",
+                "id": "65e86618ab1811f0bcd566fc51ac58de",
+                "memberCount": 1,
+                "name": "test_team_1760678171",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:07:36"
+              },
+              {
+                "createTime": "2025-10-17 13:15:12",
+                "id": "42287c5eab1811f0bcd566fc51ac58de",
+                "memberCount": 1,
+                "name": "test_team_1760678110",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:07:36"
+              },
+              {
+                "createTime": "2025-10-17 13:06:50",
+                "id": "16a9f950ab1711f0bcd566fc51ac58de",
+                "memberCount": 1,
+                "name": "test_team_1760677608",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:07:36"
+              },
+              {
+                "createTime": "2025-10-17 13:02:23",
+                "id": "778bf454ab1611f08adb66fc51ac58de",
+                "memberCount": 2,
+                "name": "test_team_1760677342",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:07:36"
+              },
+              {
+                "createTime": "2025-10-17 12:54:41",
+                "id": "646149c0ab1511f08adb66fc51ac58de",
+                "memberCount": 1,
+                "name": "test_team_1760676879",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:07:36"
+              },
+              {
+                "createTime": "2025-10-17 12:51:53",
+                "id": "001a457aab1511f08adb66fc51ac58de",
+                "memberCount": 1,
+                "name": "test_team_1760676712",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:07:36"
+              },
+              {
+                "createTime": "2025-10-17 12:34:36",
+                "id": "95f9ff84ab1211f0851666fc51ac58de",
+                "memberCount": 1,
+                "name": "test_team_1760675675",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:07:36"
+              },
+              {
+                "createTime": "2025-10-17 12:33:24",
+                "id": "6b572612ab1211f0851666fc51ac58de",
+                "memberCount": 1,
+                "name": "test_team_1760675603",
+                "ownerName": "系统管理员",
+                "status": "1",
+                "updateTime": "2025-10-17 15:07:36"
+              }
+            ],
+            "total": 12
+          },
+          "message": "获取团队列表成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Team Management",
+        "endpoint": "/api/v1/teams/c202f8b0ab2b11f09b2b66fc51ac58de",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "createTime": "2025-10-17 15:34:47",
+            "credit": 0,
+            "id": "c202f8b0ab2b11f09b2b66fc51ac58de",
+            "name": "test_team_1760686485",
+            "status": "1",
+            "updateTime": "2025-10-17 15:34:47"
+          },
+          "message": "获取团队详情成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Team Management",
+        "endpoint": "/api/v1/teams/c202f8b0ab2b11f09b2b66fc51ac58de/members",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": [
+            {
+              "joinTime": "2025-10-17 15:34:47",
+              "role": "owner",
+              "userId": "36712aa3b36740958c08fb94d2309d8b",
+              "username": "系统管理员"
+            }
+          ],
+          "message": "获取团队成员成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Team Management",
+        "endpoint": "/api/v1/teams/c202f8b0ab2b11f09b2b66fc51ac58de/roles",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": [],
+          "message": "获取团队角色成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Team Management",
+        "endpoint": "/api/v1/users/me",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "email": "admin@gmail.com",
+            "id": "36712aa3b36740958c08fb94d2309d8b",
+            "role": "super_admin",
+            "roles": [
+              "admin",
+              "super_admin"
+            ],
+            "username": "系统管理员"
+          },
+          "message": "获取用户信息成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Team Management",
+        "endpoint": "/api/v1/teams/c202f8b0ab2b11f09b2b66fc51ac58de/roles",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "role_code": "editor",
+          "resource_type": "system",
+          "resource_id": null,
+          "tenant_id": "default",
+          "granted_by": "36712aa3b36740958c08fb94d2309d8b"
+        },
+        "response": {
+          "code": 0,
+          "message": "团队角色分配成功"
+        },
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/health",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "service": "RBAC权限管理系统",
+          "status": "healthy",
+          "timestamp": "2025-10-17T15:34:48.415800",
+          "version": "1.0.0"
+        },
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/roles",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "data": [
+            {
+              "code": "viewer",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "只能查看资源",
+              "id": 4,
+              "is_system": true,
+              "name": "查看者",
+              "role_type": "viewer",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            },
+            {
+              "code": "user",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "基础用户权限",
+              "id": 5,
+              "is_system": true,
+              "name": "用户",
+              "role_type": "user",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            },
+            {
+              "code": "admin",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "拥有租户内所有权限",
+              "id": 2,
+              "is_system": true,
+              "name": "管理员",
+              "role_type": "admin",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            },
+            {
+              "code": "editor",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "可以读取、编辑和分享资源",
+              "id": 3,
+              "is_system": true,
+              "name": "编辑者",
+              "role_type": "editor",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            },
+            {
+              "code": "super_admin",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "拥有系统所有权限",
+              "id": 1,
+              "is_system": true,
+              "name": "超级管理员",
+              "role_type": "super_admin",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            }
+          ],
+          "success": true,
+          "total": 5
+        },
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/assignable-roles",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "data": [
+            {
+              "code": "viewer",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "只能查看资源",
+              "id": 4,
+              "is_system": true,
+              "name": "查看者",
+              "role_type": "viewer",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            },
+            {
+              "code": "user",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "基础用户权限",
+              "id": 5,
+              "is_system": true,
+              "name": "用户",
+              "role_type": "user",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            },
+            {
+              "code": "admin",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "拥有租户内所有权限",
+              "id": 2,
+              "is_system": true,
+              "name": "管理员",
+              "role_type": "admin",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            },
+            {
+              "code": "editor",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "可以读取、编辑和分享资源",
+              "id": 3,
+              "is_system": true,
+              "name": "编辑者",
+              "role_type": "editor",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            },
+            {
+              "code": "super_admin",
+              "created_at": "2025-10-03T15:11:25",
+              "description": "拥有系统所有权限",
+              "id": 1,
+              "is_system": true,
+              "name": "超级管理员",
+              "role_type": "super_admin",
+              "tenant_id": null,
+              "updated_at": "2025-10-03T15:11:25"
+            }
+          ],
+          "success": true,
+          "total": 5
+        },
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/permissions",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": [
+          {
+            "code": "kb_read",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 1,
+            "name": "查看知识库",
+            "permission_type": "read",
+            "resource_type": "knowledgebase",
+            "updated_at": "2025-10-03T15:11:25"
+          },
+          {
+            "code": "kb_write",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 2,
+            "name": "编辑知识库",
+            "permission_type": "write",
+            "resource_type": "knowledgebase",
+            "updated_at": "2025-10-03T15:11:25"
+          },
+          {
+            "code": "kb_delete",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 3,
+            "name": "删除知识库",
+            "permission_type": "delete",
+            "resource_type": "knowledgebase",
+            "updated_at": "2025-10-03T15:11:25"
+          },
+          {
+            "code": "kb_admin",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 4,
+            "name": "管理知识库",
+            "permission_type": "admin",
+            "resource_type": "knowledgebase",
+            "updated_at": "2025-10-03T15:11:25"
+          },
+          {
+            "code": "kb_share",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 5,
+            "name": "分享知识库",
+            "permission_type": "share",
+            "resource_type": "knowledgebase",
+            "updated_at": "2025-10-03T15:11:25"
+          },
+          {
+            "code": "doc_read",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 6,
+            "name": "查看文档",
+            "permission_type": "read",
+            "resource_type": "document",
+            "updated_at": "2025-10-03T15:11:25"
+          },
+          {
+            "code": "doc_write",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 7,
+            "name": "编辑文档",
+            "permission_type": "write",
+            "resource_type": "document",
+            "updated_at": "2025-10-03T15:11:25"
+          },
+          {
+            "code": "doc_delete",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 8,
+            "name": "删除文档",
+            "permission_type": "delete",
+            "resource_type": "document",
+            "updated_at": "2025-10-03T15:11:25"
+          },
+          {
+            "code": "team_read",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 9,
+            "name": "查看团队",
+            "permission_type": "read",
+            "resource_type": "team",
+            "updated_at": "2025-10-03T15:11:25"
+          },
+          {
+            "code": "team_admin",
+            "created_at": "2025-10-03T15:11:25",
+            "description": "",
+            "id": 10,
+            "name": "管理团队",
+            "permission_type": "admin",
+            "resource_type": "team",
+            "updated_at": "2025-10-03T15:11:25"
+          }
+        ],
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/roles/admin/permissions",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": [
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "kb_read",
+            "permission_id": 1,
+            "permission_name": "查看知识库",
+            "permission_type": "read",
+            "resource_type": "knowledgebase",
+            "role_name": "管理员"
+          },
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "kb_write",
+            "permission_id": 2,
+            "permission_name": "编辑知识库",
+            "permission_type": "write",
+            "resource_type": "knowledgebase",
+            "role_name": "管理员"
+          },
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "kb_delete",
+            "permission_id": 3,
+            "permission_name": "删除知识库",
+            "permission_type": "delete",
+            "resource_type": "knowledgebase",
+            "role_name": "管理员"
+          },
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "kb_admin",
+            "permission_id": 4,
+            "permission_name": "管理知识库",
+            "permission_type": "admin",
+            "resource_type": "knowledgebase",
+            "role_name": "管理员"
+          },
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "kb_share",
+            "permission_id": 5,
+            "permission_name": "分享知识库",
+            "permission_type": "share",
+            "resource_type": "knowledgebase",
+            "role_name": "管理员"
+          },
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "doc_read",
+            "permission_id": 6,
+            "permission_name": "查看文档",
+            "permission_type": "read",
+            "resource_type": "document",
+            "role_name": "管理员"
+          },
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "doc_write",
+            "permission_id": 7,
+            "permission_name": "编辑文档",
+            "permission_type": "write",
+            "resource_type": "document",
+            "role_name": "管理员"
+          },
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "doc_delete",
+            "permission_id": 8,
+            "permission_name": "删除文档",
+            "permission_type": "delete",
+            "resource_type": "document",
+            "role_name": "管理员"
+          },
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "team_read",
+            "permission_id": 9,
+            "permission_name": "查看团队",
+            "permission_type": "read",
+            "resource_type": "team",
+            "role_name": "管理员"
+          },
+          {
+            "description": "",
+            "granted_at": "2025-10-03T15:11:25",
+            "permission_code": "team_admin",
+            "permission_id": 10,
+            "permission_name": "管理团队",
+            "permission_type": "admin",
+            "resource_type": "team",
+            "role_name": "管理员"
+          }
+        ],
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/permissions/check",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "user_id": "69736c5e723611efb51b0242ac120007",
+          "resource_type": "knowledgebase",
+          "resource_id": "c14e7ec6ab2b11f09b2b66fc51ac58de",
+          "permission_type": "read",
+          "tenant_id": "default"
+        },
+        "response": {
+          "granted_roles": [],
+          "has_permission": false,
+          "permission_type": "read",
+          "reason": "无相关权限",
+          "resource_id": "c14e7ec6ab2b11f09b2b66fc51ac58de",
+          "resource_type": "knowledgebase",
+          "user_id": "69736c5e723611efb51b0242ac120007"
+        },
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/permissions/batch-check",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "user_id": "69736c5e723611efb51b0242ac120007",
+          "resource_type": "knowledgebase",
+          "resource_ids": [
+            "c14e7ec6ab2b11f09b2b66fc51ac58de"
+          ],
+          "permission_type": "read",
+          "tenant_id": "default"
+        },
+        "response": {
+          "permissions": {
+            "c14e7ec6ab2b11f09b2b66fc51ac58de": false
+          }
+        },
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/permissions/simple-check",
+        "method": "POST",
+        "status": "SUCCESS",
+        "request": {
+          "user_id": "69736c5e723611efb51b0242ac120007",
+          "permission_code": "kb:read"
+        },
+        "response": {
+          "has_permission": false,
+          "permission_code": "kb:read",
+          "resource_id": null,
+          "tenant_id": "default",
+          "user_id": "69736c5e723611efb51b0242ac120007"
+        },
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/users/69736c5e723611efb51b0242ac120007/roles",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "roles": [],
+          "total": 0,
+          "user_id": "69736c5e723611efb51b0242ac120007"
+        },
+        "error": null
+      },
+      {
+        "category": "RBAC Management",
+        "endpoint": "/api/v1/rbac/users/69736c5e723611efb51b0242ac120007/permissions",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "permissions": [],
+          "resource_type_filter": null,
+          "total": 0,
+          "user_id": "69736c5e723611efb51b0242ac120007"
+        },
+        "error": null
+      },
+      {
+        "category": "Tenant Management",
+        "endpoint": "/api/v1/tenants",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "list": [
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-17 15:34:45",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "c0e6bd5eab2b11f09b2b66fc51ac58de",
+                "updateTime": "2025-10-17 15:34:45",
+                "username": "test_user"
+              },
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-17 13:28:26",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "1b272b80ab1a11f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 15:07:36",
+                "username": "test_user"
+              },
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-17 13:16:11",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "65726152ab1811f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 15:07:36",
+                "username": "test_user"
+              },
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-17 13:15:10",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "4106dd34ab1811f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 15:07:36",
+                "username": "test_user"
+              },
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-17 13:06:49",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "15ea8cf0ab1711f0bcd566fc51ac58de",
+                "updateTime": "2025-10-17 15:07:36",
+                "username": "test_user"
+              },
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-17 13:02:22",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "771585c6ab1611f08adb66fc51ac58de",
+                "updateTime": "2025-10-17 15:07:36",
+                "username": "test_user"
+              },
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-17 12:54:01",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "4c34cf02ab1511f08adb66fc51ac58de",
+                "updateTime": "2025-10-17 15:07:36",
+                "username": "3"
+              },
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-17 09:40:04",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "341d1b2eaafa11f09a8966fc51ac58de",
+                "updateTime": "2025-10-17 15:07:36",
+                "username": "2"
+              },
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-17 09:38:08",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "ef04b268aaf911f09a8966fc51ac58de",
+                "updateTime": "2025-10-17 15:07:36",
+                "username": "1"
+              },
+              {
+                "chatModel": "Qwen/Qwen3-32B@SILICONFLOW",
+                "createTime": "2025-10-03 15:11:25",
+                "embeddingModel": "BAAI/bge-m3@SILICONFLOW",
+                "id": "36712aa3b36740958c08fb94d2309d8b",
+                "updateTime": "2025-10-17 15:07:36",
+                "username": "系统管理员"
+              }
+            ],
+            "total": 10
+          },
+          "message": "获取租户列表成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Tenant Management",
+        "endpoint": "/api/v1/tenants/models",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "chat_models": [
+              "Qwen/Qwen3-32B@SILICONFLOW"
+            ],
+            "embedding_models": [
+              "BAAI/bge-m3@SILICONFLOW"
+            ]
+          },
+          "message": "获取已配置模型列表成功"
+        },
+        "error": null
+      },
+      {
+        "category": "Tenant Management",
+        "endpoint": "/api/v1/tenants/admin-defaults",
+        "method": "GET",
+        "status": "SUCCESS",
+        "request": null,
+        "response": {
+          "code": 0,
+          "data": {
+            "chat_model": "Qwen/Qwen3-32B@SILICONFLOW",
+            "embedding_model": "BAAI/bge-m3@SILICONFLOW"
+          },
+          "message": "获取管理员默认配置成功"
+        },
+        "error": null
+      }
+    ],
+    "summary": {
+      "total": 40,
+      "success": 40,
+      "failed": 0,
+      "skipped": 0,
+      "success_rate": 100.0,
+      "effective_success_rate": 100.0,
+      "by_category": {
+        "Authentication": {
+          "total": 2,
+          "success": 2,
+          "failed": 0,
+          "skipped": 0
+        },
+        "User Management": {
+          "total": 5,
+          "success": 5,
+          "failed": 0,
+          "skipped": 0
+        },
+        "Knowledgebase Management": {
+          "total": 10,
+          "success": 10,
+          "failed": 0,
+          "skipped": 0
+        },
+        "File Management": {
+          "total": 1,
+          "success": 1,
+          "failed": 0,
+          "skipped": 0
+        },
+        "Document Management": {
+          "total": 2,
+          "success": 2,
+          "failed": 0,
+          "skipped": 0
+        },
+        "Team Management": {
+          "total": 7,
+          "success": 7,
+          "failed": 0,
+          "skipped": 0
+        },
+        "RBAC Management": {
+          "total": 10,
+          "success": 10,
+          "failed": 0,
+          "skipped": 0
+        },
+        "Tenant Management": {
+          "total": 3,
+          "success": 3,
+          "failed": 0,
+          "skipped": 0
+        }
+      }
+    }
+  },
+  "overall_summary": {
+    "total": 77,
+    "success": 70,
+    "failed": 1,
+    "skipped": 6,
+    "success_rate": 90.91,
+    "effective_success_rate": 98.59,
+    "by_category": {
+      "Dataset Management": {
+        "total": 5,
+        "success": 5,
+        "failed": 0,
+        "skipped": 0
+      },
+      "Document Management": {
+        "total": 8,
+        "success": 7,
+        "failed": 1,
+        "skipped": 0
+      },
+      "Chunk Management": {
+        "total": 4,
+        "success": 3,
+        "failed": 0,
+        "skipped": 1
+      },
+      "Chat Assistant": {
+        "total": 5,
+        "success": 4,
+        "failed": 0,
+        "skipped": 1
+      },
+      "Session Management": {
+        "total": 4,
+        "success": 4,
+        "failed": 0,
+        "skipped": 0
+      },
+      "Agent Management": {
+        "total": 7,
+        "success": 4,
+        "failed": 0,
+        "skipped": 3
+      },
+      "Cleanup": {
+        "total": 6,
+        "success": 5,
+        "failed": 0,
+        "skipped": 1
+      },
+      "Authentication": {
+        "total": 2,
+        "success": 2,
+        "failed": 0,
+        "skipped": 0
+      },
+      "User Management": {
+        "total": 5,
+        "success": 5,
+        "failed": 0,
+        "skipped": 0
+      },
+      "Knowledgebase Management": {
+        "total": 10,
+        "success": 10,
+        "failed": 0,
+        "skipped": 0
+      },
+      "File Management": {
+        "total": 1,
+        "success": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "Team Management": {
+        "total": 7,
+        "success": 7,
+        "failed": 0,
+        "skipped": 0
+      },
+      "RBAC Management": {
+        "total": 10,
+        "success": 10,
+        "failed": 0,
+        "skipped": 0
+      },
+      "Tenant Management": {
+        "total": 3,
+        "success": 3,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "ragflow_count": 37,
+    "knowflow_count": 40
+  }
+}
