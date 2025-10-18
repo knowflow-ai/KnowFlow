@@ -1,9 +1,13 @@
+/* 导入设计 Tokens */
+@import './design-tokens.less';
+
+/* 兼容性变量 - 逐步迁移到 design-tokens.less */
 @header-height: 64px;
-@menu-width: 200px;
-@menu-small-width: 83px;
-@layout-bg: #f2f3f6;
-@logo-font-size: 22px;
-@border-color: #d9d9d9;
-@dashboard-desc-color: #9d9fa2;
-@primary-color: #338aff;
-@primary-color-light: rgba(21, 65, 255, 0.5);
+@menu-width: 150px;
+@menu-small-width: 80px;
+@layout-bg: @neutral-50;
+@logo-font-size: 20px;
+@border-color: @color-border-default;
+@dashboard-desc-color: @color-text-tertiary;
+@primary-color: @brand-primary-500;
+@primary-color-light: @brand-primary-200;

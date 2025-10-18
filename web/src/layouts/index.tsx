@@ -10,24 +10,16 @@ const { Content, Sider } = Layout;
 
 const App: React.FC = () => {
   const {
-    token: { colorBgContainer, borderRadiusLG },
+    token: { colorBgContainer },
   } = theme.useToken();
 
   return (
     <Layout className={styles.layout}>
-      <Sider width="88px" className={styles.siderStyle}>
+      <Sider width="150px" className={styles.siderStyle}>
         <Header></Header>
       </Sider>
-      <Layout>
-        <Content
-          style={{
-            minHeight: 280,
-            background: colorBgContainer,
-            borderRadius: borderRadiusLG,
-            overflow: 'auto',
-            display: 'flex',
-          }}
-        >
+      <Layout className={styles.mainLayout}>
+        <Content className={styles.contentStyle}>
           <Outlet />
         </Content>
       </Layout>

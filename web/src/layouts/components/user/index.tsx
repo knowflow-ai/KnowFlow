@@ -1,27 +1,32 @@
-import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
-import { Avatar } from 'antd';
+import { ReactComponent as Setting } from '@/assets/svg/leftBar/setting.svg';
+import { ReactComponent as SettingActive } from '@/assets/svg/leftBar/settingActive.svg';
 import React from 'react';
-import { history } from 'umi';
+import { history, useLocation } from 'umi';
 
-import styles from '../../index.less';
+import styles from '../header/index.less';
 
 const App: React.FC = () => {
-  const { data: userInfo } = useFetchUserInfo();
+  const { pathname } = useLocation();
+  const isActive = pathname.startsWith('/user-setting');
 
   const toSetting = () => {
     history.push('/user-setting');
   };
 
   return (
-    <Avatar
-      size={32}
+    <div
+      className={isActive ? styles.ragItemActive : styles.ragItem}
       onClick={toSetting}
-      className={styles.clickAvailable}
-      src={
-        userInfo.avatar ??
-        'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png'
-      }
-    />
+    >
+      <a>
+        {isActive ? (
+          <SettingActive className={styles.radioButtonIcon}></SettingActive>
+        ) : (
+          <Setting className={styles.radioButtonIcon}></Setting>
+        )}
+        <div className={styles.ragText}>设置</div>
+      </a>
+    </div>
   );
 };
 

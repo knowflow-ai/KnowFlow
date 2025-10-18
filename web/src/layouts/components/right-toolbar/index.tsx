@@ -1,5 +1,5 @@
 import { useTranslate } from '@/hooks/common-hooks';
-import { MenuProps, Space } from 'antd';
+import { MenuProps } from 'antd';
 import React from 'react';
 import User from '../user';
 
@@ -59,28 +59,7 @@ const RightToolBar = () => {
 
   return (
     <div className={styled.toolbarWrapper}>
-      <Space wrap size={16} className={styled.content}>
-        {/* <Dropdown menu={{ items, onClick: handleItemClick }} placement="bottom">
-          <Space className={styled.language}>
-            <b>{t(camelCase(language))}</b>
-            <DownOutlined />
-          </Space>
-        </Dropdown> */}
-        {/* <Circle>
-          <GithubOutlined onClick={handleGithubCLick} />
-        </Circle>
-        <Circle>
-          <CircleHelp className="size-4" onClick={handleDocHelpCLick} />
-        </Circle> */}
-        {/* <Circle>
-          {theme === 'dark' ? (
-            <MoonIcon onClick={onMoonClick} size={20} />
-          ) : (
-            <SunIcon onClick={onSunClick} size={20} />
-          )}
-        </Circle> */}
-        <User></User>
-      </Space>
+      <User></User>
     </div>
   );
 };
