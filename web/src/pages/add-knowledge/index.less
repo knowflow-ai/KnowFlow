@@ -1,19 +1,23 @@
+@import '../../theme/design-tokens.less';
+
 .container {
   display: flex;
   height: 100%;
   width: 100%;
+
   .contentWrapper {
     flex: 1;
     overflow-x: auto;
     height: 100%;
-    background-color: #f8fafc;
-    padding: 16px 20px 28px 40px;
+    background-color: @neutral-50;
+    padding: @space-md @space-lg @space-xl @space-2xl;
     display: flex;
     flex-direction: column;
   }
+
   .content {
-    background-color: #f8fafc;
-    margin-top: 16px;
+    background-color: @neutral-50;
+    margin-top: @space-md;
     flex: 1;
   }
 }

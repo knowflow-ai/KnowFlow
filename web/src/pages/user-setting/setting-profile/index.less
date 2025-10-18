@@ -1,7 +1,88 @@
+@import '../../../theme/design-tokens.less';
+
 .profileWrapper {
   width: 100%;
+  max-width: 800px;
+
+  :global {
+    .ant-card {
+      border-radius: @radius-lg;
+      border: 1px solid @color-border-subtle;
+      box-shadow: @shadow-xs;
+      margin-bottom: @space-lg;
+
+      .ant-card-head {
+        background: @color-bg-secondary;
+        border-bottom: 1px solid @color-border-default;
+        font-weight: @font-weight-semibold;
+        color: @color-text-primary;
+      }
+
+      .ant-card-body {
+        padding: @space-lg;
+      }
+    }
+
+    .ant-form-item-label > label {
+      color: @color-text-primary;
+      font-weight: @font-weight-medium;
+    }
+
+    .ant-input,
+    .ant-input-password {
+      border-radius: @radius-md;
+      border: 1px solid @color-border-default;
+      transition: all @transition-base;
+
+      &:hover {
+        border-color: @brand-primary-400;
+      }
+
+      &:focus,
+      &.ant-input-focused {
+        border-color: @brand-primary-500;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+      }
+    }
+
+    .ant-btn-primary {
+      background: @brand-primary-500;
+      border-color: @brand-primary-500;
+      border-radius: @radius-md;
+      transition: all @transition-base;
+
+      &:hover {
+        background: @brand-primary-600;
+        border-color: @brand-primary-600;
+      }
+    }
+
+    .ant-btn-default {
+      border-radius: @radius-md;
+      transition: all @transition-base;
+
+      &:hover {
+        border-color: @brand-primary-500;
+        color: @brand-primary-500;
+      }
+    }
+
+    .ant-upload {
+      .ant-btn {
+        border-radius: @radius-md;
+      }
+    }
+
+    .ant-avatar {
+      border: 2px solid @color-border-default;
+    }
+  }
+
   .emailDescription {
-    padding: 10px 0;
+    padding: @space-sm 0;
     margin: 0;
+    color: @color-text-secondary;
+    font-size: @font-size-sm;
+    line-height: @line-height-normal;
   }
 }

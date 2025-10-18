@@ -1,7 +1,9 @@
+@import '../../../../../theme/design-tokens.less';
+
 .testingResultWrapper {
   flex: 1;
-  background-color: rgba(255, 255, 255, 0.1);
-  padding: 30px 20px;
+  background-color: @color-bg-primary;
+  padding: @space-xl @space-lg;
   overflow: auto;
   height: calc(100vh - 160px);
   display: flex;
@@ -9,37 +11,62 @@
   justify-content: space-between;
 
   .selectFilesCollapse {
-    :global(.ant-collapse-header) {
-      padding-left: 22px;
-    }
-    margin-bottom: 32px;
+    margin-bottom: @space-xl;
     overflow-y: auto;
+    background: @color-bg-primary;
+    border: 1px solid @color-border-default;
+    border-radius: @radius-md;
+
+    :global(.ant-collapse-header) {
+      padding-left: @space-lg;
+      background: @color-bg-secondary;
+      font-weight: @font-weight-medium;
+      color: @color-text-primary;
+    }
+
+    :global(.ant-collapse-content) {
+      background: @color-bg-primary;
+      border-top: 1px solid @color-border-default;
+    }
   }
 
   .selectFilesTitle {
-    padding-right: 10px;
+    padding-right: @space-sm;
+    font-size: @font-size-md;
+    font-weight: @font-weight-medium;
+    color: @color-text-primary;
   }
 
   .similarityCircle {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.1);
-    font-size: 10px;
-    font-weight: normal;
+    background: @brand-primary-100;
+    color: @brand-primary-600;
+    font-size: @font-size-xs;
+    font-weight: @font-weight-semibold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .similarityText {
-    font-size: 12px;
-    font-weight: 500;
+    font-size: @font-size-sm;
+    font-weight: @font-weight-medium;
+    color: @color-text-secondary;
   }
+
   .image {
     width: 100px;
     object-fit: contain;
+    border-radius: @radius-sm;
+    border: 1px solid @color-border-subtle;
   }
 }
+
 .imagePreview {
   display: block;
   max-width: 45vw;
   max-height: 40vh;
+  border-radius: @radius-md;
 }

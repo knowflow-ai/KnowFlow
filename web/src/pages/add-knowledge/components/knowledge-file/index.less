@@ -1,21 +1,48 @@
+@import '../../../../theme/design-tokens.less';
+
 .datasetWrapper {
-  padding: 30px 30px 0;
+  padding: @space-xl @space-xl 0;
   height: 100%;
+  background: @color-bg-primary;
+  border-radius: @radius-lg;
 }
 
 .documentTable {
   tbody {
-    // height: calc(100vh - 508px);
+  }
+
+  :global {
+    .ant-table {
+      background: @color-bg-primary;
+    }
+
+    .ant-table-thead > tr > th {
+      background: @color-bg-secondary;
+      color: @color-text-secondary;
+      font-weight: @font-weight-semibold;
+      border-bottom: 2px solid @color-border-default;
+    }
+
+    .ant-table-tbody > tr {
+      &:hover > td {
+        background: @color-bg-hover;
+      }
+    }
+
+    .ant-table-tbody > tr > td {
+      border-bottom: 1px solid @color-border-subtle;
+    }
   }
 }
 
 .filter {
-  height: 32px;
+  height: auto;
   display: flex;
-  margin: 10px 0;
+  margin: @space-sm 0;
   justify-content: space-between;
-  padding: 24px 0;
+  padding: @space-lg 0;
   align-items: center;
+  border-bottom: 1px solid @color-border-default;
 }
 
 .deleteIconWrapper {
@@ -36,6 +63,12 @@
 
 .toChunks {
   cursor: pointer;
+  color: @brand-primary-600;
+  transition: color @transition-base;
+
+  &:hover {
+    color: @brand-primary-700;
+  }
 }
 
 .pageInputNumber {
@@ -43,12 +76,19 @@
 }
 
 .questionIcon {
-  margin-inline-start: 4px;
-  color: rgba(0, 0, 0, 0.45);
+  margin-inline-start: @space-xs;
+  color: @color-text-tertiary;
   cursor: help;
   writing-mode: horizontal-tb;
 }
 
 .nameText {
-  color: #1677ff;
+  color: @brand-primary-600;
+  font-weight: @font-weight-medium;
+  cursor: pointer;
+  transition: color @transition-base;
+
+  &:hover {
+    color: @brand-primary-700;
+  }
 }

@@ -6,8 +6,11 @@ import styles from './index.less';
 
 const UserSetting = () => {
   return (
-    <Flex className={styles.settingWrapper} style={{ padding: '20px' }}>
-      <SideBar></SideBar>
+    <Flex className={styles.settingWrapper}>
+      <div className={styles.sidebarSection}>
+        <SideBar></SideBar>
+      </div>
+      <div className={styles.divider}></div>
       <Flex flex={1} className={styles.outletWrapper}>
         <Outlet></Outlet>
       </Flex>

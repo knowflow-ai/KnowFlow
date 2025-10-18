@@ -1,3 +1,5 @@
+@import '../../../../theme/design-tokens.less';
+
 .userManagementWrapper {
   height: 100%;
   display: flex;
@@ -5,31 +7,106 @@
   width: 100%;
   max-width: none !important;
 
-  // 统一操作列样式 - 添加分割线
-  .ant-table {
-    .ant-table-tbody > tr > td:last-child {
-      text-align: right;
-      position: relative;
+  :global {
+    .ant-table {
+      background: @color-bg-primary;
 
-      &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        height: 20px;
-        width: 1px;
-        background-color: #f0f0f0;
+      .ant-table-thead > tr > th {
+        background: @color-bg-secondary;
+        color: @color-text-secondary;
+        font-weight: @font-weight-semibold;
+        border-bottom: 2px solid @color-border-default;
+      }
+
+      .ant-table-tbody > tr {
+        &:hover > td {
+          background: @color-bg-hover;
+        }
+
+        > td {
+          border-bottom: 1px solid @color-border-subtle;
+
+          &:last-child {
+            text-align: right;
+            position: relative;
+
+            &::before {
+              content: '';
+              position: absolute;
+              left: 0;
+              top: 50%;
+              transform: translateY(-50%);
+              height: 20px;
+              width: 1px;
+              background-color: @color-border-default;
+            }
+          }
+        }
+      }
+    }
+
+    .ant-tag {
+      border-radius: @radius-sm;
+      border: 1px solid @color-border-subtle;
+      padding: 2px @space-sm;
+      font-size: @font-size-xs;
+
+      &.ant-tag-success {
+        background: @brand-primary-50;
+        border-color: @brand-primary-200;
+        color: @brand-primary-700;
       }
     }
   }
 }
 
 .searchCard {
-  margin-bottom: 16px;
+  margin-bottom: @space-md;
+  border-radius: @radius-lg;
+  border: 1px solid @color-border-subtle;
+  box-shadow: @shadow-xs;
 
-  .ant-card-body {
-    padding: 8px;
+  :global(.ant-card-body) {
+    padding: @space-md @space-lg;
+  }
+
+  :global {
+    .ant-form-item-label > label {
+      color: @color-text-primary;
+      font-weight: @font-weight-medium;
+    }
+
+    .ant-input,
+    .ant-select-selector {
+      border-radius: @radius-md;
+      border: 1px solid @color-border-default;
+      transition: all @transition-base;
+
+      &:hover {
+        border-color: @brand-primary-400;
+      }
+
+      &:focus,
+      &.ant-select-focused .ant-select-selector {
+        border-color: @brand-primary-500;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+      }
+    }
+
+    .ant-btn {
+      border-radius: @radius-md;
+      transition: all @transition-base;
+    }
+
+    .ant-btn-primary {
+      background: @brand-primary-500;
+      border-color: @brand-primary-500;
+
+      &:hover {
+        background: @brand-primary-600;
+        border-color: @brand-primary-600;
+      }
+    }
   }
 }
 
@@ -37,12 +114,15 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  border-radius: @radius-lg;
+  border: 1px solid @color-border-subtle;
+  box-shadow: @shadow-xs;
 
-  .ant-card-body {
+  :global(.ant-card-body) {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 8px;
+    padding: @space-lg;
   }
 }
 
@@ -50,27 +130,41 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: @space-md;
+
+  :global {
+    .ant-btn-primary {
+      background: @brand-primary-500;
+      border-color: @brand-primary-500;
+      border-radius: @radius-md;
+      transition: all @transition-base;
+
+      &:hover {
+        background: @brand-primary-600;
+        border-color: @brand-primary-600;
+      }
+    }
+  }
 }
 
 .paginationWrapper {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  margin-top: @space-md;
+  padding-top: @space-md;
+  border-top: 1px solid @color-border-default;
 }
 
 @media (max-width: 768px) {
   .tableHeader {
     flex-direction: column;
-    gap: 16px;
+    gap: @space-md;
     align-items: stretch;
   }
 
-  .searchCard .ant-form {
-    .ant-form-item {
-      margin-bottom: 16px;
+  .searchCard :global(.ant-form) {
+    :global(.ant-form-item) {
+      margin-bottom: @space-md;
     }
   }
 
