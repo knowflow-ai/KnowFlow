@@ -71,20 +71,10 @@
     margin-bottom: @space-2xl;
     text-align: center;
 
-    span {
-      font-weight: @font-weight-medium;
-      font-size: @font-size-sm;
-      color: @color-text-secondary;
-      line-height: @line-height-normal;
-      display: block;
-      margin-top: @space-sm;
-    }
-
     .loginLogo {
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: @space-md;
 
       .logo {
         width: 48px;
@@ -94,11 +84,12 @@
         background-repeat: no-repeat;
         background-position: center;
         background-size: contain;
+        flex-shrink: 0;
       }
 
       .name {
         font-weight: @font-weight-bold;
-        font-size: 36px;
+        font-size: 32px;
         color: @brand-primary-600;
         line-height: 1.2;
         background: linear-gradient(
@@ -114,11 +105,11 @@
   }
 
   :global {
-    .ant-input,
-    .ant-input-password {
+    .ant-input {
       border-radius: @radius-md;
       border: 1px solid @color-border-default;
-      padding: @space-sm @space-md;
+      height: 48px;
+      padding: 0 @space-md;
       font-size: @font-size-md;
       transition: all @transition-base;
 
@@ -135,7 +126,10 @@
 
     .ant-input-affix-wrapper {
       border-radius: @radius-md;
-      padding: @space-xs @space-md;
+      height: 48px;
+      padding: 0 @space-md;
+      font-size: @font-size-md;
+      transition: all @transition-base;
 
       &:hover {
         border-color: @brand-primary-400;
@@ -144,6 +138,17 @@
       &.ant-input-affix-wrapper-focused {
         border-color: @brand-primary-500;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+
+      .ant-input {
+        height: 100%;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+
+        &:focus {
+          box-shadow: none;
+        }
       }
     }
 

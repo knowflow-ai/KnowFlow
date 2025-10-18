@@ -7,7 +7,7 @@
   /* 左侧助手列表区域 */
   .chatAppWrapper {
     width: 150px;
-    padding: @space-sm;
+    padding: @space-sm @space-md;
     background: @color-bg-primary;
     border-right: 1px solid @color-border-default;
     overflow-x: hidden;
@@ -33,9 +33,10 @@
       overflow: hidden;
       box-sizing: border-box;
       flex-shrink: 0;
+      margin-bottom: @space-xs;
 
       :global(.ant-card-body) {
-        padding: 6px;
+        padding: @space-xs;
         box-sizing: border-box;
         width: 100%;
         max-width: 100%;
