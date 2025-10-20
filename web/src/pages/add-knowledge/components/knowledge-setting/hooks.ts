@@ -11,6 +11,7 @@ import {
   getBase64FromUploadFileList,
   getUploadFileListFromBase64,
 } from '@/utils/file-util';
+import { filterParsersByLayoutRecognize } from '@/utils/parser-filter';
 import { useIsFetching } from '@tanstack/react-query';
 import { Form, UploadFile } from 'antd';
 import { FormInstance } from 'antd/lib';
@@ -51,10 +52,18 @@ export const useSubmitKnowledgeConfiguration = (form: FormInstance) => {
 // The value that does not need to be displayed in the analysis method Select
 const HiddenFields = ['email', 'picture', 'audio'];
 
-export function useSelectChunkMethodList() {
+export function useSelectChunkMethodList(layoutRecognize?: string) {
   const parserList = useSelectParserList();
 
-  return parserList.filter((x) => !HiddenFields.some((y) => y === x.value));
+  return parserList.filter((x) => {
+    // Filter out hidden fields
+    if (HiddenFields.some((y) => y === x.value)) {
+      return false;
+    }
+
+    // Filter by layout_recognize
+    return filterParsersByLayoutRecognize(x.value as string, layoutRecognize);
+  });
 }
 
 export function useSelectEmbeddingModelOptions() {

@@ -34,7 +34,13 @@ export const ChunkMethodItem = memo(function ChunkMethodItem() {
   const form = Form.useFormInstance();
   const handleChunkMethodSelectChange = useHandleChunkMethodSelectChange(form);
   const disabled = useHasParsedDocument();
-  const parserList = useSelectChunkMethodList();
+
+  // Watch layout_recognize value from parser_config
+  const layoutRecognize = Form.useWatch(
+    ['parser_config', 'layout_recognize'],
+    form,
+  );
+  const parserList = useSelectChunkMethodList(layoutRecognize);
 
   return (
     <Form.Item

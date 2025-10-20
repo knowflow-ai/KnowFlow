@@ -1,7 +1,8 @@
 import { DocumentParserType } from '@/constants/knowledge';
 import { useHandleChunkMethodSelectChange } from '@/hooks/logic-hooks';
 import { useSelectParserList } from '@/hooks/user-setting-hooks';
-import { FormInstance } from 'antd';
+import { filterParsersByLayoutRecognize } from '@/utils/parser-filter';
+import { Form, FormInstance } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const ParserListMap = new Map([
@@ -113,8 +114,17 @@ const getParserList = (
     value: string;
     label: string;
   }>,
+  layoutRecognize?: string,
 ) => {
-  return parserList.filter((x) => values?.some((y) => y === x.value));
+  return parserList.filter((x) => {
+    // Must be in the values list
+    if (!values?.some((y) => y === x.value)) {
+      return false;
+    }
+
+    // Filter by layout_recognize
+    return filterParsersByLayoutRecognize(x.value as string, layoutRecognize);
+  });
 };
 
 export const useFetchParserListOnMount = (
@@ -127,13 +137,19 @@ export const useFetchParserListOnMount = (
   const parserList = useSelectParserList();
   const handleChunkMethodSelectChange = useHandleChunkMethodSelectChange(form);
 
+  // Watch layout_recognize value from parser_config
+  const layoutRecognize = Form.useWatch(
+    ['parser_config', 'layout_recognize'],
+    form,
+  );
+
   const nextParserList = useMemo(() => {
     const key = [...ParserListMap.keys()].find((x) =>
       x.some((y) => y === documentExtension),
     );
     if (key) {
       const values = ParserListMap.get(key);
-      return getParserList(values ?? [], parserList);
+      return getParserList(values ?? [], parserList, layoutRecognize);
     }
 
     return getParserList(
@@ -147,8 +163,9 @@ export const useFetchParserListOnMount = (
         DocumentParserType.Table,
       ],
       parserList,
+      layoutRecognize,
     );
-  }, [parserList, documentExtension]);
+  }, [parserList, documentExtension, layoutRecognize]);
 
   useEffect(() => {
     setSelectedTag(parserId);
