@@ -1,9 +1,12 @@
 import { DocumentParserType } from '@/constants/knowledge';
 import { useHandleChunkMethodSelectChange } from '@/hooks/logic-hooks';
 import { useSelectParserList } from '@/hooks/user-setting-hooks';
-import { filterParsersByLayoutRecognize } from '@/utils/parser-filter';
+import {
+  filterParsersByLayoutRecognize,
+  ModernParsers,
+} from '@/utils/parser-filter';
 import { Form, FormInstance } from 'antd';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const ParserListMap = new Map([
   [
@@ -166,6 +169,43 @@ export const useFetchParserListOnMount = (
       layoutRecognize,
     );
   }, [parserList, documentExtension, layoutRecognize]);
+
+  // Use ref to track previous value and avoid triggering on initial mount
+  const prevLayoutRecognizeRef = useRef<string | undefined>();
+  const isInitialMount = useRef(true);
+
+  // Auto-switch parser when layout_recognize changes
+  useEffect(() => {
+    // Skip on initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevLayoutRecognizeRef.current = layoutRecognize;
+      return;
+    }
+
+    // Skip if values not ready or layout_recognize hasn't changed
+    if (!layoutRecognize || !selectedTag) return;
+    if (prevLayoutRecognizeRef.current === layoutRecognize) return;
+
+    prevLayoutRecognizeRef.current = layoutRecognize;
+
+    const isMinerUOrDOTS =
+      layoutRecognize === 'MinerU' || layoutRecognize === 'DOTS';
+    const isCurrentParserModern = ModernParsers.includes(selectedTag);
+
+    // If layout_recognize is MinerU/DOTS but current parser is not modern, switch to smart
+    if (isMinerUOrDOTS && !isCurrentParserModern) {
+      const smartParser = DocumentParserType.Smart;
+      setSelectedTag(smartParser);
+      handleChunkMethodSelectChange(smartParser);
+    }
+    // If layout_recognize is not MinerU/DOTS but current parser is modern, switch to general (naive)
+    else if (!isMinerUOrDOTS && isCurrentParserModern) {
+      const naiveParser = DocumentParserType.Naive;
+      setSelectedTag(naiveParser);
+      handleChunkMethodSelectChange(naiveParser);
+    }
+  }, [layoutRecognize, selectedTag, handleChunkMethodSelectChange]);
 
   useEffect(() => {
     setSelectedTag(parserId);

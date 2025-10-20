@@ -1,7 +1,8 @@
 import { useTranslate } from '@/hooks/common-hooks';
 import { useHandleChunkMethodSelectChange } from '@/hooks/logic-hooks';
+import { ModernParsers } from '@/utils/parser-filter';
 import { Form, Select } from 'antd';
-import { memo } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import {
   useHasParsedDocument,
   useSelectChunkMethodList,
@@ -40,7 +41,43 @@ export const ChunkMethodItem = memo(function ChunkMethodItem() {
     ['parser_config', 'layout_recognize'],
     form,
   );
+  const currentParserId = Form.useWatch('parser_id', form);
   const parserList = useSelectChunkMethodList(layoutRecognize);
+
+  // Use ref to track previous value and avoid triggering on initial mount
+  const prevLayoutRecognizeRef = useRef<string | undefined>();
+  const isInitialMount = useRef(true);
+
+  // Auto-switch parser_id when layout_recognize changes
+  useEffect(() => {
+    // Skip on initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevLayoutRecognizeRef.current = layoutRecognize;
+      return;
+    }
+
+    // Skip if values not ready or layout_recognize hasn't changed
+    if (!layoutRecognize || !currentParserId) return;
+    if (prevLayoutRecognizeRef.current === layoutRecognize) return;
+
+    prevLayoutRecognizeRef.current = layoutRecognize;
+
+    const isMinerUOrDOTS =
+      layoutRecognize === 'MinerU' || layoutRecognize === 'DOTS';
+    const isCurrentParserModern = ModernParsers.includes(currentParserId);
+
+    // If layout_recognize is MinerU/DOTS but current parser is not modern, switch to smart
+    if (isMinerUOrDOTS && !isCurrentParserModern) {
+      form.setFieldsValue({ parser_id: 'smart' });
+      handleChunkMethodSelectChange('smart');
+    }
+    // If layout_recognize is not MinerU/DOTS but current parser is modern, switch to naive
+    else if (!isMinerUOrDOTS && isCurrentParserModern) {
+      form.setFieldsValue({ parser_id: 'naive' });
+      handleChunkMethodSelectChange('naive');
+    }
+  }, [layoutRecognize, currentParserId, form, handleChunkMethodSelectChange]);
 
   return (
     <Form.Item
