@@ -20,6 +20,17 @@
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
+  // 禁用状态样式优化
+  &:has(:global(.ant-input-textarea-disabled)) {
+    background-color: @color-bg-secondary;
+    border-color: @color-border-default;
+    cursor: not-allowed;
+
+    &:hover {
+      border-color: @color-border-default;
+    }
+  }
+
   :global(.ant-input-affix-wrapper) {
     border-bottom-right-radius: 0;
     border-bottom-left-radius: 0;
