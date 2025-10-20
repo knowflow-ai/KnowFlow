@@ -7,8 +7,6 @@ from typing import Tuple, Optional
 
 # --- Constants ---
 GOTENBERG_URL = os.environ.get("GOTENBERG_URL", "http://localhost:3000")
-DEFAULT_GOTENBERG_TIMEOUT_URL = 120  # seconds for URL conversion
-DEFAULT_GOTENBERG_TIMEOUT_OFFICE = 300  # seconds for Office conversion
 
 OFFICE_EXTENSIONS = {
     ".123", ".602", ".abw", ".bib", ".bmp", ".cdr", ".cgm", ".cmx", ".csv", ".cwk", ".dbf", ".dif", 
@@ -26,12 +24,12 @@ OFFICE_EXTENSIONS = {
 }
 # --- End Constants ---
 
-def _convert_url_to_pdf(url_string: str, output_pdf_path: str, timeout: int = DEFAULT_GOTENBERG_TIMEOUT_URL) -> bool:
+def _convert_url_to_pdf(url_string: str, output_pdf_path: str, timeout: int = None) -> bool:
     """Uses Gotenberg to convert a URL to PDF."""
     endpoint = f"{GOTENBERG_URL}/forms/chromium/convert/url"
     logger.info(f"Converting URL to PDF: {url_string} -> {output_pdf_path}")
     try:
-        response = requests.post(endpoint, data={"url": url_string}, stream=True, timeout=timeout)
+        response = requests.post(endpoint, data={"url": url_string}, stream=True)
         response.raise_for_status()
         with open(output_pdf_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
@@ -42,7 +40,7 @@ def _convert_url_to_pdf(url_string: str, output_pdf_path: str, timeout: int = DE
         logger.error(f"Gotenberg URL conversion failed for {url_string}. Error: {e}")
         return False
 
-def _convert_office_to_pdf(office_file_path: str, output_pdf_path: str, timeout: int = DEFAULT_GOTENBERG_TIMEOUT_OFFICE) -> bool:
+def _convert_office_to_pdf(office_file_path: str, output_pdf_path: str, timeout: int = None) -> bool:
     """Uses Gotenberg to convert an Office document to PDF."""
     endpoint = f"{GOTENBERG_URL}/forms/libreoffice/convert"
     logger.info(f"Converting Office document to PDF: {office_file_path} -> {output_pdf_path}")
@@ -52,7 +50,7 @@ def _convert_office_to_pdf(office_file_path: str, output_pdf_path: str, timeout:
     try:
         with open(office_file_path, 'rb') as f:
             files = {"files": (os.path.basename(office_file_path), f)}
-            response = requests.post(endpoint, files=files, stream=True, timeout=timeout)
+            response = requests.post(endpoint, files=files, stream=True)
             response.raise_for_status()
         with open(output_pdf_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):

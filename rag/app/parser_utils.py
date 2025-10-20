@@ -33,8 +33,6 @@ from rag.nlp import rag_tokenizer, tokenize, add_positions
 
 # Gotenberg 配置
 GOTENBERG_URL = os.environ.get("GOTENBERG_URL", "http://localhost:3000")
-DEFAULT_GOTENBERG_TIMEOUT_URL = 120
-DEFAULT_GOTENBERG_TIMEOUT_OFFICE = 300
 
 # 支持的 Office 文档扩展名
 OFFICE_EXTENSIONS = {
@@ -53,7 +51,7 @@ OFFICE_EXTENSIONS = {
 }
 
 
-def _convert_url_to_pdf(url_string, output_pdf_path, timeout=DEFAULT_GOTENBERG_TIMEOUT_URL):
+def _convert_url_to_pdf(url_string, output_pdf_path, timeout=None):
     """
     使用 Gotenberg 将 URL 转换为 PDF
 
@@ -72,8 +70,7 @@ def _convert_url_to_pdf(url_string, output_pdf_path, timeout=DEFAULT_GOTENBERG_T
         response = requests.post(
             endpoint,
             data={"url": url_string},
-            stream=True,
-            timeout=timeout
+            stream=True
         )
         response.raise_for_status()
 
@@ -89,7 +86,7 @@ def _convert_url_to_pdf(url_string, output_pdf_path, timeout=DEFAULT_GOTENBERG_T
         return False
 
 
-def _convert_office_to_pdf(office_file_path, output_pdf_path, timeout=DEFAULT_GOTENBERG_TIMEOUT_OFFICE):
+def _convert_office_to_pdf(office_file_path, output_pdf_path, timeout=None):
     """
     使用 Gotenberg 将 Office 文档转换为 PDF
 
@@ -114,8 +111,7 @@ def _convert_office_to_pdf(office_file_path, output_pdf_path, timeout=DEFAULT_GO
             response = requests.post(
                 endpoint,
                 files=files,
-                stream=True,
-                timeout=timeout
+                stream=True
             )
             response.raise_for_status()
 
