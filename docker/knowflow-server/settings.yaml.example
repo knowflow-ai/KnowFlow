@@ -19,6 +19,12 @@
 #   - Docker 部署: 通过 volume 挂载到容器内
 #   详细配置加载机制请查看: CONFIG_LOADING.md
 #
+# 🔧 环境变量覆盖:
+#   所有配置项都可以在启动时通过环境变量覆盖。
+#   覆盖规则: 大写 + 双下划线替换层级。
+#   示例: 要覆盖 app.dev_mode, 设置环境变量 KNOWFLOW_APP_DEV_MODE=true
+#   DOTS: 设置环境变量 DOTS_VLLM_URL=http://your-service:port
+#
 # =======================================================
 
 app:
@@ -41,9 +47,6 @@ mineru:
     #   - 远程部署: http://192.168.1.100:8000
     #   - Docker 网络: http://knowflow-mineru-api:8000
     url: "http://localhost:8000"
-
-    # HTTP 请求超时时间（秒）
-    timeout: 60000
 
   # VLM 后端配置（可选，用于高级 OCR）
   vlm:
@@ -77,9 +80,6 @@ dots:
 
     # 模型名称（根据部署配置调整）
     model_name: "dotsocr-model"
-
-    # 请求超时时间（秒）
-    timeout: 60000
 
     # 生成参数
     temperature: 0.1
