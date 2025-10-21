@@ -258,7 +258,7 @@ class ModernParserBase(ABC):
         is_english = lang.lower() == "english"
         res = []
 
-        for chunk_data in chunks_list:
+        for chunk_idx, chunk_data in enumerate(chunks_list):
             d = copy.deepcopy(base_doc)
 
             # 提取文本和坐标
@@ -275,6 +275,8 @@ class ModernParserBase(ABC):
             # 添加坐标信息
             if positions:
                 add_positions(d, positions)
+                # 使用 chunk_index 作为排序依据，确保 chunks 按生成顺序排列
+                d["top_int"] = [chunk_idx]
 
             # Tokenize
             tokenize(d, chunk_text, is_english)

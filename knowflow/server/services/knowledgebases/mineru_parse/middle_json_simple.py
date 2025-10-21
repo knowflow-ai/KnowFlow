@@ -53,8 +53,6 @@ class SimpleMiddleJsonConverter:
         block_pages = []
         for page_idx, page in enumerate(data['pdf_info']):
             blocks = self._extract_blocks_from_page(page, page_idx)
-            # 按y坐标排序
-            blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
             block_pages.append(blocks)
 
         markdown_content, coordinate_map = self.convert_block_pages_to_markdown(block_pages)

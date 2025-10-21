@@ -186,7 +186,6 @@ def _convert_to_ragflow_boxes(middle_json, from_page, to_page, kb_id=''):
             if page_idx < from_page or page_idx >= to_page:
                 continue
             blocks = converter_for_semantic._extract_blocks_from_page(page_data, page_idx)
-            blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
             block_pages_semantic.append(blocks)
 
         markdown_lines_semantic, coordinate_map_semantic = converter_for_semantic._build_markdown_from_block_pages(block_pages_semantic)
@@ -199,7 +198,6 @@ def _convert_to_ragflow_boxes(middle_json, from_page, to_page, kb_id=''):
             if page_idx < from_page or page_idx >= to_page:
                 continue
             blocks = converter_for_line._extract_blocks_from_page(page_data, page_idx)
-            blocks.sort(key=lambda b: b['bbox'][1] if len(b['bbox']) > 1 else 0)
             block_pages_line.append(blocks)
 
         markdown_lines_line, coordinate_map_line = converter_for_line._build_markdown_from_block_pages(block_pages_line)
