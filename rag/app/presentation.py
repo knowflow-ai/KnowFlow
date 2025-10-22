@@ -143,7 +143,6 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             # MinerU 返回语义块列表，需要按页分组并合并
             # presentation 模式要求每页作为一个 chunk
             from collections import defaultdict
-            import re
             page_texts = defaultdict(list)
             for text_with_tag, _ in parsed_sections:
                 # 从 position tag 提取页码: @@page_num\t...##
@@ -178,7 +177,6 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             # DOTS 返回语义块列表，需要按页分组并合并
             # presentation 模式要求每页作为一个 chunk
             from collections import defaultdict
-            import re
             page_texts = defaultdict(list)
             for text_with_tag, _ in parsed_sections:
                 # 从 position tag 提取页码: @@page_num\t...##
