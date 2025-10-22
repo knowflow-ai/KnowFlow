@@ -60,7 +60,8 @@ class TitleChunker(ModernParserBase):
             'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
             'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10)),
             'include_metadata': bool(parser_config.get('include_metadata', True)),
-            'split_level': int(parser_config.get('split_level', 3))
+            'split_level': int(parser_config.get('split_level', 3)),
+            'enable_heading_in_content': parser_config.get('enable_heading_in_content', False)
         }
         # 添加图片理解配置
         config.update(self._extract_vision_config(parser_config))

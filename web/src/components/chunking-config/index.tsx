@@ -20,6 +20,7 @@ interface ChunkingConfigProps {
   initialValues?: {
     chunk_token_num?: number;
     regex_pattern?: string;
+    enable_heading_in_content?: boolean;
     parent_config?: {
       parent_chunk_size?: number;
       parent_chunk_overlap?: number;
@@ -38,6 +39,7 @@ export const ChunkingConfig = memo(function ChunkingConfig({
   initialValues = {
     chunk_token_num: 256,
     regex_pattern: '',
+    enable_heading_in_content: false,
     parent_config: {
       parent_chunk_size: 1024,
       parent_chunk_overlap: 100,
@@ -59,6 +61,15 @@ export const ChunkingConfig = memo(function ChunkingConfig({
   // 根据切片方法类型决定展示哪些配置（如果没有传递 parserType，则不展示特殊配置）
   const isRegex = parserType === DocumentParserType.Regex;
   const isParentChild = parserType === DocumentParserType.ParentChild;
+
+  // 判断是否显示 enable_heading_in_content（smart/title/parent-child 支持）
+  const showHeadingInContent =
+    parserType &&
+    [
+      DocumentParserType.Smart,
+      DocumentParserType.Title,
+      DocumentParserType.ParentChild,
+    ].includes(parserType);
 
   // 判断是否显示图片理解配置（smart/regex/title/parent-child 都支持）
   const showVisionConfig =
@@ -96,6 +107,18 @@ export const ChunkingConfig = memo(function ChunkingConfig({
           style={{ width: '100%' }}
         />
       </Form.Item>
+
+      {showHeadingInContent && (
+        <Form.Item
+          name={['parser_config', 'enable_heading_in_content']}
+          label="包含父标题"
+          initialValue={initialValues.enable_heading_in_content ?? false}
+          valuePropName="checked"
+          tooltip="为每个分块添加父级标题路径（如：[章节: 第一章 > 第一节]），有助于在分块内容中保持上下文"
+        >
+          <Switch />
+        </Form.Item>
+      )}
 
       {isRegex && (
         <Form.Item

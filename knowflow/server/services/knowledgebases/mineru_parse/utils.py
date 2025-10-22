@@ -103,7 +103,8 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
                 parent_config=custom_chunking_config.get('parent_config', {}),
                 doc_id=kwargs.get('doc_id', 'unknown'),
                 kb_id=kwargs.get('kb_id', 'unknown'),
-                tenant_id=kwargs.get('tenant_id', 'unknown')
+                tenant_id=kwargs.get('tenant_id', 'unknown'),
+                enable_heading_in_content=custom_chunking_config.get('enable_heading_in_content', False)
             )
             # 父子分块也支持坐标附加
             if coordinate_map is not None:
@@ -125,7 +126,8 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
                 chunk_token_num=chunk_token_num,
                 min_chunk_tokens=min_chunk_tokens,
                 split_level=split_level,
-                include_metadata=include_metadata
+                include_metadata=include_metadata,
+                enable_heading_in_content=custom_chunking_config.get('enable_heading_in_content', False)
             )
 
         elif strategy == 'advanced':
@@ -152,10 +154,13 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
                 chunks = split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
 
         elif strategy == 'smart':
+            enable_heading = custom_chunking_config.get('enable_heading_in_content', False)
+            logging.info(f"Smart分块配置: enable_heading_in_content={enable_heading}, custom_chunking_config={custom_chunking_config}")
             chunks = split_markdown_to_chunks_smart(
                 txt,
                 chunk_token_num=chunk_token_num,
-                min_chunk_tokens=min_chunk_tokens
+                min_chunk_tokens=min_chunk_tokens,
+                enable_heading_in_content=enable_heading
             )
         elif strategy == 'basic':
             delimiter = custom_chunking_config.get('delimiter', "\n!?。；！？")
@@ -320,10 +325,17 @@ def _attach_coordinates_to_chunks(chunks, markdown_text, coordinate_map):
     used_indices = set()  # 记录已使用的行号
 
     for chunk_idx, chunk in enumerate(chunks):
-        if not chunk or not chunk.strip():
-            continue
+        # 处理字典或字符串类型的 chunk
+        if isinstance(chunk, dict):
+            chunk_text = chunk.get('content', '')
+            if not chunk_text or not chunk_text.strip():
+                continue
+        else:
+            chunk_text = chunk
+            if not chunk_text or not chunk_text.strip():
+                continue
 
-        chunk_lines = chunk.split('\n')
+        chunk_lines = chunk_text.split('\n')
         chunk_coordinates = []
 
         # 遍历分块中的每一行
@@ -376,7 +388,7 @@ def _attach_coordinates_to_chunks(chunks, markdown_text, coordinate_map):
 
         # 添加带坐标的分块
         chunks_with_coords.append({
-            'content': chunk,
+            'content': chunk_text,
             'coordinates': chunk_coordinates
         })
 
@@ -645,7 +657,7 @@ def update_document_progress(doc_id, progress=None, message=None, status=None, r
             conn.close()
 
 
-def split_markdown_to_chunks_smart(txt, chunk_token_num=256, min_chunk_tokens=10):
+def split_markdown_to_chunks_smart(txt, chunk_token_num=256, min_chunk_tokens=10, enable_heading_in_content=False):
     """
     基于 markdown-it-py AST 的智能分块方法，解决 RAG Markdown 文件分块问题：
     1. 基于语义切分（使用 AST）
@@ -678,38 +690,52 @@ def split_markdown_to_chunks_smart(txt, chunk_token_num=256, min_chunk_tokens=10
             chunk_data, should_break = _process_ast_node(
                 node, context_stack, chunk_token_num, min_chunk_tokens
             )
-            
+
             if should_break and current_chunk and current_tokens >= min_chunk_tokens:
                 # 完成当前块
-                chunk_content = _finalize_ast_chunk(current_chunk, context_stack)
-                if chunk_content.strip():
+                chunk_content = _finalize_ast_chunk(current_chunk, context_stack, enable_heading_in_content)
+                if isinstance(chunk_content, dict) and chunk_content.get('content', '').strip():
+                    chunks.append(chunk_content)
+                elif isinstance(chunk_content, str) and chunk_content.strip():
                     chunks.append(chunk_content)
                 current_chunk = []
                 current_tokens = 0
-            
+
             if chunk_data:
                 chunk_tokens = num_tokens_from_string(chunk_data)
-                
+
                 # 检查是否需要分块
-                if (current_tokens + chunk_tokens > chunk_token_num and 
+                if (current_tokens + chunk_tokens > chunk_token_num and
                     current_chunk and current_tokens >= min_chunk_tokens):
-                    
-                    chunk_content = _finalize_ast_chunk(current_chunk, context_stack)
-                    if chunk_content.strip():
+
+                    chunk_content = _finalize_ast_chunk(current_chunk, context_stack, enable_heading_in_content)
+                    if isinstance(chunk_content, dict) and chunk_content.get('content', '').strip():
+                        chunks.append(chunk_content)
+                    elif isinstance(chunk_content, str) and chunk_content.strip():
                         chunks.append(chunk_content)
                     current_chunk = []
                     current_tokens = 0
-                
+
                 current_chunk.append(chunk_data)
                 current_tokens += chunk_tokens
-        
+
         # 处理最后的块
         if current_chunk:
-            chunk_content = _finalize_ast_chunk(current_chunk, context_stack)
-            if chunk_content.strip():
+            chunk_content = _finalize_ast_chunk(current_chunk, context_stack, enable_heading_in_content)
+            if isinstance(chunk_content, dict) and chunk_content.get('content', '').strip():
                 chunks.append(chunk_content)
-        
-        return [chunk for chunk in chunks if chunk.strip()]
+            elif isinstance(chunk_content, str) and chunk_content.strip():
+                chunks.append(chunk_content)
+
+        # 过滤空块并返回
+        result = []
+        for chunk in chunks:
+            if isinstance(chunk, dict):
+                if chunk.get('content', '').strip():
+                    result.append(chunk)
+            elif isinstance(chunk, str) and chunk.strip():
+                result.append(chunk)
+        return result
     
     except Exception as e:
         print(f"AST parsing failed: {e}, falling back to simple chunking")
@@ -871,18 +897,49 @@ def _render_blockquote_from_ast(blockquote_node):
     return '\n'.join(f"> {line}" for line in lines)
 
 
-def _finalize_ast_chunk(chunk_parts, context_stack):
+def _finalize_ast_chunk(chunk_parts, context_stack, enable_heading_in_content=False):
     """完成基于 AST 的 chunk 格式化"""
     chunk_content = "\n\n".join(chunk_parts).strip()
-    
-    # 可以根据需要添加上下文信息
-    # 例如，如果chunk没有标题，可以考虑添加父级标题作为上下文
-    
-    return chunk_content
+
+    # 提取标题元数据
+    headers = {item['level']: item['title'] for item in context_stack}
+
+    # 调试日志
+    logging.debug(f"_finalize_ast_chunk: enable_heading_in_content={enable_heading_in_content}, headers={headers}")
+
+    # 如果启用了标题添加到内容，且有标题层级
+    if enable_heading_in_content and headers:
+        # 检查内容是否已经是标题
+        is_heading = False
+        if chunk_parts:
+            first_line = chunk_parts[0].strip()
+            # 检查是否以 # 开头（标题）
+            is_heading = first_line.startswith('#')
+
+        # 如果内容本身不是标题，添加父级标题路径
+        if not is_heading:
+            # 生成 Markdown 标题格式
+            heading_lines = []
+            for level in sorted(headers.keys()):
+                heading_prefix = '#' * level
+                heading_lines.append(f"{heading_prefix} {headers[level]}")
+
+            heading_text = '\n'.join(heading_lines)
+            chunk_content = f"{heading_text}\n\n{chunk_content}"
+            logging.debug(f"添加标题前缀: {heading_text}")
+
+    # 返回字典格式，包含标题元数据
+    return {
+        'content': chunk_content,
+        'heading_metadata': {
+            'headers': headers,
+            'level': max(headers.keys()) if headers else 0
+        }
+    }
 
 
 def split_markdown_to_chunks_title(txt, chunk_token_num=256, min_chunk_tokens=10,
-                                   split_level=3, include_metadata=False):
+                                   split_level=3, include_metadata=False, enable_heading_in_content=False):
     """
     基于标题层级的严格分块方法
 
@@ -926,21 +983,38 @@ def split_markdown_to_chunks_title(txt, chunk_token_num=256, min_chunk_tokens=10
         # 基于标题层级进行分块（严格分割，不做大小调整）
         chunks = _split_by_header_levels(nodes_with_headers, headers_to_split_on)
 
-        # 生成最终分块内容
+        # 生成最终分块内容（统一返回字典格式）
         final_chunks = []
         for chunk_info in chunks:
             content = _render_header_chunk(chunk_info)
             if content.strip():
-                if include_metadata:
-                    chunk_data = {
-                        'content': content,
-                        'metadata': chunk_info.get('headers', {}),
-                        'token_count': num_tokens_from_string(content),
-                        'chunk_type': 'title_based'
+                headers = chunk_info.get('headers', {})
+
+                # 如果启用了标题添加到内容，且有标题层级
+                if enable_heading_in_content and headers:
+                    # 检查内容是否已经是标题
+                    is_heading = content.strip().startswith('#')
+
+                    # 如果内容本身不是标题，添加父级标题路径
+                    if not is_heading:
+                        # 生成 Markdown 标题格式
+                        heading_lines = []
+                        for level in sorted(headers.keys()):
+                            heading_prefix = '#' * level
+                            heading_lines.append(f"{heading_prefix} {headers[level]}")
+
+                        heading_text = '\n'.join(heading_lines)
+                        content = f"{heading_text}\n\n{content}"
+
+                # 统一返回字典格式
+                chunk_data = {
+                    'content': content,
+                    'heading_metadata': {
+                        'headers': headers,
+                        'level': max(headers.keys()) if headers else 0
                     }
-                    final_chunks.append(chunk_data)
-                else:
-                    final_chunks.append(content)
+                }
+                final_chunks.append(chunk_data)
 
         return final_chunks
 
@@ -1352,60 +1426,34 @@ def _split_by_header_levels(nodes_with_headers, headers_to_split_on):
         
         # 检查是否为分块边界标题
         if node_info['is_split_boundary']:
-            # 先检查是否为连续短标题的情况
+            # 处理连续标题的情况
             if node_info['type'] == 'heading':
-                current_title = node_info.get('title', '').strip()
-                
-                # 检查当前标题是否很短（可能只是编号）
-                is_short_title = (
-                    len(current_title) <= 12 and 
-                    (
-                        # 纯数字编号如 "3.7", "4.1"
-                        (current_title.replace('.', '').replace(' ', '').isdigit()) or
-                        # 短编号如 "3.7", "4", "A.1"  
-                        (len(current_title.split()) <= 2 and 
-                         any(char.isdigit() for char in current_title))
-                    )
-                )
-                
-                # 如果是短标题，向前查找看是否有紧跟的内容标题
-                if is_short_title:
-                    # 查找接下来的几个节点，看是否有实质性内容标题
-                    found_content_header = False
-                    j = i + 1
-                    
-                    # 向前查看最多3个节点
-                    while j < len(nodes_with_headers) and j < i + 4:
-                        next_node = nodes_with_headers[j]
-                        
-                        # 如果找到另一个标题
-                        if next_node.get('type') == 'heading':
-                            next_title = next_node.get('title', '').strip()
-                            
-                            # 检查是否为更有实质内容的标题
-                            is_content_header = (
-                                len(next_title) > 12 or  # 较长的标题
-                                (len(next_title.split()) > 2) or  # 多个词
-                                any(word for word in next_title.split() 
-                                    if len(word) > 3 and not word.replace('.', '').isdigit())  # 有非数字词汇
-                            )
-                            
-                            if is_content_header:
-                                found_content_header = True
-                                break
-                        
-                        # 如果遇到其他内容，停止查找
-                        elif next_node.get('content', '').strip():
-                            break
-                        
+                # 查看后续是否还有连续标题或者是否直到内容出现
+                has_following_content = False
+
+                # 检查后续节点
+                j = i + 1
+                while j < len(nodes_with_headers):
+                    next_node = nodes_with_headers[j]
+                    # 如果是标题，继续查找
+                    if next_node.get('type') == 'heading':
                         j += 1
-                    
-                    # 如果找到了内容标题，跳过当前标题的分块处理
-                    if found_content_header:
-                        # 直接添加到当前块，不作为分块边界
-                        current_chunk['nodes'].append(node_info)
-                        i += 1
                         continue
+                    # 如果找到非标题内容
+                    if next_node.get('content', '').strip():
+                        has_following_content = True
+                        break
+                    j += 1
+
+                # 如果后续没有内容（只有连续标题），不作为分块边界
+                if not has_following_content:
+                    # 直接添加到当前块
+                    current_chunk['nodes'].append(node_info)
+                    # 更新当前块的标题信息
+                    if node_info['headers']:
+                        current_chunk['headers'] = node_info['headers'].copy()
+                    i += 1
+                    continue
             
             # 正常的分块边界处理
             # 完成当前块（如果有内容）
@@ -1790,7 +1838,8 @@ def _write_parent_child_debug_file(parent_chunks, child_chunks, relationships, d
 
 
 def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10,
-                                         parent_config=None, doc_id='unknown', kb_id='unknown', tenant_id='unknown'):
+                                         parent_config=None, doc_id='unknown', kb_id='unknown', tenant_id='unknown',
+                                         enable_heading_in_content=False):
     """
     端到端的父子分块方法 - 生成真实ID、保存父块和映射关系
 
@@ -1869,8 +1918,40 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
                 doc_id, kb_id, tenant_id
             )
 
-        # 6. 返回子块（带真实 ID）
-        result = [{"content": chunk.content, "id": chunk.id} for chunk in child_chunks]
+        # 6. 返回子块（带真实 ID，并处理标题添加到内容）
+        result = []
+        for chunk in child_chunks:
+            # 提取标题元数据
+            context_stack = chunk.metadata.get('context_stack', [])
+            headers = {item['level']: item['title'] for item in context_stack}
+
+            chunk_content = chunk.content
+
+            # 如果启用了标题添加到内容，且有标题层级
+            if enable_heading_in_content and headers:
+                # 检查内容是否已经是标题
+                is_heading = chunk_content.strip().startswith('#')
+
+                # 如果内容本身不是标题，添加父级标题路径
+                if not is_heading:
+                    # 生成 Markdown 标题格式
+                    heading_lines = []
+                    for level in sorted(headers.keys()):
+                        heading_prefix = '#' * level
+                        heading_lines.append(f"{heading_prefix} {headers[level]}")
+
+                    heading_text = '\n'.join(heading_lines)
+                    chunk_content = f"{heading_text}\n\n{chunk_content}"
+
+            chunk_dict = {
+                "content": chunk_content,
+                "id": chunk.id,
+                "heading_metadata": {
+                    'headers': headers,
+                    'level': max(headers.keys()) if headers else 0
+                }
+            }
+            result.append(chunk_dict)
 
         logging.info(f"父子分块完成: 返回 {len(result)} 个子块")
         return result

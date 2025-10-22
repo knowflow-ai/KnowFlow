@@ -64,6 +64,7 @@ class ParentChildChunker(ModernParserBase):
             'strategy': 'parent_child',
             'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
             'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10)),
+            'enable_heading_in_content': parser_config.get('enable_heading_in_content', False),
             'parent_config': {
                 'parent_chunk_size': int(parent_config.get('parent_chunk_size', 1024)),
                 'parent_chunk_overlap': int(parent_config.get('parent_chunk_overlap', 100)),

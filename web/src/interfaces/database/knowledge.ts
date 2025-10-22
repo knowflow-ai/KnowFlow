@@ -38,7 +38,8 @@ export interface ParserConfig {
   chunk_token_num?: number;
   delimiter?: string;
   html4excel?: boolean;
-  layout_recognize?: boolean;
+  layout_recognize?: string;
+  enable_heading_in_content?: boolean;
   raptor?: Raptor;
   tag_kb_ids?: string[];
   topn_tags?: number;
@@ -46,7 +47,8 @@ export interface ParserConfig {
 
 export interface IKnowledgeFileParserConfig {
   chunk_token_num: number;
-  layout_recognize: boolean;
+  layout_recognize: string;
+  enable_heading_in_content?: boolean;
   pages: number[][];
   task_page_size: number;
 }

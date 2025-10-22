@@ -4,6 +4,7 @@ import {
 } from '@/components/auto-keywords-item';
 import { DatasetConfigurationContainer } from '@/components/dataset-configuration-container';
 import Delimiter from '@/components/delimiter';
+import EnableHeadingInContent from '@/components/enable-heading-in-content';
 import ExcelToHtml from '@/components/excel-to-html';
 import LayoutRecognize from '@/components/layout-recognize';
 import MaxTokenNumber from '@/components/max-token-number';
@@ -22,6 +23,7 @@ export function ParentChildConfiguration() {
         <EmbeddingModelItem></EmbeddingModelItem>
         <ChunkMethodItem></ChunkMethodItem>
         <MaxTokenNumber></MaxTokenNumber>
+        <EnableHeadingInContent></EnableHeadingInContent>
         <Delimiter></Delimiter>
       </DatasetConfigurationContainer>
       <Divider></Divider>
