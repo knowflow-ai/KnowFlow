@@ -687,27 +687,12 @@ def split_markdown_to_chunks_smart(txt, chunk_token_num=256, min_chunk_tokens=10
         context_stack = []  # 维护标题层级栈
         
         for node in tree.children:
-            chunk_data, should_break = _process_ast_node(
-                node, context_stack, chunk_token_num, min_chunk_tokens
-            )
+            node_type = node.type
 
-            if should_break and current_chunk and current_tokens >= min_chunk_tokens:
-                # 完成当前块
-                chunk_content = _finalize_ast_chunk(current_chunk, context_stack, enable_heading_in_content)
-                if isinstance(chunk_content, dict) and chunk_content.get('content', '').strip():
-                    chunks.append(chunk_content)
-                elif isinstance(chunk_content, str) and chunk_content.strip():
-                    chunks.append(chunk_content)
-                current_chunk = []
-                current_tokens = 0
-
-            if chunk_data:
-                chunk_tokens = num_tokens_from_string(chunk_data)
-
-                # 检查是否需要分块
-                if (current_tokens + chunk_tokens > chunk_token_num and
-                    current_chunk and current_tokens >= min_chunk_tokens):
-
+            # 如果是标题节点，先完成前一个分块，再处理标题
+            if node_type == "heading":
+                # 1. 先完成前一个分块（使用旧的 context_stack）
+                if current_chunk and current_tokens >= min_chunk_tokens:
                     chunk_content = _finalize_ast_chunk(current_chunk, context_stack, enable_heading_in_content)
                     if isinstance(chunk_content, dict) and chunk_content.get('content', '').strip():
                         chunks.append(chunk_content)
@@ -716,8 +701,38 @@ def split_markdown_to_chunks_smart(txt, chunk_token_num=256, min_chunk_tokens=10
                     current_chunk = []
                     current_tokens = 0
 
+                # 2. 处理标题节点
+                level = int(node.tag[1])
+                title_text = _extract_text_from_node(node)
+
+                # 3. 更新 context_stack（标题节点之后的内容都属于新的上下文）
+                _update_context_stack(context_stack, level, title_text)
+
+                # 4. 标题作为新分块的第一行
+                chunk_data = node.markup + " " + title_text
                 current_chunk.append(chunk_data)
-                current_tokens += chunk_tokens
+                current_tokens = num_tokens_from_string(chunk_data)
+            else:
+                # 处理非标题节点
+                chunk_data, _ = _process_non_heading_node(node, chunk_token_num)
+
+                if chunk_data:
+                    chunk_tokens = num_tokens_from_string(chunk_data)
+
+                    # 检查是否需要分块（基于大小）
+                    if (current_tokens + chunk_tokens > chunk_token_num and
+                        current_chunk and current_tokens >= min_chunk_tokens):
+
+                        chunk_content = _finalize_ast_chunk(current_chunk, context_stack, enable_heading_in_content)
+                        if isinstance(chunk_content, dict) and chunk_content.get('content', '').strip():
+                            chunks.append(chunk_content)
+                        elif isinstance(chunk_content, str) and chunk_content.strip():
+                            chunks.append(chunk_content)
+                        current_chunk = []
+                        current_tokens = 0
+
+                    current_chunk.append(chunk_data)
+                    current_tokens += chunk_tokens
 
         # 处理最后的块
         if current_chunk:
@@ -742,26 +757,18 @@ def split_markdown_to_chunks_smart(txt, chunk_token_num=256, min_chunk_tokens=10
         return split_markdown_to_chunks(txt, chunk_token_num)
 
 
-def _process_ast_node(node, context_stack, chunk_token_num, min_chunk_tokens):
+def _process_non_heading_node(node, chunk_token_num):
     """
-    处理 AST 节点，返回 (内容, 是否应该分块)
+    处理非标题的 AST 节点
+
+    Returns:
+        tuple: (content, should_break)
     """
     node_type = node.type
     should_break = False
     content = ""
-    
-    if node_type == "heading":
-        # 标题处理
-        level = int(node.tag[1])  # h1 -> 1, h2 -> 2, etc.
-        title_text = _extract_text_from_node(node)
-        
-        # 更新上下文栈
-        _update_context_stack(context_stack, level, title_text)
-        
-        content = node.markup + " " + title_text
-        should_break = True  # 标题通常作为分块边界
-        
-    elif node_type == "table":
+
+    if node_type == "table":
         # 表格处理 - 保持完整性
         content = _render_table_from_ast(node)
         table_tokens = num_tokens_from_string(content)
@@ -794,7 +801,7 @@ def _process_ast_node(node, context_stack, chunk_token_num, min_chunk_tokens):
     else:
         # 其他类型节点
         content = _extract_text_from_node(node)
-    
+
     return content, should_break
 
 
@@ -909,24 +916,33 @@ def _finalize_ast_chunk(chunk_parts, context_stack, enable_heading_in_content=Fa
 
     # 如果启用了标题添加到内容，且有标题层级
     if enable_heading_in_content and headers:
-        # 检查内容是否已经是标题
-        is_heading = False
-        if chunk_parts:
-            first_line = chunk_parts[0].strip()
-            # 检查是否以 # 开头（标题）
-            is_heading = first_line.startswith('#')
+        # 提取分块内容中已存在的标题文本（用于去重）
+        existing_headings = set()  # 存储格式: "level:title"
 
-        # 如果内容本身不是标题，添加父级标题路径
-        if not is_heading:
-            # 生成 Markdown 标题格式
-            heading_lines = []
-            for level in sorted(headers.keys()):
+        for line in chunk_content.split('\n'):
+            line = line.strip()
+            if line.startswith('#'):
+                # 计算标题层级 (# = 1, ## = 2, ### = 3, ...)
+                level = len(line) - len(line.lstrip('#'))
+                if level > 0 and level <= 6:
+                    # 提取标题文本（去除 # 和空格）
+                    heading_text = line.lstrip('#').strip()
+                    existing_headings.add(f"{level}:{heading_text}")
+
+        # 添加 context_stack 中缺失的父级标题
+        missing_heading_lines = []
+        for level in sorted(headers.keys()):
+            heading_key = f"{level}:{headers[level]}"
+            # 如果这个标题不在分块内容中，才添加
+            if heading_key not in existing_headings:
                 heading_prefix = '#' * level
-                heading_lines.append(f"{heading_prefix} {headers[level]}")
+                missing_heading_lines.append(f"{heading_prefix} {headers[level]}")
 
-            heading_text = '\n'.join(heading_lines)
-            chunk_content = f"{heading_text}\n\n{chunk_content}"
-            logging.debug(f"添加标题前缀: {heading_text}")
+        # 如果有缺失的父级标题，添加到内容前面
+        if missing_heading_lines:
+            missing_heading_text = '\n'.join(missing_heading_lines)
+            chunk_content = f"{missing_heading_text}\n\n{chunk_content}"
+            logging.debug(f"添加缺失的父级标题: {missing_heading_text}, 分块中已有标题: {existing_headings}")
 
     # 返回字典格式，包含标题元数据
     return {
