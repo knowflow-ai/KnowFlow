@@ -49,8 +49,8 @@ class DotsJsonConverter:
             page_image = page_data.get('page_image')
             page_blocks: List[Dict[str, Any]] = []
 
-            # 预处理：合并表格标题和表格主体
-            processed_elements = self._merge_table_captions_with_tables(layout_elements)
+            # 预处理：合并标题和内容（表格/图片）
+            processed_elements = self._merge_captions_with_content(layout_elements)
 
             for element_idx, element in enumerate(processed_elements):
                 block, image_path = self._element_to_block(
@@ -78,15 +78,19 @@ class DotsJsonConverter:
 
         return markdown_content, coordinate_map, extracted_images
 
-    def _merge_table_captions_with_tables(self, elements: List[Dict]) -> List[Dict]:
+    def _merge_captions_with_content(self, elements: List[Dict]) -> List[Dict]:
         """
-        合并表格标题和表格主体为单个块（模仿 MinerU 的结构）
+        合并标题和内容（表格/图片）为单个块（模仿 MinerU 的结构）
+
+        处理两种情况：
+        1. Caption + Table -> 合并为 Table，caption 作为 table_caption 子块
+        2. Caption + Picture -> 合并为 Picture，caption 作为 image_caption 子块
 
         Args:
             elements: DOTS 布局元素列表
 
         Returns:
-            处理后的元素列表，表格标题已合并到表格内
+            处理后的元素列表，标题已合并到对应内容内
         """
         if not elements:
             return []
@@ -104,10 +108,11 @@ class DotsJsonConverter:
             current = elements[i]
             category = current.get('category', '')
 
-            # 检查是否是表格标题
+            # 检查是否是标题
             if category == 'Caption':
-                # 查找后续最近的 Table 元素（可能不是紧邻的）
-                table_found = False
+                caption_text = current.get('text', '')
+                caption_bbox = current.get('bbox', [0, 0, 0, 0])
+                content_found = False
                 search_limit = min(i + 3, len(elements))  # 最多向后查找3个元素
 
                 for j in range(i + 1, search_limit):
@@ -119,8 +124,6 @@ class DotsJsonConverter:
 
                     # 如果找到表格，合并
                     if next_category == 'Table':
-                        # 合并：将标题作为表格的 caption 子块
-                        caption_text = current.get('text', '')
                         table_html = next_element.get('text', '')
 
                         # 直接在合并时注入 caption 到 HTML 中
@@ -139,7 +142,7 @@ class DotsJsonConverter:
                                 {
                                     'type': 'table_caption',
                                     'text': caption_text,
-                                    'bbox': current.get('bbox', [0, 0, 0, 0])
+                                    'bbox': caption_bbox
                                 },
                                 {
                                     'type': 'table_body',
@@ -149,31 +152,61 @@ class DotsJsonConverter:
                             ]
                         }
                         merged_elements.append(table_element)
-
-                        # 标记 caption 和 table 为已处理
                         skip_indices.add(i)
                         skip_indices.add(j)
+                        content_found = True
+                        logger.debug(f"合并 Caption '{caption_text[:30]}...' (索引 {i}) 和 Table (索引 {j})")
+                        break
 
-                        table_found = True
-                        logger.debug(f"合并 Caption '{current.get('text', '')[:30]}...' (索引 {i}) 和 Table (索引 {j})")
+                    # 如果找到图片，合并
+                    elif next_category == 'Picture':
+                        picture_element = {
+                            'category': 'Picture',
+                            'text': next_element.get('text', ''),  # 图片可能有 alt 文本
+                            'bbox': next_element.get('bbox', [0, 0, 0, 0]),
+                            'blocks': [
+                                {
+                                    'type': 'image_caption',
+                                    'text': caption_text,
+                                    'bbox': caption_bbox
+                                },
+                                {
+                                    'type': 'image_body',
+                                    'text': next_element.get('text', ''),
+                                    'bbox': next_element.get('bbox', [0, 0, 0, 0])
+                                }
+                            ]
+                        }
+                        merged_elements.append(picture_element)
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        content_found = True
+                        logger.debug(f"合并 Caption '{caption_text[:30]}...' (索引 {i}) 和 Picture (索引 {j})")
                         break
 
                     # 如果遇到另一个 Caption 或其他重要结构，停止搜索
                     if next_category in ['Caption', 'Title', 'Section-header']:
                         break
 
-                # 如果没找到对应的表格，Caption 作为普通文本保留
-                if not table_found:
+                # 如果没找到对应的内容，Caption 作为普通文本保留
+                if not content_found:
                     merged_elements.append(current)
-                    logger.debug(f"保留独立 Caption '{current.get('text', '')[:30]}...' (索引 {i})")
+                    logger.debug(f"保留独立 Caption '{caption_text[:30]}...' (索引 {i})")
             else:
                 # 不是 Caption，直接添加
                 merged_elements.append(current)
 
             i += 1
 
-        logger.debug(f"表格合并: {len(elements)} 个元素 -> {len(merged_elements)} 个元素 (跳过 {len(skip_indices)} 个)")
+        logger.debug(f"内容合并: {len(elements)} 个元素 -> {len(merged_elements)} 个元素 (跳过 {len(skip_indices)} 个)")
         return merged_elements
+
+    # 保留旧函数名的兼容性别名
+    def _merge_table_captions_with_tables(self, elements: List[Dict]) -> List[Dict]:
+        """
+        向后兼容性别名，调用新的统一合并方法
+        """
+        return self._merge_captions_with_content(elements)
 
     def _element_to_block(
         self,
@@ -226,6 +259,19 @@ class DotsJsonConverter:
                     block['image_path'] = None
             else:
                 block['image_path'] = None
+
+            # 如果图片包含 caption 和 body 子块（合并后的结构），转换为 MinerU 格式
+            if 'blocks' in element:
+                # 将子块转换为 PDF 坐标格式（用于坐标映射）
+                converted_blocks = []
+                for sub_block in element['blocks']:
+                    sub_bbox = self._convert_bbox_to_pdf_coords(sub_block.get('bbox', [0, 0, 0, 0])) or [0, 0, 0, 0]
+                    converted_blocks.append({
+                        'type': sub_block.get('type'),
+                        'text': sub_block.get('text', ''),
+                        'bbox': sub_bbox
+                    })
+                block['blocks'] = converted_blocks
 
         elif category == 'Formula':
             block['type'] = 'formula'
