@@ -897,6 +897,56 @@ def _render_list_from_ast(list_node):
     return "\n".join(list_items)
 
 
+def _add_missing_parent_headings(chunk_content, headers):
+    """
+    给分块内容添加缺失的父级标题
+
+    Args:
+        chunk_content: 分块内容（markdown 文本）
+        headers: 父级标题字典 {level: title}
+
+    Returns:
+        str: 添加了父级标题的内容
+
+    逻辑：
+        1. 提取分块中已存在的标题（避免重复）
+        2. 只添加 headers 中不存在的标题
+        3. 添加到内容最前面
+    """
+    if not headers:
+        return chunk_content
+
+    # 提取分块内容中已存在的标题文本（用于去重）
+    existing_headings = set()  # 存储格式: "level:title"
+
+    for line in chunk_content.split('\n'):
+        line = line.strip()
+        if line.startswith('#'):
+            # 计算标题层级 (# = 1, ## = 2, ### = 3, ...)
+            level = len(line) - len(line.lstrip('#'))
+            if level > 0 and level <= 6:
+                # 提取标题文本（去除 # 和空格）
+                heading_text = line.lstrip('#').strip()
+                existing_headings.add(f"{level}:{heading_text}")
+
+    # 添加 headers 中缺失的父级标题
+    missing_heading_lines = []
+    for level in sorted(headers.keys()):
+        heading_key = f"{level}:{headers[level]}"
+        # 如果这个标题不在分块内容中，才添加
+        if heading_key not in existing_headings:
+            heading_prefix = '#' * level
+            missing_heading_lines.append(f"{heading_prefix} {headers[level]}")
+
+    # 如果有缺失的父级标题，添加到内容前面
+    if missing_heading_lines:
+        missing_heading_text = '\n'.join(missing_heading_lines)
+        chunk_content = f"{missing_heading_text}\n\n{chunk_content}"
+        logging.debug(f"添加缺失的父级标题: {missing_heading_text}, 分块中已有标题: {existing_headings}")
+
+    return chunk_content
+
+
 def _render_blockquote_from_ast(blockquote_node):
     """从 AST 渲染引用块"""
     content = _extract_text_from_node(blockquote_node)
@@ -916,33 +966,7 @@ def _finalize_ast_chunk(chunk_parts, context_stack, enable_heading_in_content=Fa
 
     # 如果启用了标题添加到内容，且有标题层级
     if enable_heading_in_content and headers:
-        # 提取分块内容中已存在的标题文本（用于去重）
-        existing_headings = set()  # 存储格式: "level:title"
-
-        for line in chunk_content.split('\n'):
-            line = line.strip()
-            if line.startswith('#'):
-                # 计算标题层级 (# = 1, ## = 2, ### = 3, ...)
-                level = len(line) - len(line.lstrip('#'))
-                if level > 0 and level <= 6:
-                    # 提取标题文本（去除 # 和空格）
-                    heading_text = line.lstrip('#').strip()
-                    existing_headings.add(f"{level}:{heading_text}")
-
-        # 添加 context_stack 中缺失的父级标题
-        missing_heading_lines = []
-        for level in sorted(headers.keys()):
-            heading_key = f"{level}:{headers[level]}"
-            # 如果这个标题不在分块内容中，才添加
-            if heading_key not in existing_headings:
-                heading_prefix = '#' * level
-                missing_heading_lines.append(f"{heading_prefix} {headers[level]}")
-
-        # 如果有缺失的父级标题，添加到内容前面
-        if missing_heading_lines:
-            missing_heading_text = '\n'.join(missing_heading_lines)
-            chunk_content = f"{missing_heading_text}\n\n{chunk_content}"
-            logging.debug(f"添加缺失的父级标题: {missing_heading_text}, 分块中已有标题: {existing_headings}")
+        chunk_content = _add_missing_parent_headings(chunk_content, headers)
 
     # 返回字典格式，包含标题元数据
     return {
@@ -1008,19 +1032,7 @@ def split_markdown_to_chunks_title(txt, chunk_token_num=256, min_chunk_tokens=10
 
                 # 如果启用了标题添加到内容，且有标题层级
                 if enable_heading_in_content and headers:
-                    # 检查内容是否已经是标题
-                    is_heading = content.strip().startswith('#')
-
-                    # 如果内容本身不是标题，添加父级标题路径
-                    if not is_heading:
-                        # 生成 Markdown 标题格式
-                        heading_lines = []
-                        for level in sorted(headers.keys()):
-                            heading_prefix = '#' * level
-                            heading_lines.append(f"{heading_prefix} {headers[level]}")
-
-                        heading_text = '\n'.join(heading_lines)
-                        content = f"{heading_text}\n\n{content}"
+                    content = _add_missing_parent_headings(content, headers)
 
                 # 统一返回字典格式
                 chunk_data = {
@@ -1892,7 +1904,8 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
             min_chunk_tokens=min_chunk_tokens,
             parent_config=parent_config,
             doc_id=doc_id,
-            kb_id=kb_id
+            kb_id=kb_id,
+            enable_heading_in_content=enable_heading_in_content
         )
 
         logging.info(f"AST 父子分块完成: {len(parent_chunks)} 父块, {len(child_chunks)} 子块")
@@ -1945,19 +1958,7 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
 
             # 如果启用了标题添加到内容，且有标题层级
             if enable_heading_in_content and headers:
-                # 检查内容是否已经是标题
-                is_heading = chunk_content.strip().startswith('#')
-
-                # 如果内容本身不是标题，添加父级标题路径
-                if not is_heading:
-                    # 生成 Markdown 标题格式
-                    heading_lines = []
-                    for level in sorted(headers.keys()):
-                        heading_prefix = '#' * level
-                        heading_lines.append(f"{heading_prefix} {headers[level]}")
-
-                    heading_text = '\n'.join(heading_lines)
-                    chunk_content = f"{heading_text}\n\n{chunk_content}"
+                chunk_content = _add_missing_parent_headings(chunk_content, headers)
 
             chunk_dict = {
                 "content": chunk_content,
@@ -2010,11 +2011,11 @@ class ASTChunkInfo:
         self.semantic_elements = metadata.get('semantic_elements', {})
 
 
-def split_markdown_to_chunks_ast_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10, 
-                                             parent_config=None, doc_id='unknown', kb_id='unknown'):
+def split_markdown_to_chunks_ast_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10,
+                                             parent_config=None, doc_id='unknown', kb_id='unknown', enable_heading_in_content=False):
     """
     基于AST的父子分块方法
-    
+
     Args:
         txt: 要分块的文本
         chunk_token_num: 子分块大小（tokens）
@@ -2022,7 +2023,8 @@ def split_markdown_to_chunks_ast_parent_child(txt, chunk_token_num=256, min_chun
         parent_config: 父分块配置
         doc_id: 文档ID
         kb_id: 知识库ID
-        
+        enable_heading_in_content: 是否在分块内容中添加父级标题
+
     Returns:
         tuple: (parent_chunks, child_chunks, relationships)
     """
@@ -2031,27 +2033,27 @@ def split_markdown_to_chunks_ast_parent_child(txt, chunk_token_num=256, min_chun
         # 回退到现有的父子分块实现
         from api.apps.chunk_app import parent_child_split
         return parent_child_split()
-    
+
     if not txt or not txt.strip():
         return [], [], []
-    
+
     parent_config = parent_config or {}
     parent_split_level = parent_config.get('parent_split_level', 2)  # 默认H2分割
-    
+
     try:
         # 1. 解析AST并创建增强节点
         enhanced_nodes = _create_enhanced_ast_nodes(txt)
-        
+
         # 2. 基于AST创建子分块
         child_chunks = _create_ast_child_chunks(
             enhanced_nodes, chunk_token_num, min_chunk_tokens, doc_id
         )
-        
-        # 3. 基于AST和标题层级创建父分块  
+
+        # 3. 基于AST和标题层级创建父分块
         parent_chunks = _create_ast_parent_chunks(
-            enhanced_nodes, parent_split_level, doc_id
+            enhanced_nodes, parent_split_level, doc_id, enable_heading_in_content
         )
-        
+
         # 4. 建立精确的AST关联关系
         relationships = _create_ast_relationships(
             child_chunks, parent_chunks, enhanced_nodes, doc_id, kb_id
@@ -2211,26 +2213,26 @@ def _create_ast_child_chunk_obj(nodes, order, doc_id):
     )
 
 
-def _create_ast_parent_chunks(enhanced_nodes, parent_split_level, doc_id):
+def _create_ast_parent_chunks(enhanced_nodes, parent_split_level, doc_id, enable_heading_in_content=False):
     """基于AST和标题层级创建父分块"""
     parent_chunks = []
     current_section_nodes = []
     current_section_header = None
     parent_order = 0
-    
+
     for node_info in enhanced_nodes:
         # 检查是否是父分块边界标题
-        if (node_info['type'] == 'heading' and 
+        if (node_info['type'] == 'heading' and
             node_info.get('header_level', 99) <= parent_split_level):
-            
+
             # 完成当前父分块
             if current_section_nodes:
                 parent_chunk = _create_ast_parent_chunk_obj(
-                    current_section_nodes, current_section_header, parent_order, doc_id
+                    current_section_nodes, current_section_header, parent_order, doc_id, enable_heading_in_content
                 )
                 parent_chunks.append(parent_chunk)
                 parent_order += 1
-            
+
             # 开始新的父分块
             current_section_nodes = [node_info]
             current_section_header = {
@@ -2240,52 +2242,34 @@ def _create_ast_parent_chunks(enhanced_nodes, parent_split_level, doc_id):
             }
         else:
             current_section_nodes.append(node_info)
-    
+
     # 处理最后一个父分块
     if current_section_nodes:
         parent_chunk = _create_ast_parent_chunk_obj(
-            current_section_nodes, current_section_header, parent_order, doc_id
+            current_section_nodes, current_section_header, parent_order, doc_id, enable_heading_in_content
         )
         parent_chunks.append(parent_chunk)
-    
+
     return parent_chunks
 
 
-def _create_ast_parent_chunk_obj(nodes, header_info, order, doc_id):
+def _create_ast_parent_chunk_obj(nodes, header_info, order, doc_id, enable_heading_in_content=False):
     """创建父分块对象"""
     import hashlib
 
     # 生成原始内容
     content = "\n\n".join([n['content'] for n in nodes if n['content'].strip()])
 
-    # 生成标题层级路径前缀
-    context_prefix = ""
+    # 如果启用标题添加到内容，且有标题层级
     context_depth = 0
-    if header_info and header_info.get('context_stack'):
+    if enable_heading_in_content and header_info and header_info.get('context_stack'):
         context_stack = header_info['context_stack']
-        current_level = header_info.get('level', 0)
-
-        # 只有当当前标题层级 > 1 时，才需要添加上级标题上下文
-        if current_level > 1 and len(context_stack) > 1:
-            # 构建标题路径：从 H1 到当前层级的前一级
-            # 例如：当前是 H3，则包含 H1 > H2
-            title_path_parts = []
-            for ctx in context_stack[:-1]:  # 排除当前层级（最后一个）
-                level = ctx.get('level', 1)
-                title = ctx.get('title', '')
-                if title:
-                    # 生成 markdown 标题格式
-                    prefix_mark = '#' * level
-                    title_path_parts.append(f"{prefix_mark} {title}")
-
-            # 如果有上级标题，生成前缀
-            if title_path_parts:
-                context_prefix = " > ".join(title_path_parts) + "\n\n"
-                context_depth = len(title_path_parts)
-
-    # 将前缀添加到内容开头
-    if context_prefix:
-        content = context_prefix + content
+        # 只添加父级标题（排除当前层级）
+        if len(context_stack) > 1:
+            headers = {item['level']: item['title'] for item in context_stack[:-1]}
+            if headers:
+                content = _add_missing_parent_headings(content, headers)
+                context_depth = len(headers)
 
     chunk_id = f"{doc_id}_parent_ast_{order:04d}_{hashlib.md5(content.encode('utf-8')).hexdigest()[:8]}"
 
@@ -2305,7 +2289,7 @@ def _create_ast_parent_chunk_obj(nodes, header_info, order, doc_id):
             'context_stack': header_info['context_stack'] if header_info else [],
             'semantic_completeness': True,
             'ast_node_count': len(nodes),
-            'has_context_prefix': bool(context_prefix),
+            'has_context_prefix': (context_depth > 0),
             'context_depth': context_depth
         }
     )
