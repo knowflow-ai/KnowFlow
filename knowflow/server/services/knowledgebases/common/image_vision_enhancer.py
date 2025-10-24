@@ -42,13 +42,18 @@ def extract_image_references(text: str) -> List[tuple]:
     return matches
 
 
-def call_ragflow_vision_api_batch(image_paths: List[str], tenant_id: str) -> Dict[str, Optional[str]]:
+def call_ragflow_vision_api_batch(
+    image_paths: List[str],
+    tenant_id: str,
+    image_contexts: Dict[str, str] = None
+) -> Dict[str, Optional[str]]:
     """
     批量调用 RAGFlow 视觉 API 获取图片描述
 
     Args:
         image_paths: 图片路径列表（MinIO路径）
         tenant_id: 租户ID
+        image_contexts: 图片路径到上下文信息的映射 {image_path: context_summary}
 
     Returns:
         {image_path: description} 字典，失败的图片描述为 None
@@ -60,9 +65,19 @@ def call_ragflow_vision_api_batch(image_paths: List[str], tenant_id: str) -> Dic
     api_endpoint = f"{ragflow_base_url}/v1/llm/vision/describe_batch"
 
     try:
+        # 构建请求payload，包含上下文信息
+        images_payload = []
+        for path in image_paths:
+            img_item = {"image_data": path}
+            # 如果有上下文，添加到请求中
+            if image_contexts and path in image_contexts:
+                img_item["context"] = image_contexts[path]
+                logger.info(f"图片 {path} 包含上下文信息: {image_contexts[path][:100]}...")
+            images_payload.append(img_item)
+
         payload = {
             "tenant_id": tenant_id,
-            "images": [{"image_data": path} for path in image_paths]
+            "images": images_payload
         }
 
         response = requests.post(api_endpoint, json=payload)
@@ -96,7 +111,8 @@ def enhance_chunks_with_vision(
     chunks: List[Dict[str, Any]],
     tenant_id: str,
     description_format: str = "[图片描述: {desc}]",
-    batch_size: int = None
+    batch_size: int = None,
+    markdown_content: str = None
 ) -> List[Dict[str, Any]]:
     """
     为分块添加图片视觉增强描述（批量处理）
@@ -106,6 +122,7 @@ def enhance_chunks_with_vision(
         tenant_id: 租户ID
         description_format: 描述格式模板
         batch_size: 批量处理大小，默认从环境变量读取，设为1则单条发送
+        markdown_content: 完整的 Markdown 文档内容，用于提取上下文
 
     Returns:
         增强后的分块列表
@@ -140,16 +157,42 @@ def enhance_chunks_with_vision(
 
     logger.info(f"共发现 {len(all_image_paths)} 个唯一图片")
 
-    # 第二步：批量获取所有图片描述
+    # 第二步：提取图片上下文信息
+    image_contexts = {}
+    if markdown_content:
+        try:
+            from .image_context_extractor import ImageContextExtractor
+            extractor = ImageContextExtractor(markdown_content)
+
+            # 为每个图片提取上下文
+            for full_tag, img_path in [(refs[0], refs[1]) for _, refs_list in chunk_images for refs in refs_list]:
+                if img_path not in image_contexts:
+                    context_info = extractor.extract_context_for_image(full_tag, img_path)
+                    if context_info['context_summary']:
+                        image_contexts[img_path] = context_info['context_summary']
+                        logger.info(f"图片 {img_path} 上下文提取成功")
+
+            logger.info(f"成功提取 {len(image_contexts)} 个图片的上下文信息")
+        except Exception as e:
+            logger.error(f"提取图片上下文失败: {e}")
+            image_contexts = {}
+    else:
+        logger.warning("未提供 markdown_content，将不使用上下文增强")
+
+    # 第三步：批量获取所有图片描述
     all_descriptions = {}
 
     for i in range(0, len(all_image_paths), batch_size):
         batch = all_image_paths[i:i + batch_size]
         logger.info(f"处理批次 {i//batch_size + 1}/{(len(all_image_paths) + batch_size - 1)//batch_size}，包含 {len(batch)} 个图片")
-        batch_results = call_ragflow_vision_api_batch(batch, tenant_id)
+
+        # 获取当前批次的图片上下文
+        batch_contexts = {path: image_contexts.get(path) for path in batch if path in image_contexts}
+
+        batch_results = call_ragflow_vision_api_batch(batch, tenant_id, batch_contexts)
         all_descriptions.update(batch_results)
 
-    # 第三步：将描述应用到对应的分块
+    # 第四步：将描述应用到对应的分块
     enhanced_chunks = []
     enhanced_count = 0
 

@@ -144,6 +144,7 @@ KEYWORD_PROMPT_TEMPLATE = load_prompt("keyword_prompt")
 QUESTION_PROMPT_TEMPLATE = load_prompt("question_prompt")
 VISION_LLM_DESCRIBE_PROMPT = load_prompt("vision_llm_describe_prompt")
 VISION_LLM_FIGURE_DESCRIBE_PROMPT = load_prompt("vision_llm_figure_describe_prompt")
+VISION_LLM_CONTEXT_DESCRIBE_PROMPT = load_prompt("vision_llm_context_describe_prompt")
 
 ANALYZE_TASK_SYSTEM = load_prompt("analyze_task_system")
 ANALYZE_TASK_USER = load_prompt("analyze_task_user")
@@ -302,6 +303,20 @@ def vision_llm_describe_prompt(page=None) -> str:
 def vision_llm_figure_describe_prompt() -> str:
     template = PROMPT_JINJA_ENV.from_string(VISION_LLM_FIGURE_DESCRIBE_PROMPT)
     return template.render()
+
+
+def vision_llm_context_describe_prompt(context=None) -> str:
+    """
+    生成带上下文的视觉描述提示词
+
+    Args:
+        context: 图片上下文信息，包含章节标题、图片标题、相关段落等
+
+    Returns:
+        渲染后的提示词
+    """
+    template = PROMPT_JINJA_ENV.from_string(VISION_LLM_CONTEXT_DESCRIBE_PROMPT)
+    return template.render(context=context)
 
 
 def tool_schema(tools_description: list[dict], complete_task=False):

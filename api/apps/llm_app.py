@@ -448,6 +448,7 @@ def vision_describe_batch():
         for img_item in images:
             image_data = img_item.get("image_data")
             custom_prompt = img_item.get("prompt")
+            context = img_item.get("context")  # 新增：获取上下文信息
 
             if not image_data:
                 descriptions.append(None)
@@ -492,9 +493,18 @@ def vision_describe_batch():
 
             # 调用视觉模型
             try:
-                if custom_prompt:
+                # 根据是否有上下文信息选择合适的提示词
+                if context:
+                    # 有上下文：使用增强的提示词
+                    from rag.prompts.prompts import vision_llm_context_describe_prompt
+                    enhanced_prompt = vision_llm_context_describe_prompt(context=context)
+                    logging.info(f"使用上下文增强提示词，上下文长度: {len(context) if isinstance(context, str) else 'N/A'}")
+                    description = vision_model.describe_with_prompt(image_bytes, enhanced_prompt)
+                elif custom_prompt:
+                    # 有自定义提示词：直接使用
                     description = vision_model.describe_with_prompt(image_bytes, custom_prompt)
                 else:
+                    # 无上下文和自定义提示词：使用默认方法
                     description = vision_model.describe(image_bytes)
 
                 if isinstance(description, tuple):
@@ -506,7 +516,7 @@ def vision_describe_batch():
                 descriptions.append(desc_text)
 
             except Exception as e:
-                logging.error(f"Vision model describe failed for image: {e}")
+                logging.exception(f"Vision model describe failed for image: {e}")
                 descriptions.append(None)
 
         return get_json_result(data={

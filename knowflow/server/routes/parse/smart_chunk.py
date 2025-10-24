@@ -91,7 +91,8 @@ def smart_chunk():
                 chunks,
                 tenant_id=data.get('tenant_id', 'unknown'),
                 description_format=data.get('vision_description_format', '[图片描述]: {desc}'),
-                batch_size=data.get('vision_batch_size')  # 支持配置批量大小
+                batch_size=data.get('vision_batch_size'),  # 支持配置批量大小
+                markdown_content=markdown_text  # 传递完整的 markdown 内容用于上下文提取
             )
             logging.info("图片视觉增强处理完成")
         else:
