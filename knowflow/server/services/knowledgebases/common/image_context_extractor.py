@@ -11,7 +11,7 @@
 
 import logging
 import re
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -192,12 +192,12 @@ class ImageContextExtractor:
         if paragraphs and caption:
             # 检查第一个段落是否匹配
             if self._paragraph_references_caption(paragraphs[0], caption):
-                logger.info(f"第一个段落匹配 caption，仅返回第一个段落")
+                logger.debug(f"第一个段落匹配 caption，仅返回第一个段落")
                 return paragraphs[:1]
 
             # 检查第二个段落是否匹配
             if len(paragraphs) > 1 and self._paragraph_references_caption(paragraphs[1], caption):
-                logger.info(f"第二个段落匹配 caption，仅返回第二个段落")
+                logger.debug(f"第二个段落匹配 caption，仅返回第二个段落")
                 return [paragraphs[1]]  # 只返回第二个段落
 
         # 都不匹配，返回最多 max_paragraphs 个段落
@@ -225,14 +225,17 @@ class ImageContextExtractor:
         """
         # 提取 caption 中的数字
         caption_numbers = re.findall(r'\d+', caption)
+        if not caption_numbers:
+            return False
 
         # 检测引用模式
+        numbers_pattern = r'|'.join(caption_numbers)
         reference_patterns = [
-            r'如图\s*' + r'|'.join(caption_numbers),
-            r'见图\s*' + r'|'.join(caption_numbers),
-            r'图\s*' + r'|'.join(caption_numbers) + r'\s*所示',
-            r'Figure\s*' + r'|'.join(caption_numbers),
-            r'Fig\.?\s*' + r'|'.join(caption_numbers),
+            r'如图\s*' + numbers_pattern,
+            r'见图\s*' + numbers_pattern,
+            r'图\s*' + numbers_pattern + r'\s*所示',
+            r'Figure\s*' + numbers_pattern,
+            r'Fig\.?\s*' + numbers_pattern,
         ]
 
         for pattern in reference_patterns:

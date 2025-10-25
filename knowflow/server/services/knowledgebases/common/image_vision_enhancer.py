@@ -42,6 +42,75 @@ def extract_image_references(text: str) -> List[tuple]:
     return matches
 
 
+def _find_caption_line_end(content: str, img_tag_end: int) -> int:
+    """
+    查找图片标签后 caption 行的结束位置
+
+    根据 middle_json_simple.py:573 的生成逻辑：
+    - alt 属性是 caption 的单行版本（换行替换为空格）
+    - 如果有 caption，会在下一行重复 caption 文本
+
+    利用 alt 属性来判断下一行是否是 caption，比简单的空行检测更准确。
+
+    Args:
+        content: 分块内容文本
+        img_tag_end: 图片标签的结束位置
+
+    Returns:
+        应该插入图片描述的位置
+    """
+    # 向前查找图片标签的开始位置，提取 alt 属性
+    img_tag_start = content.rfind('<img', 0, img_tag_end)
+    if img_tag_start == -1:
+        return img_tag_end
+
+    img_tag = content[img_tag_start:img_tag_end]
+
+    # 提取 alt 属性值
+    alt_match = re.search(r'alt="([^"]*)"', img_tag)
+    if not alt_match:
+        # 没有 alt 属性，无法判断
+        return img_tag_end
+
+    alt_text = alt_match.group(1)
+
+    # 如果 alt 是默认值（如 "图片"），认为没有有效 caption
+    if not alt_text or alt_text == '图片':
+        return img_tag_end
+
+    # 检查下一行
+    remaining = content[img_tag_end:]
+    if not remaining.startswith('\n'):
+        return img_tag_end
+
+    # 只允许一个换行符，如果有多个换行符（空行），则没有 caption
+    if len(remaining) > 1 and remaining[1] == '\n':
+        return img_tag_end
+
+    # 查找第一行的结束位置
+    line_end = remaining.find('\n', 1)
+    if line_end == -1:
+        # caption 行到文档末尾
+        next_line = remaining[1:].strip()
+    else:
+        # caption 行结束位置
+        next_line = remaining[1:line_end].strip()
+
+    # 将 alt_text 规范化：因为 alt 中换行被替换为空格
+    # 比较时也将下一行的多余空格规范化
+    alt_normalized = ' '.join(alt_text.split())
+    next_line_normalized = ' '.join(next_line.split())
+
+    # 判断下一行是否与 alt 文本匹配
+    if alt_normalized == next_line_normalized:
+        caption_end = img_tag_end + (line_end if line_end != -1 else len(remaining))
+        logger.debug(f"检测到图片 caption (通过 alt 匹配): {next_line[:50]}...")
+        return caption_end
+
+    # 下一行不是 caption
+    return img_tag_end
+
+
 def call_ragflow_vision_api_batch(
     image_paths: List[str],
     tenant_id: str,
@@ -72,7 +141,7 @@ def call_ragflow_vision_api_batch(
             # 如果有上下文，添加到请求中
             if image_contexts and path in image_contexts:
                 img_item["context"] = image_contexts[path]
-                logger.info(f"图片 {path} 包含上下文信息: {image_contexts[path][:100]}...")
+                logger.debug(f"图片 {path} 包含上下文信息: {image_contexts[path][:100]}...")
             images_payload.append(img_item)
 
         payload = {
@@ -92,7 +161,7 @@ def call_ragflow_vision_api_batch(
             for i, path in enumerate(image_paths):
                 if i < len(descriptions):
                     result_dict[path] = descriptions[i]
-                    logger.info(f"图片描述已生成 [{i+1}/{len(image_paths)}]: {descriptions[i][:50] if descriptions[i] else 'None'}...")
+                    logger.debug(f"图片描述已生成 [{i+1}/{len(image_paths)}]: {descriptions[i][:50] if descriptions[i] else 'None'}...")
                 else:
                     result_dict[path] = None
                     logger.warning(f"图片 {path} 未返回描述")
@@ -137,8 +206,8 @@ def enhance_chunks_with_vision(
     logger.info(f"开始图片视觉增强，共 {len(chunks)} 个分块，批量大小: {batch_size}")
 
     # 第一步：收集所有需要处理的图片
-    chunk_images = []  # [(chunk_index, img_refs), ...]
-    all_image_paths = []
+    chunk_images = {}  # {chunk_index: img_refs}
+    image_to_tag = {}  # {img_path: full_tag}
 
     for i, chunk in enumerate(chunks):
         if not isinstance(chunk, dict) or 'content' not in chunk:
@@ -146,16 +215,16 @@ def enhance_chunks_with_vision(
 
         img_refs = extract_image_references(chunk['content'])
         if img_refs:
-            chunk_images.append((i, img_refs))
-            for _, img_path, _, _ in img_refs:
-                if img_path not in all_image_paths:
-                    all_image_paths.append(img_path)
+            chunk_images[i] = img_refs
+            for full_tag, img_path, _, _ in img_refs:
+                if img_path not in image_to_tag:
+                    image_to_tag[img_path] = full_tag
 
-    if not all_image_paths:
+    if not image_to_tag:
         logger.info("未发现需要处理的图片")
         return chunks
 
-    logger.info(f"共发现 {len(all_image_paths)} 个唯一图片")
+    logger.info(f"共发现 {len(image_to_tag)} 个唯一图片")
 
     # 第二步：提取图片上下文信息
     image_contexts = {}
@@ -165,12 +234,11 @@ def enhance_chunks_with_vision(
             extractor = ImageContextExtractor(markdown_content)
 
             # 为每个图片提取上下文
-            for full_tag, img_path in [(refs[0], refs[1]) for _, refs_list in chunk_images for refs in refs_list]:
-                if img_path not in image_contexts:
-                    context_info = extractor.extract_context_for_image(full_tag, img_path)
-                    if context_info['context_summary']:
-                        image_contexts[img_path] = context_info['context_summary']
-                        logger.info(f"图片 {img_path} 上下文提取成功")
+            for img_path, full_tag in image_to_tag.items():
+                context_info = extractor.extract_context_for_image(full_tag, img_path)
+                if context_info['context_summary']:
+                    image_contexts[img_path] = context_info['context_summary']
+                    logger.debug(f"图片 {img_path} 上下文提取成功")
 
             logger.info(f"成功提取 {len(image_contexts)} 个图片的上下文信息")
         except Exception as e:
@@ -181,13 +249,14 @@ def enhance_chunks_with_vision(
 
     # 第三步：批量获取所有图片描述
     all_descriptions = {}
+    all_image_paths = list(image_to_tag.keys())
 
     for i in range(0, len(all_image_paths), batch_size):
         batch = all_image_paths[i:i + batch_size]
         logger.info(f"处理批次 {i//batch_size + 1}/{(len(all_image_paths) + batch_size - 1)//batch_size}，包含 {len(batch)} 个图片")
 
         # 获取当前批次的图片上下文
-        batch_contexts = {path: image_contexts.get(path) for path in batch if path in image_contexts}
+        batch_contexts = {path: image_contexts[path] for path in batch if path in image_contexts}
 
         batch_results = call_ragflow_vision_api_batch(batch, tenant_id, batch_contexts)
         all_descriptions.update(batch_results)
@@ -198,12 +267,7 @@ def enhance_chunks_with_vision(
 
     for i, chunk in enumerate(chunks):
         # 查找该分块是否有图片
-        chunk_img_refs = None
-        for chunk_idx, img_refs in chunk_images:
-            if chunk_idx == i:
-                chunk_img_refs = img_refs
-                break
-
+        chunk_img_refs = chunk_images.get(i)
         if chunk_img_refs is None:
             enhanced_chunks.append(chunk)
             continue
@@ -213,8 +277,12 @@ def enhance_chunks_with_vision(
         for full_tag, img_path, start, end in reversed(chunk_img_refs):
             desc = all_descriptions.get(img_path)
             if desc:
-                enhancement = "\n" + description_format.format(desc=desc) + "\n"
-                enhanced_content = enhanced_content[:end] + enhancement + enhanced_content[end:]
+                # 查找正确的插入位置（如果有 caption，插入到 caption 之后）
+                insert_pos = _find_caption_line_end(enhanced_content, end)
+
+                # 使用 HTML <br> 标签实现换行（MathMarkdown 支持 HTML）
+                enhancement = "<br>\n" + description_format.format(desc=desc) + "\n"
+                enhanced_content = enhanced_content[:insert_pos] + enhancement + enhanced_content[insert_pos:]
                 enhanced_count += 1
 
         enhanced_chunk = chunk.copy()
