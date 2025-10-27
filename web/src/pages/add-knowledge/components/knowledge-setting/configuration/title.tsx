@@ -11,6 +11,7 @@ import MaxTokenNumber from '@/components/max-token-number';
 import PageRank from '@/components/page-rank';
 import ParseConfiguration from '@/components/parse-configuration';
 import GraphRagItems from '@/components/parse-configuration/graph-rag-items';
+import SplitLevel from '@/components/split-level';
 import { Divider } from 'antd';
 import { TagItems } from '../tag-item';
 import { ChunkMethodItem, EmbeddingModelItem } from './common-item';
@@ -24,6 +25,7 @@ export function TitleConfiguration() {
         <ChunkMethodItem></ChunkMethodItem>
         <MaxTokenNumber></MaxTokenNumber>
         <EnableHeadingInContent></EnableHeadingInContent>
+        <SplitLevel></SplitLevel>
         <Delimiter></Delimiter>
       </DatasetConfigurationContainer>
       <Divider></Divider>

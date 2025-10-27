@@ -47,7 +47,7 @@ class TitleChunker(ModernParserBase):
             "chunk_token_num": 256,
             "min_chunk_tokens": 10,
             "include_metadata": True,  # 包含标题元数据
-            "split_level": 3,  # H1/H2/H3 作为分割边界
+            "split_level": 2,  # 只在 H2 处分割
             "enable_vision_enhancement": False,
             "vision_description_format": "[图片描述]: {desc}",
             "vision_batch_size": 3,
@@ -60,7 +60,7 @@ class TitleChunker(ModernParserBase):
             'chunk_token_num': int(parser_config.get('chunk_token_num', 256)),
             'min_chunk_tokens': int(parser_config.get('min_chunk_tokens', 10)),
             'include_metadata': bool(parser_config.get('include_metadata', True)),
-            'split_level': int(parser_config.get('split_level', 3)),
+            'split_level': int(parser_config.get('split_level', 2)),
             'enable_heading_in_content': parser_config.get('enable_heading_in_content', False)
         }
         # 添加图片理解配置

@@ -40,6 +40,7 @@ export interface ParserConfig {
   html4excel?: boolean;
   layout_recognize?: string;
   enable_heading_in_content?: boolean;
+  split_level?: number;
   raptor?: Raptor;
   tag_kb_ids?: string[];
   topn_tags?: number;
@@ -49,6 +50,7 @@ export interface IKnowledgeFileParserConfig {
   chunk_token_num: number;
   layout_recognize: string;
   enable_heading_in_content?: boolean;
+  split_level?: number;
   pages: number[][];
   task_page_size: number;
 }

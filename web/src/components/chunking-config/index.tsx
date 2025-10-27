@@ -21,6 +21,7 @@ interface ChunkingConfigProps {
     chunk_token_num?: number;
     regex_pattern?: string;
     enable_heading_in_content?: boolean;
+    split_level?: number;
     parent_config?: {
       parent_chunk_size?: number;
       parent_chunk_overlap?: number;
@@ -40,6 +41,7 @@ export const ChunkingConfig = memo(function ChunkingConfig({
     chunk_token_num: 256,
     regex_pattern: '',
     enable_heading_in_content: false,
+    split_level: 2,
     parent_config: {
       parent_chunk_size: 1024,
       parent_chunk_overlap: 100,
@@ -70,6 +72,9 @@ export const ChunkingConfig = memo(function ChunkingConfig({
       DocumentParserType.Title,
       DocumentParserType.ParentChild,
     ].includes(parserType);
+
+  // 判断是否显示 split_level（只有 title 支持）
+  const showSplitLevel = parserType === DocumentParserType.Title;
 
   // 判断是否显示图片理解配置（smart/regex/title/parent-child 都支持）
   const showVisionConfig =
@@ -117,6 +122,24 @@ export const ChunkingConfig = memo(function ChunkingConfig({
           tooltip="为每个分块添加父级标题路径（如：[章节: 第一章 > 第一节]），有助于在分块内容中保持上下文"
         >
           <Switch />
+        </Form.Item>
+      )}
+
+      {showSplitLevel && (
+        <Form.Item
+          name={['parser_config', 'split_level']}
+          label="标题分割层级"
+          initialValue={2}
+          tooltip="选择在哪个标题层级进行分块。H2 适合大多数文档结构。如果文档没有 H2 标题，系统会自动使用更高级别的标题。"
+        >
+          <Select style={{ width: '100%' }}>
+            <Select.Option value={1}>H1</Select.Option>
+            <Select.Option value={2}>H2</Select.Option>
+            <Select.Option value={3}>H3</Select.Option>
+            <Select.Option value={4}>H4</Select.Option>
+            <Select.Option value={5}>H5</Select.Option>
+            <Select.Option value={6}>H6</Select.Option>
+          </Select>
         </Form.Item>
       )}
 

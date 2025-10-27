@@ -19,6 +19,7 @@ import { QAConfiguration } from './configuration/qa';
 import { ResumeConfiguration } from './configuration/resume';
 import { TableConfiguration } from './configuration/table';
 import { TagConfiguration } from './configuration/tag';
+import { TitleConfiguration } from './configuration/title';
 import { SavingButton } from './saving-button';
 
 const ConfigurationComponentMap = {
@@ -36,6 +37,7 @@ const ConfigurationComponentMap = {
   [DocumentParserType.Audio]: AudioConfiguration,
   [DocumentParserType.Email]: EmailConfiguration,
   [DocumentParserType.Tag]: TagConfiguration,
+  [DocumentParserType.Title]: TitleConfiguration,
   [DocumentParserType.KnowledgeGraph]: KnowledgeGraphConfiguration,
 };
 

@@ -979,34 +979,33 @@ def _finalize_ast_chunk(chunk_parts, context_stack, enable_heading_in_content=Fa
 
 
 def split_markdown_to_chunks_title(txt, chunk_token_num=256, min_chunk_tokens=10,
-                                   split_level=3, include_metadata=False, enable_heading_in_content=False):
+                                   split_level=2, include_metadata=False, enable_heading_in_content=False):
     """
-    基于标题层级的严格分块方法
+    基于标题层级的严格分块方法（带自动适配）
 
     特点：
-    1. 严格按照指定的标题级别分割（H1/H2/H3 等）
-    2. 不进行大小控制（不合并小块，不分割大块）
-    3. 保持标题层级上下文
-    4. 适合结构清晰、标题规范的文档
+    1. 按照指定的标题级别分割（如 H2）
+    2. 自动适配文档结构：如果指定级别只产生1个块，自动使用更高级别
+    3. 不进行大小控制（不合并小块，不分割大块）
+    4. 保持标题层级上下文
+    5. 适合结构清晰、标题规范的文档
 
     Args:
         txt: markdown 文本
         chunk_token_num: 目标分块 token 数（仅用于参考）
         min_chunk_tokens: 最小分块 token 数（仅用于参考）
-        split_level: 分割的最大标题级别 (1-6), 默认3表示在H1/H2/H3处分割
+        split_level: 分割的标题级别 (1-6), 默认2表示优先在H2处分割
         include_metadata: 是否包含元数据
+        enable_heading_in_content: 是否在内容中包含父标题
 
     Returns:
-        分块列表（字符串或字典）
+        分块列表（字典格式）
     """
     if not MARKDOWN_IT_AVAILABLE:
         return split_markdown_to_chunks(txt, chunk_token_num)
 
     if not txt or not txt.strip():
         return []
-
-    # 配置分割的标题级别
-    headers_to_split_on = list(range(1, split_level + 1))  # [1, 2, 3] for split_level=3
 
     # 初始化 markdown-it 解析器
     md = MarkdownIt("commonmark", {"breaks": True, "html": True})
@@ -1017,11 +1016,20 @@ def split_markdown_to_chunks_title(txt, chunk_token_num=256, min_chunk_tokens=10
         tokens = md.parse(txt)
         tree = SyntaxTreeNode(tokens)
 
-        # 提取所有节点和标题信息
-        nodes_with_headers = _extract_nodes_with_header_info(tree, headers_to_split_on)
+        # 智能回退逻辑：从指定级别开始，如果只有1个块则回退到上一级
+        chunks = None
+        current_level = split_level
 
-        # 基于标题层级进行分块（严格分割，不做大小调整）
-        chunks = _split_by_header_levels(nodes_with_headers, headers_to_split_on)
+        while current_level >= 1:
+            headers_to_split_on = [current_level]
+            nodes_with_headers = _extract_nodes_with_header_info(tree, headers_to_split_on)
+            chunks = _split_by_header_levels(nodes_with_headers, headers_to_split_on)
+
+            # 如果产生了多个块，或者已经到 H1 级别，使用该结果
+            if len(chunks) > 1 or current_level == 1:
+                break
+
+            current_level -= 1
 
         # 生成最终分块内容（统一返回字典格式）
         final_chunks = []

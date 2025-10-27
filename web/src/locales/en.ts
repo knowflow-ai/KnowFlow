@@ -290,6 +290,9 @@ export default {
         "If it is set to 'Team', all your team members will be able to manage the knowledge base.",
       chunkTokenNumberTip:
         'It kind of sets the token threshold for a creating a chunk. A segment with fewer tokens than this threshold will be combined with the following segments until the token count exceeds the threshold, at which point a chunk is created. No new chunk is created unless a delimiter is encountered, even if the threshold is exceeded.',
+      splitLevel: 'Heading Split Level',
+      splitLevelTip:
+        'Select heading level for chunking. H2 is suitable for most documents. If no H2 headings exist, higher-level headings will be used automatically.',
       chunkMethod: 'Chunking method',
       chunkMethodTip: 'View the tips on the right.',
       upload: 'Upload',
