@@ -94,7 +94,7 @@ def retrieval(tenant_id):
         print("after",convert_conditions(metadata_condition))
         doc_ids.extend(meta_filter(metas, convert_conditions(metadata_condition)))
         print("doc_ids",doc_ids)
-        if not doc_ids and metadata_condition is not None:
+        if not doc_ids and metadata_condition:
             doc_ids = ['-999']
         ranks = settings.retrievaler.retrieval(
             question,
