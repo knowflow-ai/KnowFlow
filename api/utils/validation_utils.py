@@ -362,7 +362,7 @@ class CreateDatasetReq(Base):
     embedding_model: Annotated[str | None, Field(default=None, max_length=255, serialization_alias="embd_id")]
     permission: Annotated[Literal["me", "team"], Field(default="me", min_length=1, max_length=16)]
     chunk_method: Annotated[
-        Literal["naive", "book", "email", "laws", "manual", "one", "paper", "picture", "presentation", "qa", "table", "tag"],
+        Literal["naive", "book", "email", "laws", "manual", "one", "paper", "picture", "presentation", "qa", "table", "tag", "smart", "regex", "parent_child", "title"],
         Field(default="naive", min_length=1, max_length=32, serialization_alias="parser_id"),
     ]
     parser_config: Annotated[ParserConfig | None, Field(default=None)]

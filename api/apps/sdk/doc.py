@@ -274,7 +274,7 @@ def update_doc(tenant_id, dataset_id, document_id):
     if "parser_config" in req:
         DocumentService.update_parser_config(doc.id, req["parser_config"])
     if "chunk_method" in req:
-        valid_chunk_method = {"naive", "manual", "qa", "table", "paper", "book", "laws", "presentation", "picture", "one", "knowledge_graph", "email", "tag"}
+        valid_chunk_method = {"naive", "manual", "qa", "table", "paper", "book", "laws", "presentation", "picture", "one", "knowledge_graph", "email", "tag", "smart", "regex", "parent_child", "title"}
         if req.get("chunk_method") not in valid_chunk_method:
             return get_error_data_result(f"`chunk_method` {req['chunk_method']} doesn't exist")
 
