@@ -147,10 +147,18 @@ class ModernParserBase(ABC):
             List[dict]: 分块结果列表
         """
         temp_pdf_to_cleanup = None
+        is_markdown = False
 
         try:
-            # 1. 确保输入是 PDF（如果不是则转换）
-            pdf_path, temp_pdf_to_cleanup, pdf_binary = ensure_pdf(filename, binary)
+            # 检查是否是 Markdown 文件
+            if isinstance(filename, str) and filename.lower().endswith(('.md', '.markdown')):
+                is_markdown = True
+                logging.info(f"Detected Markdown file: {filename}")
+                pdf_path = filename
+                pdf_binary = binary
+            else:
+                # 1. 确保输入是 PDF（如果不是则转换）
+                pdf_path, temp_pdf_to_cleanup, pdf_binary = ensure_pdf(filename, binary)
 
             # 2. 准备基础文档（使用原始文件名）
             doc = self._prepare_base_doc(filename)
@@ -160,25 +168,49 @@ class ModernParserBase(ABC):
 
             callback(0.1, "Start to parse.")
 
-            # 4. 根据 layout_recognize 选择解析器
-            layout_recognizer = parser_config.get("layout_recognize", "MinerU")
-            logging.info(f"Using {layout_recognizer} parser for {self.strategy_name} chunking")
-            callback(0.2, f"Parsing with {layout_recognizer}...")
-
-            # 5. 解析 PDF
+            # 4. 处理 Markdown 或 PDF
             kb_id = kwargs.get('kb_id', '') or kwargs.get('knowledgebase_id', '')
-            sections, tables = self._parse_with_layout_recognizer(
-                layout_recognizer, pdf_path, pdf_binary, from_page, to_page, kb_id
-            )
 
-            callback(0.5, f"{layout_recognizer} parsing finished.")
+            if is_markdown:
+                # Markdown 文件：直接读取内容
+                logging.info(f"Reading Markdown content directly")
+                callback(0.2, "Reading Markdown file...")
 
-            # 6. 提取文本和坐标
-            markdown_text, coordinate_map = extract_text_and_coordinates(sections)
+                # 读取 Markdown 内容
+                if pdf_binary:
+                    markdown_text = pdf_binary.decode('utf-8')
+                else:
+                    with open(pdf_path, 'r', encoding='utf-8') as f:
+                        markdown_text = f.read()
+
+                # Markdown 不需要坐标映射
+                coordinate_map = {}
+
+                # 生成虚拟的 sections（用于后续处理）
+                sections = [(markdown_text, "")]
+                tables = []
+
+                callback(0.5, "Markdown file read successfully.")
+            else:
+                # PDF 文件：使用现有��程
+                # 4. 根据 layout_recognize 选择解析器
+                layout_recognizer = parser_config.get("layout_recognize", "MinerU")
+                logging.info(f"Using {layout_recognizer} parser for {self.strategy_name} chunking")
+                callback(0.2, f"Parsing with {layout_recognizer}...")
+
+                # 5. 解析 PDF
+                sections, tables = self._parse_with_layout_recognizer(
+                    layout_recognizer, pdf_path, pdf_binary, from_page, to_page, kb_id
+                )
+
+                callback(0.5, f"{layout_recognizer} parsing finished.")
+
+                # 6. 提取文本和坐标
+                markdown_text, coordinate_map = extract_text_and_coordinates(sections)
 
             callback(0.6, f"Calling {self.strategy_name} chunking service...")
 
-            # 7. 调用分块服务
+            # 7. 调用分块服务（PDF 和 Markdown 统一处理）
             chunking_config = self.build_chunking_config(parser_config)
             result = call_chunking_service(
                 markdown_text, coordinate_map, chunking_config,
