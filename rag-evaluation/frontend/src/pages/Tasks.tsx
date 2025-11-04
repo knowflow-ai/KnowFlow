@@ -212,6 +212,27 @@ const Tasks: React.FC = () => {
     fetchMetrics();
   }, []);
 
+  // 自动刷新任务列表 - 每2秒更新一次
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      // 检查是否有运行中或等待中的任务
+      const hasActiveTasks = tasks.some(task =>
+        task.status === 'running' || task.status === 'pending'
+      );
+
+      if (hasActiveTasks) {
+        console.log('🔄 自动刷新任务列表 (检测到活跃任务)');
+        fetchTasks();
+      }
+    }, 2000); // 2秒刷新一次
+
+    // 清理函数：组件卸载时清除定时器
+    return () => {
+      console.log('🔄 清除任务列表自动刷新定时器');
+      clearInterval(intervalId);
+    };
+  }, [tasks]); // 依赖 tasks，当任务列表变化时重新设置定时器
+
   const fetchMetrics = async () => {
     setLoadingMetrics(true);
     try {

@@ -194,7 +194,8 @@ class EvaluationService:
         dataset_id: str,
         selected_metrics: List[str],
         dataset_samples: List[Dict],
-        batch_size: int = 10
+        batch_size: int = 10,
+        progress_callback=None
     ) -> Dict[str, Any]:
         """
         评测对话助手
@@ -205,6 +206,7 @@ class EvaluationService:
             selected_metrics: 选择的评测指标
             dataset_samples: 数据集样本
             batch_size: 批处理大小
+            progress_callback: 进度回调函数，接收绝对进度值 (0-99)
 
         Returns:
             评测结果
@@ -217,16 +219,27 @@ class EvaluationService:
         logger.info(f"Dataset samples: {len(dataset_samples)}, Batch size: {batch_size}")
 
         try:
-            # 1. 准备评测样本
+            # 1. 准备评测样本 (0-50%)
             logger.info("Step 1: Preparing evaluation samples...")
-            evaluation_samples = await self._prepare_samples(chat_id, dataset_samples)
 
-            # 2. 创建 RAGAS 数据集
+            # 包装进度回调，将样本进度映射到 0-50%
+            def sample_progress_callback(processed: int, total: int):
+                if progress_callback:
+                    progress = int((processed / total) * 50)  # 0-50%
+                    progress_callback(progress)
+
+            evaluation_samples = await self._prepare_samples(chat_id, dataset_samples, sample_progress_callback)
+
+            # 2. 创建 RAGAS 数据集 (50%)
             logger.info("Step 2: Creating RAGAS dataset...")
+            if progress_callback:
+                progress_callback(50)
             eval_dataset = EvaluationDataset(samples=evaluation_samples)
 
-            # 3. 选择评测指标
+            # 3. 选择评测指标 (55%)
             logger.info("Step 3: Selecting metrics...")
+            if progress_callback:
+                progress_callback(55)
             metrics = []
             for metric_name in selected_metrics:
                 if metric_name in self.metrics_map:
@@ -235,14 +248,16 @@ class EvaluationService:
                 else:
                     logger.warning(f"  - Unknown metric: {metric_name}")
 
-            # 4. 配置运行参数 - 增加超时时间和减少并发
+            # 4. 配置运行参数 (60%)
+            if progress_callback:
+                progress_callback(60)
             run_config = RunConfig(
                 max_workers=2,  # 减少并发数从 4 到 2
                 max_retries=2,  # 减少重试次数从 3 到 2
                 timeout=300     # 增加超时时间到 300 秒（5分钟）
             )
 
-            # 5. 执行评测
+            # 5. 执行评测 (60-95%)
             logger.info(f"Step 4: Running evaluation with {len(metrics)} metrics...")
             logger.info(f"  - Max workers: {run_config.max_workers}")
             logger.info(f"  - Timeout: {run_config.timeout}s")
@@ -259,6 +274,9 @@ class EvaluationService:
             loop = asyncio.get_event_loop()
 
             logger.info("Starting RAGAS evaluation...")
+            if progress_callback:
+                progress_callback(65)  # 评测开始
+
             results = await loop.run_in_executor(
                 None,
                 lambda: evaluate(
@@ -270,10 +288,14 @@ class EvaluationService:
                 )
             )
             logger.info("RAGAS evaluation completed")
+            if progress_callback:
+                progress_callback(95)  # 评测完成
 
-            # 6. 处理结果
+            # 6. 处理结果 (95-99%)
             logger.info("Step 5: Processing results...")
             evaluation_result = self._process_results(results, chat_id, dataset_id)
+            if progress_callback:
+                progress_callback(99)  # 结果处理完成，但不设置为 100%
 
             # 记录成功率
             success_rate = evaluation_result['evaluation_metadata'].get('success_rate', '0 / 0')
@@ -290,7 +312,8 @@ class EvaluationService:
     async def _prepare_samples(
         self,
         chat_id: str,
-        dataset_samples: List[Dict]
+        dataset_samples: List[Dict],
+        progress_callback=None
     ) -> List[SingleTurnSample]:
         """
         准备评测样本，查询 RAGFlow 获取响应
@@ -298,6 +321,7 @@ class EvaluationService:
         Args:
             chat_id: 对话助手 ID
             dataset_samples: 原始数据集样本
+            progress_callback: 进度回调函数，接收 (processed_count, total_count)
 
         Returns:
             RAGAS 格式的评测样本
@@ -325,6 +349,10 @@ class EvaluationService:
                 reference_contexts=item.get('reference_contexts', [])
             )
             samples.append(sample)
+
+            # 调用进度回调 (传递样本数而非进度百分比)
+            if progress_callback:
+                progress_callback(idx, total_samples)
 
         logger.info(f"Prepared {len(samples)} samples for evaluation")
         return samples

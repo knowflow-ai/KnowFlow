@@ -646,9 +646,6 @@ def create_evaluation_task():
 def run_evaluation_task(task_id: str):
     """执行评测任务（后台任务）"""
     try:
-        # 更新任务状态为运行中
-        task_manager.update_task_status(task_id, 'running')
-
         # 获取任务信息
         task = task_manager.get_task(task_id)
         if not task:
@@ -661,6 +658,15 @@ def run_evaluation_task(task_id: str):
             task_manager.update_task_status(task_id, 'failed', error_message='No samples found in dataset')
             return
 
+        # 更新任务状态为运行中，并设置总样本数
+        task_manager.update_task_status(
+            task_id,
+            'running',
+            total_samples=len(samples),
+            processed_samples=0,
+            progress=0
+        )
+
         logger.info(f"🚀 开始 RAGAS 评测: {task_id}")
         logger.info(f"📊 Chat ID: {task['chat_id']}")
         logger.info(f"📊 Dataset ID: {task['dataset_id']}")
@@ -671,13 +677,27 @@ def run_evaluation_task(task_id: str):
         import asyncio
         from datetime import datetime
 
+        # 定义进度回调函数 - 接收绝对进度值 (0-99)
+        def progress_callback(progress: int):
+            """更新任务进度 (接收绝对进度值 0-99)"""
+            # 计算已处理样本数（估算值，用于显示）
+            processed_samples = int((progress / 100) * len(samples))
+
+            task_manager.update_task_status(
+                task_id,
+                'running',
+                processed_samples=processed_samples,
+                progress=progress
+            )
+            logger.info(f"📊 评测进度: {progress}% (约 {processed_samples}/{len(samples)} 样本)")
+
         # 在事件循环中运行异步评测
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            # 执行异步评测
+            # 执行异步评测，传入进度回调
             evaluation_result = loop.run_until_complete(
-                _run_rag_evaluation(task_id, task, samples)
+                _run_rag_evaluation(task_id, task, samples, progress_callback)
             )
         finally:
             loop.close()
@@ -724,7 +744,7 @@ def run_evaluation_task(task_id: str):
         task_manager.update_task_status(task_id, 'failed', error_message=str(e))
 
 
-async def _run_rag_evaluation(task_id: str, task: dict, samples: list) -> dict:
+async def _run_rag_evaluation(task_id: str, task: dict, samples: list, progress_callback=None) -> dict:
     """运行 RAGAS 评测"""
     try:
         # 确保评测服务已初始化
@@ -733,13 +753,14 @@ async def _run_rag_evaluation(task_id: str, task: dict, samples: list) -> dict:
         if not evaluation_service:
             raise Exception("Evaluation service not available")
 
-        # 执行评测
+        # 执行评测，传入进度回调
         result = await evaluation_service.evaluate_knowledge_base(
             chat_id=task['chat_id'],
             dataset_id=task['dataset_id'],
             selected_metrics=task['metrics'],
             dataset_samples=samples,
-            batch_size=task.get('batch_size', 10)
+            batch_size=task.get('batch_size', 10),
+            progress_callback=progress_callback
         )
 
         logger.info(f"✅ RAGAS 评测成功完成")

@@ -425,7 +425,8 @@ class DatabaseManager:
         return task_data['id']
 
     def update_task_status(self, task_id: str, status: str, progress: int = None,
-                          error_message: str = None, processed_samples: int = None):
+                          error_message: str = None, processed_samples: int = None,
+                          total_samples: int = None):
         """更新任务状态"""
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -444,6 +445,10 @@ class DatabaseManager:
         if processed_samples is not None:
             update_fields.append('processed_samples = ?')
             update_values.append(processed_samples)
+
+        if total_samples is not None:
+            update_fields.append('total_samples = ?')
+            update_values.append(total_samples)
 
         if status == 'running' and progress == 0:
             update_fields.append('started_at = CURRENT_TIMESTAMP')
