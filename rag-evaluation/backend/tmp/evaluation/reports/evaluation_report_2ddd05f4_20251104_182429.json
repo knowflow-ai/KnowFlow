@@ -1,0 +1,43 @@
+{
+  "task_info": {
+    "task_id": "2ddd05f4-767a-443a-affa-0c6bcb1683c7",
+    "chat_id": "7f7c5296b8a211f08c9066fc51ac58de",
+    "dataset_id": "ee7e95db-f569-458f-8072-f27d89806217",
+    "created_at": "2025-11-04T18:24:29.648283",
+    "status": "completed"
+  },
+  "overall_scores": {
+    "answer_correctness": {
+      "mean": 0.15831941481489162,
+      "std": 0.001489026448058877,
+      "min": 0.15683170192869142,
+      "max": 0.15980975135765563,
+      "valid_count": 3,
+      "total_count": 3
+    }
+  },
+  "detailed_scores": [
+    {
+      "answer_correctness": 0.15683170192869142
+    },
+    {
+      "answer_correctness": 0.15980975135765563
+    },
+    {
+      "answer_correctness": 0.15831679115832775
+    }
+  ],
+  "evaluation_metadata": {
+    "metrics": [
+      "answer_correctness"
+    ],
+    "total_samples": 3,
+    "success_count": 0,
+    "evaluation_time": 0
+  },
+  "summary": {
+    "total_questions": 3,
+    "success_rate": 0,
+    "average_score": 0
+  }
+}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试删除任务</title>
+</head>
+<body>
+    <h1>测试删除任务功能</h1>
+    <button onclick="testDelete()">测试删除任务</button>
+    <div id="result"></div>
+
+    <script>
+        async function testDelete() {
+            const resultDiv = document.getElementById('result');
+
+            // 先获取任务列表
+            try {
+                const response = await fetch('http://localhost:5010/api/v1/evaluation/tasks');
+                const data = await response.json();
+
+                resultDiv.innerHTML = '<h3>当前任务列表:</h3>';
+                data.tasks.forEach(task => {
+                    const button = document.createElement('button');
+                    button.textContent = `删除: ${task.name} (${task.status})`;
+                    button.onclick = () => deleteTask(task.id);
+                    resultDiv.appendChild(button);
+                    resultDiv.appendChild(document.createElement('br'));
+                });
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">获取任务列表失败: ${error.message}</p>`;
+            }
+        }
+
+        async function deleteTask(taskId) {
+            const resultDiv = document.getElementById('result');
+
+            try {
+                const response = await fetch(`http://localhost:5010/api/v1/evaluation/tasks/${taskId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML += `<p style="color: green;">✅ 任务删除成功: ${data.message}</p>`;
+                    // 重新加载任务列表
+                    setTimeout(testDelete, 1000);
+                } else {
+                    resultDiv.innerHTML += `<p style="color: red;">❌ 删除失败: ${data.error}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML += `<p style="color: red;">❌ 请求失败: ${error.message}</p>`;
+            }
+        }
+
+        // 页面加载时自动测试
+        window.onload = testDelete;
+    </script>
+</body>
+</html>
