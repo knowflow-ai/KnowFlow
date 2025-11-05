@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   Table,
@@ -110,21 +110,60 @@ const Reports: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [samples, setSamples] = useState<DatasetSample[]>([]);
   const [samplesLoading, setSamplesLoading] = useState(false);
+  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchReports();
+
+    return () => {
+      // 清理定时器
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, []);
 
-  const fetchReports = async () => {
-    setLoading(true);
+  // 监听 reports 变化，动态管理定时刷新
+  useEffect(() => {
+    const hasRunningTasks = reports.some(report => report.status === 'running');
+
+    if (hasRunningTasks && !intervalRef.current) {
+      // 有运行中的任务且没有定时器，创建定时器
+      intervalRef.current = setInterval(() => {
+        fetchReports(true);
+      }, 3000); // 每3秒刷新一次
+    } else if (!hasRunningTasks && intervalRef.current) {
+      // 没有运行中的任务且有时钟器，清除定时器
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, [reports]);
+
+  const fetchReports = async (isAutoRefresh = false) => {
+    // 如果是自动刷新，不显示加载状态
+    if (!isAutoRefresh) {
+      setLoading(true);
+    }
     try {
       const response = await reportApi.list();
-      setReports(Array.isArray(response) ? response : []);
+      const reportsList = Array.isArray(response) ? response : [];
+      setReports(reportsList);
+
+      // 检查是否有运行中的任务
+      const hasRunningTasks = reportsList.some(report => report.status === 'running');
+
+      // 如果没有运行中的任务且正在自动刷新，停止刷新
+      if (isAutoRefresh && !hasRunningTasks) {
+        // 可以在这里停止定时刷新的逻辑，但需要使用 ref 来管理 interval
+      }
     } catch (error) {
       console.error('Failed to fetch reports:', error);
       message.error('获取报告列表失败');
     } finally {
-      setLoading(false);
+      if (!isAutoRefresh) {
+        setLoading(false);
+      }
     }
   };
 
@@ -214,6 +253,54 @@ const Reports: React.FC = () => {
       key: 'successRate',
       width: 100,
       render: (rate) => `${rate || 0}%`,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      render: (status: string) => {
+        if (status === 'running') {
+          return (
+            <Space>
+              <Spin size="small" />
+              <Text type="warning">运行中</Text>
+            </Space>
+          );
+        } else if (status === 'completed') {
+          return <Tag color="success">已完成</Tag>;
+        } else if (status === 'failed') {
+          return <Tag color="error">失败</Tag>;
+        } else if (status === 'pending') {
+          return <Tag color="default">待执行</Tag>;
+        } else {
+          return <Tag>{status || '未知'}</Tag>;
+        }
+      },
+    },
+    {
+      title: '进度',
+      dataIndex: 'progress',
+      key: 'progress',
+      width: 120,
+      render: (progress: number, record: any) => {
+        if (record.status === 'running') {
+          return (
+            <Progress
+              percent={progress || 0}
+              size="small"
+              status="active"
+              format={(percent) => `${percent}%`}
+            />
+          );
+        } else if (record.status === 'completed') {
+          return <Progress percent={100} size="small" status="success" />;
+        } else if (record.status === 'failed') {
+          return <Progress percent={progress || 0} size="small" status="exception" />;
+        } else {
+          return <Progress percent={0} size="small" />;
+        }
+      },
     },
     {
       title: '生成时间',
@@ -407,6 +494,7 @@ const Reports: React.FC = () => {
             <Table
               dataSource={realSamples}
               scroll={{ x: 'max-content', y: 500 }}
+              rowKey={(record, index) => record.user_input?.substring(0, 20) || index?.toString() || Math.random().toString()}
               columns={[
               {
                 title: '问题',
@@ -446,71 +534,25 @@ const Reports: React.FC = () => {
                 key: 'action',
                 width: 80,
                 fixed: 'right',
-                render: (_, record) => (
+                render: (_, record, index) => (
                   <Button
                     type="link"
                     size="small"
                     icon={<EyeOutlined />}
                     onClick={() => {
-                      // 显示样本详情的弹窗
-                      Modal.info({
-                        title: '样本详情',
-                        width: 800,
-                        content: (
-                          <div style={{ marginTop: 16, maxWidth: '750px' }}>
-                            <Descriptions bordered column={1} size="small">
-                              <Descriptions.Item label="问题">
-                                <div style={{ wordBreak: 'break-word', maxHeight: '100px', overflow: 'auto' }}>
-                                  {record.user_input}
-                                </div>
-                              </Descriptions.Item>
-                              <Descriptions.Item label="实际回答">
-                                <div style={{
-                                  backgroundColor: '#f6f8fa',
-                                  padding: 12,
-                                  borderRadius: 4,
-                                  maxHeight: '200px',
-                                  overflow: 'auto',
-                                  wordBreak: 'break-word',
-                                  whiteSpace: 'pre-wrap'
-                                }}>
-                                  {record.actual_answer}
-                                </div>
-                              </Descriptions.Item>
-                              <Descriptions.Item label="预期答案">
-                                <div style={{
-                                  backgroundColor: '#fff2e8',
-                                  padding: 12,
-                                  borderRadius: 4,
-                                  maxHeight: '200px',
-                                  overflow: 'auto',
-                                  wordBreak: 'break-word',
-                                  whiteSpace: 'pre-wrap'
-                                }}>
-                                  {record.expected_answer}
-                                </div>
-                              </Descriptions.Item>
-                              <Descriptions.Item label="参考上下文">
-                                <div style={{
-                                  maxHeight: '150px',
-                                  overflow: 'auto',
-                                  wordBreak: 'break-word'
-                                }}>
-                                  {record.contexts.map((context, idx) => (
-                                    <Tag key={idx} style={{
-                                      marginBottom: 4,
-                                      marginRight: 8,
-                                      display: 'inline-block',
-                                      maxWidth: '100%',
-                                      wordBreak: 'break-word'
-                                    }}>{context}</Tag>
-                                  ))}
-                                </div>
-                              </Descriptions.Item>
-                            </Descriptions>
-                          </div>
-                        ),
-                      });
+                      // 获取当前行的唯一 key
+                      const key = record.user_input?.substring(0, 20) || Math.random().toString();
+
+                      // 判断当前行是否已展开
+                      const isExpanded = expandedRowKeys.includes(key);
+
+                      if (isExpanded) {
+                        // 如果已展开，则收起
+                        setExpandedRowKeys([]);
+                      } else {
+                        // 如果未展开，则展开当前行并收起其他行
+                        setExpandedRowKeys([key]);
+                      }
                     }}
                   >
                     详情
@@ -593,6 +635,18 @@ const Reports: React.FC = () => {
                 </div>
               ),
               rowExpandable: () => true,
+              expandedRowKeys: expandedRowKeys,
+              onExpand: (expanded, record) => {
+                // 使用问题的前20个字符作为 key，确保唯一性
+                const key = record.user_input?.substring(0, 20) || Math.random().toString();
+                if (expanded) {
+                  // 只展开当前点击的行，收起其他行
+                  setExpandedRowKeys([key]);
+                } else {
+                  // 收起当前行
+                  setExpandedRowKeys(expandedRowKeys.filter(k => k !== key));
+                }
+              },
               }}
           />
             ) : (

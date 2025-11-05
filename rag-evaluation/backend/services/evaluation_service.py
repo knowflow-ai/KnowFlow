@@ -6,6 +6,7 @@
 import asyncio
 import logging
 import os
+import re
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 import json
@@ -85,11 +86,17 @@ class EvaluationService:
         从系统配置读取 API Key 和 Endpoint，支持多种 LLM 提供商
         """
         if self.llm is None and ChatOpenAI and LangchainLLMWrapper:
-            # 从配置读取参数
-            api_key = self.api_config.get('apiKey', os.getenv('OPENAI_API_KEY', ''))
+            # 从配置读取参数（兼容驼峰/下划线 & 提供商特定的环境变量）
+            provider = self.api_config.get('provider', 'openai')
             base_url = self.api_config.get('endpoint', None)
             temperature = self.api_config.get('temperature', 0.1)
-            provider = self.api_config.get('provider', 'openai')
+            # 兼容 apiKey/api_key，并根据 provider 选择合适的环境变量回退
+            api_key = (
+                self.api_config.get('apiKey')
+                or self.api_config.get('api_key')
+                or (os.getenv('SILICONFLOW_API_KEY') if provider == 'siliconflow' else None)
+                or os.getenv('OPENAI_API_KEY', '')
+            )
 
             # 根据 provider 设置默认 endpoint
             provider_endpoints = {
@@ -114,11 +121,15 @@ class EvaluationService:
             if base_url:
                 kwargs['base_url'] = base_url
 
+            # 打印 API key 信息（只显示前5位和后5位）
+            masked_key = f"{api_key[:5]}...{api_key[-5:]}" if isinstance(api_key, str) and len(api_key) > 10 else "***"
+            logger.info(f"Creating LLM: model={self.llm_model}, provider={provider}, endpoint={base_url}, api_key={masked_key}")
+
             openai_model = ChatOpenAI(**kwargs)
 
             # 包装成 Ragas 需要的格式
             self.llm = LangchainLLMWrapper(openai_model)
-            logger.info(f"LLM instance created: {self.llm_model} (provider: {provider}, endpoint: {base_url})")
+            logger.info(f"✅ LLM instance created successfully")
 
         return self.llm
 
@@ -128,11 +139,16 @@ class EvaluationService:
         使用与 LLM 相同的配置源 (self.api_config)
         """
         if self.embeddings is None and OpenAIEmbeddings and LangchainEmbeddingsWrapper:
-            # 使用驼峰命名统一获取配置
-            api_key = self.api_config.get('apiKey', os.getenv('OPENAI_API_KEY', ''))
-            base_url = self.api_config.get('endpoint', None)
+            # 兼容驼峰/下划线 & 提供商特定的环境变量
             provider = self.api_config.get('provider', 'openai')
-            embedding_model = self.api_config.get('embeddingModel', '')
+            base_url = self.api_config.get('endpoint', None)
+            api_key = (
+                self.api_config.get('apiKey')
+                or self.api_config.get('api_key')
+                or (os.getenv('SILICONFLOW_API_KEY') if provider == 'siliconflow' else None)
+                or os.getenv('OPENAI_API_KEY', '')
+            )
+            embedding_model = self.api_config.get('embeddingModel') or self.api_config.get('embedding_model', '')
 
             # 处理 embeddingModel 可能是数组的情况（前端使用 tags mode）
             if isinstance(embedding_model, list):
@@ -469,18 +485,10 @@ class EvaluationService:
             }
 
             try:
-                logger.info(f"=== RAGFlow API Request ===")
-                logger.info(f"URL: {url}")
-                logger.info(f"Chat ID: {chat_id}")
-                logger.info(f"Question: {question}")
-                logger.info(f"Session ID: {session_id}")
-                logger.info(f"Payload: {payload}")
-                logger.info(f"Headers: {headers}")
-                logger.info(f"API Key (first 10 chars): {api_key[:10]}..." if api_key != 'YOUR_API_TOKEN' else "API Key: NOT SET")
+                logger.debug(f"RAGFlow Query: chat={chat_id}, question={question[:50]}...")
 
                 async with session.post(url, json=payload, headers=headers) as response:
-                    logger.info(f"Response Status: {response.status}")
-                    logger.info(f"Response Headers: {dict(response.headers)}")
+                    logger.debug(f"RAGFlow Response Status: {response.status}")
 
                     if response.status == 200:
                         result = await response.json()
@@ -491,13 +499,6 @@ class EvaluationService:
                         # 解析 RAGFlow 响应
                         if result.get('code') == 0 and 'data' in result:
                             data = result['data']
-
-                            logger.info(f"=== RAGFlow Data Analysis ===")
-                            logger.info(f"Answer: {data.get('answer', 'No answer')}")
-                            logger.info(f"Answer Length: {len(data.get('answer', ''))}")
-                            logger.info(f"Session ID: {data.get('session_id', 'No session ID')}")
-                            logger.info(f"Reference Type: {type(data.get('reference', {}))}")
-                            logger.info(f"Reference Content: {data.get('reference', 'No reference')}")
 
                             # 提取检索到的上下文
                             contexts = []
@@ -510,26 +511,22 @@ class EvaluationService:
                                     for chunk in reference['chunks']
                                     if chunk.get('content')
                                 ]
-                                logger.info(f"✓ Successfully extracted {len(contexts)} contexts from RAGFlow")
-                                for i, ctx in enumerate(contexts[:3]):  # 只打印前3个上下文
-                                    logger.info(f"Context {i+1}: {ctx[:100]}..." if len(ctx) > 100 else f"Context {i+1}: {ctx}")
-                                if len(contexts) > 3:
-                                    logger.info(f"... and {len(contexts) - 3} more contexts")
+                                logger.info(f"Extracted {len(contexts)} contexts from RAGFlow")
                             else:
                                 # 没有检索到上下文
-                                logger.warning("✗ RAGFlow returned no contexts")
-                                logger.warning(f"Reference field: {reference}")
-                                logger.warning("Possible causes:")
-                                logger.warning("  1. Chat assistant has no associated knowledge base")
-                                logger.warning("  2. Knowledge base has no indexed documents")
-                                logger.warning("  3. Query matched no relevant documents")
+                                logger.warning(f"No contexts extracted from RAGFlow (reference: {type(reference)})")
 
-                            logger.info(f"=== Final Extracted Data ===")
-                            logger.info(f"Answer: {data.get('answer', '')}")
-                            logger.info(f"Contexts Count: {len(contexts)}")
+                            # 清理答案中的引用标记 [ID:数字]
+                            raw_answer = data.get('answer', '')
+                            # 使用正则表达式匹配 [ID:数字] 格式并移除
+                            cleaned_answer = re.sub(r'\[ID:\d+\]\s*', '', raw_answer)
+                            # 清理多余的空白
+                            cleaned_answer = re.sub(r'\s+', ' ', cleaned_answer).strip()
+
+                            logger.debug(f"Cleaned answer (removed [ID:x] references), contexts: {len(contexts)}")
 
                             return {
-                                'answer': data.get('answer', ''),
+                                'answer': cleaned_answer,
                                 'contexts': contexts,
                                 'session_id': data.get('session_id')
                             }

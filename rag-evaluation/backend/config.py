@@ -146,8 +146,24 @@ class ConfigService:
             api_config = config_manager.get_default_api_config()
 
             if api_config:
-                logger.info(f"✅ 从数据库加载配置: provider={api_config.get('provider')}, model={api_config.get('model')}, embeddingModel={api_config.get('embeddingModel')}")
-                return api_config
+                # 规范化键名，兼容下划线/驼峰
+                normalized = {
+                    'provider': api_config.get('provider'),
+                    'apiKey': api_config.get('apiKey') or api_config.get('api_key') or '',
+                    'endpoint': api_config.get('endpoint') or '',
+                    'model': api_config.get('model'),
+                    'embeddingModel': api_config.get('embeddingModel') or api_config.get('embedding_model') or ''
+                }
+                # 可选参数
+                if 'temperature' in api_config or 'temperature' in normalized:
+                    normalized['temperature'] = api_config.get('temperature', 0.7)
+                if 'max_tokens' in api_config or 'maxTokens' in api_config:
+                    normalized['maxTokens'] = api_config.get('maxTokens') or api_config.get('max_tokens')
+
+                logger.info(
+                    f"✅ 从数据库加载配置: provider={normalized.get('provider')}, model={normalized.get('model')}, embeddingModel={normalized.get('embeddingModel')}"
+                )
+                return normalized
         except Exception as e:
             logger.warning(f"⚠️  从数据库加载配置失败: {e}. 使用环境变量配置")
 

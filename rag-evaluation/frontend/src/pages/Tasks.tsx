@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   Table,
@@ -88,6 +88,7 @@ const Tasks: React.FC = () => {
 
   const [tasks, setTasks] = useState<EvaluationTask[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const intervalRef = useRef<any>(null);
 
   const [createTaskVisible, setCreateTaskVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<EvaluationTask | null>(null);
@@ -212,24 +213,30 @@ const Tasks: React.FC = () => {
     fetchMetrics();
   }, []);
 
-  // 自动刷新任务列表 - 每2秒更新一次
+  // 自动刷新任务列表 - 只在有运行中任务时才刷新
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      // 检查是否有运行中或等待中的任务
-      const hasActiveTasks = tasks.some(task =>
-        task.status === 'running' || task.status === 'pending'
-      );
+    const hasRunningTasks = tasks.some(task => task.status === 'running');
 
-      if (hasActiveTasks) {
-        console.log('🔄 自动刷新任务列表 (检测到活跃任务)');
+    if (hasRunningTasks && !intervalRef.current) {
+      // 有运行中的任务且没有定时器，创建定时器
+      console.log('🔄 检测到运行中的任务，开始自动刷新');
+      intervalRef.current = setInterval(() => {
+        console.log('🔄 自动刷新任务列表');
         fetchTasks();
-      }
-    }, 2000); // 2秒刷新一次
+      }, 3000); // 每3秒刷新一次
+    } else if (!hasRunningTasks && intervalRef.current) {
+      // 没有运行中的任务且有时钟器，清除定时器
+      console.log('🔄 没有运行中的任务，停止自动刷新');
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
 
     // 清理函数：组件卸载时清除定时器
     return () => {
-      console.log('🔄 清除任务列表自动刷新定时器');
-      clearInterval(intervalId);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
   }, [tasks]); // 依赖 tasks，当任务列表变化时重新设置定时器
 
@@ -590,7 +597,7 @@ const Tasks: React.FC = () => {
             <Statistic
               title="运行中"
               value={stats.running}
-              prefix={<SyncOutlined spin />}
+              prefix={stats.running > 0 ? <SyncOutlined spin /> : <SyncOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>
