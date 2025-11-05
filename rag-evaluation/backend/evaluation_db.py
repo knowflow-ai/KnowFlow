@@ -837,10 +837,120 @@ def get_evaluation_report(task_id: str):
         if not report:
             return jsonify({'error': 'Report not found'}), 404
 
-        return jsonify(report)
+        # 获取任务信息
+        task = task_manager.get_task(task_id)
+
+        # 获取数据集信息
+        dataset = dataset_manager.get_dataset(task['dataset_id']) if task else None
+
+        # 提取详细分数
+        detailed_scores = report.get('detailed_scores', [])
+
+        # 计算综合评分和健康度
+        overall_scores = report.get('overall_scores', {})
+        metric_scores = overall_scores
+
+        # 计算平均分
+        valid_scores = []
+        for metric_name, scores in metric_scores.items():
+            if isinstance(scores, dict) and 'mean' in scores:
+                valid_scores.append(scores['mean'])
+
+        overall_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0
+
+        # 健康度评分（基于成功率和评分）
+        metadata = report.get('evaluation_metadata', {})
+        success_count = metadata.get('success_count', 0)
+        total_count = metadata.get('total_samples', metadata.get('num_samples', metadata.get('total_count', len(detailed_scores))))
+        success_rate = (success_count / total_count * 100) if total_count > 0 else 0
+
+        # 健康度 = 70% × (综合评分×100) + 30% × 成功率
+        health_score = round(overall_score * 100 * 0.7 + success_rate * 0.3, 2)
+
+        # 生成优化建议
+        recommendations = []
+        for metric_name, scores in metric_scores.items():
+            if isinstance(scores, dict) and 'mean' in scores:
+                mean_score = scores['mean']
+                metric_display_name = {
+                    'faithfulness': '忠实度',
+                    'answer_correctness': '答案正确性',
+                    'context_precision': '上下文精确度',
+                    'context_recall': '上下文召回率',
+                    'answer_relevancy': '答案相关性'
+                }.get(metric_name, metric_name)
+
+                if mean_score < 0.6:
+                    recommendations.append(f"{metric_display_name}较低 ({mean_score:.2f})，建议优化相关策略")
+                elif mean_score < 0.8:
+                    recommendations.append(f"{metric_display_name}有提升空间 ({mean_score:.2f})，可考虑进一步优化")
+
+        if not recommendations:
+            recommendations.append("整体表现良好，继续保持")
+
+        # 分析低分样本
+        low_score_samples = []
+
+        try:
+            for sample in detailed_scores:
+                # 计算该样本的平均分
+                sample_scores = []
+                for key, value in sample.items():
+                    if key != 'user_input' and value is not None:
+                        # 确保value是数值类型
+                        if isinstance(value, (int, float)):
+                            sample_scores.append(value)
+                        else:
+                            try:
+                                numeric_value = float(value)
+                                sample_scores.append(numeric_value)
+                            except (ValueError, TypeError):
+                                logger.warning(f"Skipping non-numeric score {key}: {value} (type: {type(value)})")
+
+                if sample_scores:
+                    avg_score = sum(sample_scores) / len(sample_scores)
+                    if avg_score < 0.6:  # 低于0.6认为是低分样本
+                        # 找出最低的指标
+                        lowest_metric = min(sample.items(), key=lambda x: x[1] if x[0] != 'user_input' and x[1] is not None and isinstance(x[1], (int, float)) else 1.0)
+                        low_score_samples.append({
+                            'question': sample.get('user_input', 'Unknown')[:100],  # 限制长度
+                            'score': round(avg_score, 2),
+                            'issue': f"{lowest_metric[0]} 得分低"
+                        })
+        except Exception as e:
+            logger.error(f"Error analyzing low score samples: {str(e)}")
+            logger.error(f"detailed_scores type: {type(detailed_scores)}")
+            if detailed_scores:
+                logger.error(f"First sample type: {type(detailed_scores[0])}")
+                logger.error(f"First sample keys: {list(detailed_scores[0].keys()) if isinstance(detailed_scores[0], dict) else 'Not a dict'}")
+            low_score_samples = []
+
+        # 构建完整的报告响应
+        enriched_report = {
+            'task_id': task_id,
+            'kb_name': task.get('name', 'Unknown') if task else 'Unknown',
+            'dataset_name': dataset.get('name', 'Unknown') if dataset else 'Unknown',
+            'overall_score': round(overall_score, 4),
+            'health_score': health_score,
+            'metric_scores': metric_scores,
+            'summary': f"评测完成，共 {total_count} 个样本，成功率 {success_rate:.1f}%",
+            'recommendations': recommendations,
+            'lowScoreSamples': low_score_samples[:5],  # 只返回前5个
+            'created_at': report.get('created_at', ''),
+            'detailed_scores': detailed_scores,  # 完整的详细分数
+            'evaluation_metadata': metadata,
+            # 添加前端期望的字段
+            'totalSamples': total_count,
+            'successRate': round(success_rate, 1),
+            'createdAt': report.get('created_at', '')
+        }
+
+        return jsonify(enriched_report)
 
     except Exception as e:
         logger.error(f"Failed to get evaluation report: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to get evaluation report'}), 500
 
 
@@ -855,10 +965,52 @@ def list_reports():
         offset = int(request.args.get('offset', 0))
 
         result = report_manager.get_reports(limit, offset)
-        return jsonify(result)
+
+        # 为每个报告补充完整的数据
+        enriched_reports = []
+        for report in result.get('reports', []):
+            task_id = report.get('task_id')
+
+            # 获取任务信息
+            task = task_manager.get_task(task_id)
+
+            # 获取数据集信息
+            dataset = dataset_manager.get_dataset(task['dataset_id']) if task else None
+
+            # 计算综合评分
+            overall_scores = report.get('overall_scores', {})
+            valid_scores = []
+            for _, scores in overall_scores.items():
+                if isinstance(scores, dict) and 'mean' in scores:
+                    valid_scores.append(scores['mean'])
+
+            overall_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0
+
+            # 计算健康度
+            metadata = report.get('evaluation_metadata', {})
+            success_count = metadata.get('success_count', 0)
+            total_count = metadata.get('num_samples', metadata.get('total_count', 1))
+            success_rate = (success_count / total_count * 100) if total_count > 0 else 0
+            health_score = round(overall_score * 70 + success_rate * 0.3, 2)
+
+            enriched_reports.append({
+                'task_id': task_id,
+                'kb_name': task.get('name', 'Unknown') if task else 'Unknown',
+                'dataset_name': dataset.get('name', 'Unknown') if dataset else 'Unknown',
+                'overall_score': round(overall_score, 4),
+                'health_score': health_score,
+                'totalSamples': total_count,
+                'successRate': round(success_rate, 1),
+                'createdAt': report.get('created_at', ''),
+                'metric_scores': overall_scores
+            })
+
+        return jsonify(enriched_reports)
 
     except Exception as e:
         logger.error(f"Failed to list reports: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to list reports'}), 500
 
 
@@ -1069,33 +1221,6 @@ def list_metrics():
                 'requires_contexts': False,
                 'requires_reference': False,
                 'default_enabled': True
-            },
-            {
-                'name': 'answer_similarity',
-                'display_name': '答案相似度',
-                'description': '使用向量相似度评估答案的语义相似性',
-                'type': 'traditional',
-                'requires_contexts': False,
-                'requires_reference': True,
-                'default_enabled': False
-            },
-            {
-                'name': 'response_time',
-                'display_name': '响应时间',
-                'description': '评估系统的响应速度（毫秒）',
-                'type': 'traditional',
-                'requires_contexts': False,
-                'requires_reference': False,
-                'default_enabled': False
-            },
-            {
-                'name': 'token_usage',
-                'display_name': 'Token 使用量',
-                'description': '评估查询消耗的 Token 数量',
-                'type': 'traditional',
-                'requires_contexts': False,
-                'requires_reference': False,
-                'default_enabled': False
             }
         ]
 

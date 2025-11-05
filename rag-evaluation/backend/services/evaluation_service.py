@@ -228,7 +228,8 @@ class EvaluationService:
                     progress = int((processed / total) * 50)  # 0-50%
                     progress_callback(progress)
 
-            evaluation_samples = await self._prepare_samples(chat_id, dataset_samples, sample_progress_callback)
+            # 传递原始数据集样本信息
+            evaluation_samples, rag_responses = await self._prepare_samples_with_responses(chat_id, dataset_samples, sample_progress_callback)
 
             # 2. 创建 RAGAS 数据集 (50%)
             logger.info("Step 2: Creating RAGAS dataset...")
@@ -293,7 +294,7 @@ class EvaluationService:
 
             # 6. 处理结果 (95-99%)
             logger.info("Step 5: Processing results...")
-            evaluation_result = self._process_results(results, chat_id, dataset_id)
+            evaluation_result = self._process_results(results, chat_id, dataset_id, rag_responses)
             if progress_callback:
                 progress_callback(99)  # 结果处理完成，但不设置为 100%
 
@@ -357,6 +358,60 @@ class EvaluationService:
         logger.info(f"Prepared {len(samples)} samples for evaluation")
         return samples
 
+    async def _prepare_samples_with_responses(
+        self,
+        chat_id: str,
+        dataset_samples: List[Dict],
+        progress_callback=None
+    ) -> tuple[List[SingleTurnSample], List[Dict]]:
+        """
+        准备评测样本，查询 RAGFlow 获取响应，并保留原始数据
+
+        Args:
+            chat_id: 对话助手 ID
+            dataset_samples: 原始数据集样本
+            progress_callback: 进度回调函数，接收 (processed_count, total_count)
+
+        Returns:
+            tuple: (RAGAS格式的评测样本, RAGFlow响应列表)
+        """
+        samples = []
+        rag_responses = []
+        total_samples = len(dataset_samples)
+
+        for idx, item in enumerate(dataset_samples, 1):
+            logger.info(f"Preparing sample {idx}/{total_samples}: {item.get('question', '')[:50]}...")
+
+            # 查询 RAGFlow
+            try:
+                rag_response = await self._query_ragflow(chat_id, item['question'])
+                logger.info(f"Sample {idx}/{total_samples}: Got response with {len(rag_response.get('contexts', []))} contexts")
+            except Exception as e:
+                logger.error(f"Sample {idx}/{total_samples}: Failed to query RAGFlow: {str(e)}")
+                rag_response = {'answer': '', 'contexts': []}
+
+            # 保存 RAGFlow 响应
+            rag_response['original_question'] = item['question']
+            rag_response['expected_answer'] = item.get('expected_answer', '')
+            rag_responses.append(rag_response)
+
+            # 创建 RAGAS 样本
+            sample = SingleTurnSample(
+                user_input=item['question'],
+                retrieved_contexts=rag_response.get('contexts', []),
+                response=rag_response.get('answer', ''),
+                reference=item.get('expected_answer'),
+                reference_contexts=item.get('reference_contexts', [])
+            )
+            samples.append(sample)
+
+            # 调用进度回调 (传递样本数而非进度百分比)
+            if progress_callback:
+                progress_callback(idx, total_samples)
+
+        logger.info(f"Prepared {len(samples)} samples for evaluation")
+        return samples, rag_responses
+
     async def _query_ragflow(self, chat_id: str, question: str) -> Dict:
         """
         查询 RAGFlow 对话助手
@@ -385,42 +440,109 @@ class EvaluationService:
                 'Authorization': f'Bearer {api_key}'
             }
 
+            # 检查是否已有有效的 session_id
+            session_id = getattr(self, '_cached_session_id', None)
+
+            if not session_id:
+                # 为当前 chat_id 创建一个新的会话
+                session_url = f"{self.ragflow_url}/api/v1/chats/{chat_id}/sessions"
+
+                try:
+                    async with session.post(session_url, json={}, headers=headers) as session_response:
+                        if session_response.status == 200:
+                            session_data = await session_response.json()
+                            if session_data.get('code') == 0 and 'data' in session_data:
+                                session_id = session_data['data']['id']
+                                self._cached_session_id = session_id  # 缓存 session_id 以供后续使用
+                                logger.info(f"✅ Created new session: {session_id} for chat: {chat_id}")
+                            else:
+                                logger.warning(f"Failed to create session: {session_data}")
+                        else:
+                            logger.warning(f"Failed to create session, status: {session_response.status}")
+                except Exception as e:
+                    logger.error(f"Error creating session: {e}")
+
             payload = {
                 'question': question,
-                'stream': False  # 使用非流式响应，便于解析
+                'stream': False,  # 使用非流式响应，便于解析
+                'session_id': session_id  # 使用有效的 session_id 来维持对话上下文
             }
 
             try:
-                logger.debug(f"Querying RAGFlow: {url}")
+                logger.info(f"=== RAGFlow API Request ===")
+                logger.info(f"URL: {url}")
+                logger.info(f"Chat ID: {chat_id}")
+                logger.info(f"Question: {question}")
+                logger.info(f"Session ID: {session_id}")
+                logger.info(f"Payload: {payload}")
+                logger.info(f"Headers: {headers}")
+                logger.info(f"API Key (first 10 chars): {api_key[:10]}..." if api_key != 'YOUR_API_TOKEN' else "API Key: NOT SET")
+
                 async with session.post(url, json=payload, headers=headers) as response:
+                    logger.info(f"Response Status: {response.status}")
+                    logger.info(f"Response Headers: {dict(response.headers)}")
+
                     if response.status == 200:
                         result = await response.json()
+
+                        logger.info(f"=== RAGFlow API Response ===")
+                        logger.info(f"Full Response: {json.dumps(result, indent=2, ensure_ascii=False)}")
 
                         # 解析 RAGFlow 响应
                         if result.get('code') == 0 and 'data' in result:
                             data = result['data']
 
+                            logger.info(f"=== RAGFlow Data Analysis ===")
+                            logger.info(f"Answer: {data.get('answer', 'No answer')}")
+                            logger.info(f"Answer Length: {len(data.get('answer', ''))}")
+                            logger.info(f"Session ID: {data.get('session_id', 'No session ID')}")
+                            logger.info(f"Reference Type: {type(data.get('reference', {}))}")
+                            logger.info(f"Reference Content: {data.get('reference', 'No reference')}")
+
                             # 提取检索到的上下文
                             contexts = []
-                            if 'reference' in data and 'chunks' in data['reference']:
-                                contexts = [
-                                    chunk['content']
-                                    for chunk in data['reference']['chunks']
-                                ]
+                            reference = data.get('reference', {})
 
-                            logger.debug(f"RAGFlow response: answer length={len(data.get('answer', ''))}, contexts={len(contexts)}")
+                            if reference and 'chunks' in reference and reference['chunks']:
+                                # 有检索到的上下文
+                                contexts = [
+                                    chunk.get('content', '')
+                                    for chunk in reference['chunks']
+                                    if chunk.get('content')
+                                ]
+                                logger.info(f"✓ Successfully extracted {len(contexts)} contexts from RAGFlow")
+                                for i, ctx in enumerate(contexts[:3]):  # 只打印前3个上下文
+                                    logger.info(f"Context {i+1}: {ctx[:100]}..." if len(ctx) > 100 else f"Context {i+1}: {ctx}")
+                                if len(contexts) > 3:
+                                    logger.info(f"... and {len(contexts) - 3} more contexts")
+                            else:
+                                # 没有检索到上下文
+                                logger.warning("✗ RAGFlow returned no contexts")
+                                logger.warning(f"Reference field: {reference}")
+                                logger.warning("Possible causes:")
+                                logger.warning("  1. Chat assistant has no associated knowledge base")
+                                logger.warning("  2. Knowledge base has no indexed documents")
+                                logger.warning("  3. Query matched no relevant documents")
+
+                            logger.info(f"=== Final Extracted Data ===")
+                            logger.info(f"Answer: {data.get('answer', '')}")
+                            logger.info(f"Contexts Count: {len(contexts)}")
+
                             return {
                                 'answer': data.get('answer', ''),
                                 'contexts': contexts,
                                 'session_id': data.get('session_id')
                             }
                         else:
-                            logger.error(f"RAGFlow returned error: {result}")
+                            logger.error(f"✗ RAGFlow returned error")
+                            logger.error(f"Error Code: {result.get('code')}")
+                            logger.error(f"Error Message: {result.get('message')}")
+                            logger.error(f"Full Error Response: {json.dumps(result, indent=2, ensure_ascii=False)}")
                             return {'answer': '', 'contexts': []}
                     else:
-                        logger.error(f"RAGFlow query failed: HTTP {response.status}")
+                        logger.error(f"✗ RAGFlow query failed with HTTP {response.status}")
                         response_text = await response.text()
-                        logger.error(f"Response: {response_text[:500]}")  # 限制日志长度
+                        logger.error(f"Response Body: {response_text}")
                         return {'answer': '', 'contexts': []}
 
             except asyncio.TimeoutError:
@@ -437,7 +559,8 @@ class EvaluationService:
         self,
         results: Any,
         chat_id: str,
-        dataset_id: str
+        dataset_id: str,
+        rag_responses: List[Dict] = None
     ) -> Dict[str, Any]:
         """
         处理评测结果
@@ -446,6 +569,7 @@ class EvaluationService:
             results: RAGAS 评测结果
             chat_id: 对话助手 ID
             dataset_id: 数据集 ID
+            rag_responses: RAGFlow 响应列表（包含原始问题、答案等）
 
         Returns:
             格式化的评测结果
@@ -485,19 +609,29 @@ class EvaluationService:
                         'total_count': len(scores_df[metric])
                     }
 
-        # 处理详细分数中的 NaN 值
+        # 处理详细分数中的 NaN 值，并合并 RAGFlow 响应数据
         processed_scores = []
-        for score_dict in scores_list:
-            processed_dict = {}
-            for key, value in score_dict.items():
-                if pd.isna(value) or (isinstance(value, float) and np.isnan(value)):
-                    processed_dict[key] = None  # 将 NaN 转换为 None（JSON 兼容）
-                else:
-                    processed_dict[key] = value
-            processed_scores.append(processed_dict)
+        if rag_responses and scores_list:
+            for idx, (score_dict, rag_response) in enumerate(zip(scores_list, rag_responses)):
+                processed_dict = {}
+                # 添加基础字段
+                processed_dict['user_input'] = rag_response.get('original_question', '')
+                processed_dict['actual_answer'] = rag_response.get('answer', '')
+                processed_dict['expected_answer'] = rag_response.get('expected_answer', '')
+                processed_dict['contexts'] = rag_response.get('contexts', [])
+
+                # 添加评测分数
+                for key, value in score_dict.items():
+                    if key != 'user_input':
+                        if pd.isna(value) or (isinstance(value, float) and np.isnan(value)):
+                            processed_dict[key] = None  # 将 NaN 转换为 None（JSON 兼容）
+                        else:
+                            processed_dict[key] = value
+                processed_scores.append(processed_dict)
 
         # 计算成功的样本数
-        success_count = len([s for s in processed_scores if any(v is not None for k, v in s.items() if k != 'user_input')]) if scores_list else 0
+        success_count = len([s for s in processed_scores if any(v is not None for k, v in s.items()
+                          if k not in ['user_input', 'actual_answer', 'expected_answer', 'contexts'])]) if processed_scores else 0
 
         # 构建返回结果
         evaluation_result = {
@@ -505,7 +639,7 @@ class EvaluationService:
             'dataset_id': dataset_id,
             'timestamp': datetime.now().isoformat(),
             'overall_scores': overall_scores,
-            'detailed_scores': processed_scores,  # 使用处理后的分数
+            'detailed_scores': processed_scores,  # 包含完整信息的分数
             'evaluation_metadata': {
                 'llm_model': self.llm_model,
                 'num_samples': len(scores_list),

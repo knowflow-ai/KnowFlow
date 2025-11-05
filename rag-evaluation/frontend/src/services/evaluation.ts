@@ -82,7 +82,21 @@ export interface EvaluationReport {
   };
   summary: string;
   recommendations: string[];
-  created_at: string;
+  createdAt: string;
+  successRate?: number;
+  totalSamples?: number;
+  lowScoreSamples?: Array<{
+    question: string;
+    score: number;
+    issue: string;
+  }>;
+  detailed_scores?: Array<{
+    user_input: string;
+    actual_answer: string;
+    expected_answer: string;
+    contexts: string[];
+    [key: string]: any;  // for metric scores
+  }>;
 }
 
 export interface Metric {

@@ -82,33 +82,6 @@ class MetricsManager:
                 requires_reference=False,
                 requires_contexts=False,
                 default_enabled=True
-            ),
-            'answer_similarity': MetricConfig(
-                name='answer_similarity',
-                display_name='答案相似度',
-                description='使用向量相似度评估答案的语义相似性',
-                type='traditional',
-                requires_reference=True,
-                requires_contexts=False,
-                default_enabled=False
-            ),
-            'response_time': MetricConfig(
-                name='response_time',
-                display_name='响应时间',
-                description='评估系统的响应速度（毫秒）',
-                type='traditional',
-                requires_reference=False,
-                requires_contexts=False,
-                default_enabled=False
-            ),
-            'token_usage': MetricConfig(
-                name='token_usage',
-                display_name='Token 使用量',
-                description='评估查询消耗的 Token 数量',
-                type='traditional',
-                requires_reference=False,
-                requires_contexts=False,
-                default_enabled=False
             )
         }
 

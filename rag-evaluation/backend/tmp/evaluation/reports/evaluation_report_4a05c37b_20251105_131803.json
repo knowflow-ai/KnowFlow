@@ -1,0 +1,51 @@
+{
+  "task_info": {
+    "task_id": "4a05c37b-5c45-4647-a180-2cb8e5b33882",
+    "chat_id": "6d39fb1eba011f08c9066fc51ac58de",
+    "dataset_id": "4ad7b92b-8cbc-4378-a891-d1a2da64cb9b",
+    "created_at": "2025-11-05T13:18:03.167966",
+    "status": "completed"
+  },
+  "overall_scores": {
+    "context_precision": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "valid_count": 2,
+      "total_count": 2
+    }
+  },
+  "detailed_scores": [
+    {
+      "user_input": "什么是人工智能？",
+      "actual_answer": "",
+      "expected_answer": "人工智能是计算机科学的一个分支。",
+      "contexts": [],
+      "context_precision": 0.0,
+      "faithfulness": null
+    },
+    {
+      "user_input": "机器学习有哪些类型？",
+      "actual_answer": "",
+      "expected_answer": "机器学习包括监督学习、无监督学习和强化学习。",
+      "contexts": [],
+      "context_precision": 0.0,
+      "faithfulness": null
+    }
+  ],
+  "evaluation_metadata": {
+    "metrics": [
+      "context_precision",
+      "faithfulness"
+    ],
+    "total_samples": 2,
+    "success_count": 0,
+    "evaluation_time": 0
+  },
+  "summary": {
+    "total_questions": 2,
+    "success_rate": 0,
+    "average_score": 0
+  }
+}

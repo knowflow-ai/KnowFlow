@@ -24,6 +24,10 @@ import {
   Badge,
   Spin,
   message,
+  Collapse,
+  Timeline,
+  Rate,
+  Modal,
 } from 'antd';
 import {
   FileTextOutlined,
@@ -42,14 +46,19 @@ import {
   InfoCircleOutlined,
   RiseOutlined,
   FallOutlined,
+  EyeOutlined,
+  QuestionCircleOutlined,
+  MessageOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { reportApi } from '../services/evaluation';
-import type { EvaluationReport as ApiReport } from '../services/evaluation';
+import { reportApi, datasetApi } from '../services/evaluation';
+import type { EvaluationReport as ApiReport, DatasetSample } from '../services/evaluation';
 
 const { Title, Text, Paragraph } = Typography;
 const { RangePicker } = DatePicker;
 const { TabPane } = Tabs;
+const { Panel } = Collapse;
 
 interface EvaluationReport {
   id: string;
@@ -77,6 +86,13 @@ interface EvaluationReport {
     score: number;
     issue: string;
   }>;
+  detailed_scores?: Array<{
+    user_input: string;
+    actual_answer: string;
+    expected_answer: string;
+    contexts: string[];
+    [key: string]: any;  // for metric scores
+  }>;
 }
 
 interface MetricTrend {
@@ -88,10 +104,12 @@ interface MetricTrend {
 }
 
 const Reports: React.FC = () => {
-  const [selectedReport, setSelectedReport] = useState<ApiReport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<EvaluationReport | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [reports, setReports] = useState<ApiReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [samples, setSamples] = useState<DatasetSample[]>([]);
+  const [samplesLoading, setSamplesLoading] = useState(false);
 
   useEffect(() => {
     fetchReports();
@@ -110,29 +128,52 @@ const Reports: React.FC = () => {
     }
   };
 
+  const fetchReportSamples = async (datasetId: string) => {
+    setSamplesLoading(true);
+    try {
+      const response = await datasetApi.getSamples(datasetId, { limit: 50 });
+      setSamples(response.samples || []);
+    } catch (error) {
+      console.error('Failed to fetch samples:', error);
+      message.error('获取样本数据失败');
+    } finally {
+      setSamplesLoading(false);
+    }
+  };
+
   const columns: ColumnsType<ApiReport> = [
     {
       title: '任务ID',
       dataIndex: 'task_id',
       key: 'task_id',
+      width: 150,
       render: (text, record) => (
-        <a onClick={() => showReportDetail(record)}>{text}</a>
+        <a onClick={() => showReportDetail(record)} style={{ fontFamily: 'monospace' }}>
+          {text.substring(0, 8)}...
+        </a>
       ),
     },
     {
       title: '知识库',
       dataIndex: 'kb_name',
       key: 'kb_name',
+      width: 200,
+      ellipsis: true,
+      render: (text) => <Tooltip title={text}>{text}</Tooltip>,
     },
     {
       title: '数据集',
       dataIndex: 'dataset_name',
       key: 'dataset_name',
+      width: 200,
+      ellipsis: true,
+      render: (text) => <Tooltip title={text}>{text}</Tooltip>,
     },
     {
       title: '综合评分',
       dataIndex: 'overall_score',
       key: 'overall_score',
+      width: 150,
       render: (score) => {
         const scorePercent = score * 100;
         const color = scorePercent >= 80 ? '#52c41a' : scorePercent >= 60 ? '#faad14' : '#ff4d4f';
@@ -153,6 +194,7 @@ const Reports: React.FC = () => {
       title: '健康度',
       dataIndex: 'health_score',
       key: 'health_score',
+      width: 120,
       render: (score) => {
         const level = score >= 80 ? '优秀' : score >= 60 ? '良好' : '待改进';
         const color = score >= 80 ? 'green' : score >= 60 ? 'orange' : 'red';
@@ -163,46 +205,71 @@ const Reports: React.FC = () => {
       title: '样本数',
       dataIndex: 'totalSamples',
       key: 'totalSamples',
+      width: 100,
+      render: (count) => count || 0,
     },
     {
       title: '成功率',
       dataIndex: 'successRate',
       key: 'successRate',
-      render: (rate) => `${rate}%`,
+      width: 100,
+      render: (rate) => `${rate || 0}%`,
     },
     {
       title: '生成时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      width: 180,
+      render: (date: string) => {
+        if (!date) return '-';
+        try {
+          return new Date(date).toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        } catch (error) {
+          console.error('Date parsing error:', error);
+          return date;
+        }
+      },
     },
     {
       title: '操作',
       key: 'action',
+      width: 200,
       render: (_, record) => (
         <Space>
           <Button
             size="small"
-            icon={<FileTextOutlined />}
+            icon={<EyeOutlined />}
             onClick={() => showReportDetail(record)}
           >
             查看
           </Button>
-          <Tooltip title="下载PDF">
+          <Tooltip title="导出PDF">
             <Button size="small" icon={<FilePdfOutlined />} />
           </Tooltip>
-          <Tooltip title="下载Excel">
+          <Tooltip title="导出Excel">
             <Button size="small" icon={<FileExcelOutlined />} />
-          </Tooltip>
-          <Tooltip title="分享">
-            <Button size="small" icon={<ShareAltOutlined />} />
           </Tooltip>
         </Space>
       ),
     },
   ];
 
-  const showReportDetail = (report: EvaluationReport) => {
-    setSelectedReport(report);
+  const showReportDetail = async (report: ApiReport) => {
+    try {
+      // 获取报告的详细数据，包括样本评测结果
+      const detailResponse = await reportApi.get(report.task_id);
+      setSelectedReport(detailResponse as EvaluationReport);
+    } catch (error) {
+      console.error('Failed to fetch report detail:', error);
+      // 如果获取详情失败，使用基本信息
+      setSelectedReport(report as EvaluationReport);
+    }
     setViewMode('detail');
   };
 
@@ -213,11 +280,20 @@ const Reports: React.FC = () => {
     return { text: '待改进', color: '#ff4d4f', icon: <AlertOutlined /> };
   };
 
+  // 获取真实的样本数据，如果没有则返回空数组
+  const getRealSampleData = () => {
+    if (selectedReport && selectedReport.detailed_scores) {
+      return selectedReport.detailed_scores;
+    }
+    return [];
+  };
+
   const renderReportDetail = () => {
     if (!selectedReport) return null;
 
     const scorePercent = selectedReport.overall_score * 100;
     const scoreLevel = getScoreLevel(scorePercent);
+    const realSamples = getRealSampleData();
 
     return (
       <div>
@@ -228,7 +304,7 @@ const Reports: React.FC = () => {
               <Paragraph type="secondary">
                 知识库：{selectedReport.kb_name} | 数据集：{selectedReport.dataset_name}
                 <br />
-                生成时间：{new Date(selectedReport.created_at).toLocaleString('zh-CN')}
+                生成时间：{selectedReport.createdAt ? new Date(selectedReport.createdAt).toLocaleString('zh-CN') : '-'}
               </Paragraph>
             </Col>
             <Col span={8} style={{ textAlign: 'right' }}>
@@ -243,7 +319,7 @@ const Reports: React.FC = () => {
         </Card>
 
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col span={12}>
+          <Col span={6}>
             <Card>
               <Statistic
                 title="综合评分"
@@ -254,142 +330,323 @@ const Reports: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col span={12}>
+          <Col span={6}>
             <Card>
               <Statistic
                 title="健康度"
-                value={selectedReport.health_score}
+                value={selectedReport.health_score || 0}
                 suffix="/100"
                 prefix={<TrophyOutlined />}
+                valueStyle={{ color: selectedReport.health_score >= 80 ? '#52c41a' : selectedReport.health_score >= 60 ? '#faad14' : '#ff4d4f' }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="样本总数"
+                value={selectedReport.totalSamples || 0}
+                prefix={<FileTextOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="成功率"
+                value={selectedReport.successRate || 0}
+                suffix="%"
+                prefix={<CheckCircleOutlined />}
+                valueStyle={{ color: (selectedReport.successRate || 0) >= 80 ? '#52c41a' : (selectedReport.successRate || 0) >= 60 ? '#faad14' : '#ff4d4f' }}
               />
             </Card>
           </Col>
         </Row>
 
+        {/* 评测指标详情 */}
         <Card title="评测指标详情" style={{ marginTop: 16 }}>
-          <Row gutter={[16, 16]}>
-            {Object.entries(selectedReport.metric_scores).map(([key, value]) => {
-              const metricName = {
-                faithfulness: '忠实度',
-                answer_correctness: '答案正确性',
-                context_precision: '上下文精准度',
-                context_recall: '上下文召回率',
-              }[key] || key;
-
-              return (
-                <Col span={12} key={key}>
-                  <Card size="small">
-                    <Title level={5}>{metricName}</Title>
-                    <Row gutter={16}>
-                      <Col span={6}>
-                        <Statistic
-                          title="平均值"
-                          value={value.mean}
-                          precision={2}
-                          valueStyle={{ fontSize: 14 }}
-                        />
-                      </Col>
-                      <Col span={6}>
-                        <Statistic
-                          title="标准差"
-                          value={value.std}
-                          precision={2}
-                          valueStyle={{ fontSize: 14 }}
-                        />
-                      </Col>
-                      <Col span={6}>
-                        <Statistic
-                          title="最小值"
-                          value={value.min}
-                          precision={2}
-                          valueStyle={{ fontSize: 14 }}
-                        />
-                      </Col>
-                      <Col span={6}>
-                        <Statistic
-                          title="最大值"
-                          value={value.max}
-                          precision={2}
-                          valueStyle={{ fontSize: 14 }}
-                        />
-                      </Col>
-                    </Row>
-                    <Progress
-                      percent={value.mean * 100}
-                      strokeColor={{
-                        '0%': '#108ee9',
-                        '100%': '#87d068',
-                      }}
-                      showInfo={false}
-                      style={{ marginTop: 8 }}
-                    />
-                  </Card>
-                </Col>
-              );
-            })}
+          <Row gutter={16}>
+            {Object.entries(selectedReport.metric_scores || {}).map(([metric, scores]) => (
+              <Col span={8} key={metric} style={{ marginBottom: 16 }}>
+                <Card size="small" title={getMetricDisplayName(metric)}>
+                  <Row gutter={8}>
+                    <Col span={12}>
+                      <Statistic
+                        title="平均值"
+                        value={scores.mean || 0}
+                        precision={3}
+                        valueStyle={{ fontSize: '18px', color: '#1890ff' }}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic
+                        title="标准差"
+                        value={scores.std || 0}
+                        precision={3}
+                        valueStyle={{ fontSize: '14px', color: '#666' }}
+                      />
+                    </Col>
+                  </Row>
+                  <Row gutter={8} style={{ marginTop: 8 }}>
+                    <Col span={12}>
+                      <Text type="secondary">最小值: {(scores.min || 0).toFixed(3)}</Text>
+                    </Col>
+                    <Col span={12}>
+                      <Text type="secondary">最大值: {(scores.max || 0).toFixed(3)}</Text>
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+            ))}
           </Row>
         </Card>
 
-        <Row gutter={16} style={{ marginTop: 16 }}>
-          <Col span={12}>
-            <Card title="优化建议" extra={<InfoCircleOutlined />}>
-              <List
-                dataSource={selectedReport.recommendations}
-                renderItem={(item, index) => (
-                  <List.Item>
-                    <Space>
-                      <Badge count={index + 1} style={{ backgroundColor: '#1890ff' }} />
-                      <Text>{item}</Text>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            </Card>
-          </Col>
-          <Col span={12}>
-            <Card title="低分样本分析" extra={<AlertOutlined style={{ color: '#ff4d4f' }} />}>
-              <List
-                dataSource={selectedReport.lowScoreSamples}
-                renderItem={(item) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      avatar={
-                        <Avatar
-                          style={{
-                            backgroundColor: '#ff4d4f',
-                            fontSize: 12,
-                          }}
-                        >
-                          {item.score.toFixed(1)}
-                        </Avatar>
-                      }
-                      title={item.question}
-                      description={
-                        <Space>
-                          <Tag color="red">{item.issue}</Tag>
-                        </Space>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-              {selectedReport.lowScoreSamples.length === 0 && (
-                <Empty description="暂无低分样本" />
-              )}
-            </Card>
-          </Col>
-        </Row>
-
-        <Card title="评测趋势" style={{ marginTop: 16 }}>
-          <Alert
-            message="趋势图表"
-            description="评测指标的历史趋势图将在集成图表库后显示"
-            type="info"
-            showIcon
+        {/* 样本详情 */}
+        <Card title="样本评测详情" style={{ marginTop: 16 }}>
+          {realSamples.length > 0 ? (
+            <Table
+              dataSource={realSamples}
+              scroll={{ x: 'max-content', y: 500 }}
+              columns={[
+              {
+                title: '问题',
+                dataIndex: 'user_input',
+                key: 'user_input',
+                width: 300,
+                render: (text) => (
+                  <Tooltip title={text}>
+                    <Text ellipsis style={{ maxWidth: 280 }}>{text}</Text>
+                  </Tooltip>
+                ),
+              },
+              // 动态生成指标列
+              ...Object.keys(realSamples[0] || {})
+                .filter(key => key !== 'user_input' && key !== 'actual_answer' && key !== 'expected_answer' && key !== 'contexts' && typeof realSamples[0][key] === 'number')
+                .map(metric => ({
+                  title: getMetricDisplayName(metric),
+                  dataIndex: metric,
+                  key: metric,
+                  width: 120,
+                  render: (score: number) => {
+                    const percent = score * 100;
+                    const color = percent >= 80 ? '#52c41a' : percent >= 60 ? '#faad14' : '#ff4d4f';
+                    return (
+                      <Progress
+                        percent={Math.round(percent)}
+                        strokeColor={color}
+                        size="small"
+                        format={(percent) => `${percent}%`}
+                      />
+                    );
+                  },
+                  sorter: (a: any, b: any) => a[metric] - b[metric],
+                })),
+              {
+                title: '操作',
+                key: 'action',
+                width: 80,
+                fixed: 'right',
+                render: (_, record) => (
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<EyeOutlined />}
+                    onClick={() => {
+                      // 显示样本详情的弹窗
+                      Modal.info({
+                        title: '样本详情',
+                        width: 800,
+                        content: (
+                          <div style={{ marginTop: 16, maxWidth: '750px' }}>
+                            <Descriptions bordered column={1} size="small">
+                              <Descriptions.Item label="问题">
+                                <div style={{ wordBreak: 'break-word', maxHeight: '100px', overflow: 'auto' }}>
+                                  {record.user_input}
+                                </div>
+                              </Descriptions.Item>
+                              <Descriptions.Item label="实际回答">
+                                <div style={{
+                                  backgroundColor: '#f6f8fa',
+                                  padding: 12,
+                                  borderRadius: 4,
+                                  maxHeight: '200px',
+                                  overflow: 'auto',
+                                  wordBreak: 'break-word',
+                                  whiteSpace: 'pre-wrap'
+                                }}>
+                                  {record.actual_answer}
+                                </div>
+                              </Descriptions.Item>
+                              <Descriptions.Item label="预期答案">
+                                <div style={{
+                                  backgroundColor: '#fff2e8',
+                                  padding: 12,
+                                  borderRadius: 4,
+                                  maxHeight: '200px',
+                                  overflow: 'auto',
+                                  wordBreak: 'break-word',
+                                  whiteSpace: 'pre-wrap'
+                                }}>
+                                  {record.expected_answer}
+                                </div>
+                              </Descriptions.Item>
+                              <Descriptions.Item label="参考上下文">
+                                <div style={{
+                                  maxHeight: '150px',
+                                  overflow: 'auto',
+                                  wordBreak: 'break-word'
+                                }}>
+                                  {record.contexts.map((context, idx) => (
+                                    <Tag key={idx} style={{
+                                      marginBottom: 4,
+                                      marginRight: 8,
+                                      display: 'inline-block',
+                                      maxWidth: '100%',
+                                      wordBreak: 'break-word'
+                                    }}>{context}</Tag>
+                                  ))}
+                                </div>
+                              </Descriptions.Item>
+                            </Descriptions>
+                          </div>
+                        ),
+                      });
+                    }}
+                  >
+                    详情
+                  </Button>
+                ),
+              },
+            ]}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `共 ${total} 个样本`,
+            }}
+            size="small"
+            expandable={{
+              expandedRowRender: (record) => (
+                <div style={{
+                  margin: 0,
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  width: '100%',
+                  tableLayout: 'fixed'
+                }}>
+                  <div style={{ width: '100%', overflow: 'hidden' }}>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Title level={5}>实际回答</Title>
+                        <div style={{
+                          backgroundColor: '#f6f8fa',
+                          padding: 12,
+                          borderRadius: 4,
+                          height: '300px',
+                          overflow: 'auto',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                          width: '100%',
+                          boxSizing: 'border-box'
+                        }}>
+                          <Text>{record.actual_answer}</Text>
+                        </div>
+                      </Col>
+                      <Col span={12}>
+                        <Title level={5}>预期答案</Title>
+                        <div style={{
+                          backgroundColor: '#fff2e8',
+                          padding: 12,
+                          borderRadius: 4,
+                          height: '300px',
+                          overflow: 'auto',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                          width: '100%',
+                          boxSizing: 'border-box'
+                        }}>
+                          <Text>{record.expected_answer}</Text>
+                        </div>
+                      </Col>
+                    </Row>
+                    <Row gutter={16} style={{ marginTop: 16 }}>
+                      <Col span={24}>
+                        <Title level={5}>参考上下文</Title>
+                        <div style={{
+                          height: '200px',
+                          overflow: 'auto',
+                          wordBreak: 'break-word',
+                          width: '100%'
+                        }}>
+                          {record.contexts.map((context, idx) => (
+                            <Tag key={idx} style={{
+                              marginBottom: 4,
+                              marginRight: 8,
+                              display: 'inline-block',
+                              maxWidth: '100%',
+                              wordBreak: 'break-word'
+                            }}>{context}</Tag>
+                          ))}
+                        </div>
+                      </Col>
+                    </Row>
+                  </div>
+                </div>
+              ),
+              rowExpandable: () => true,
+              }}
           />
+            ) : (
+              <Empty description="暂无详细样本数据" />
+            )}
         </Card>
+
+        {/* 改进建议 */}
+        {selectedReport.recommendations && selectedReport.recommendations.length > 0 && (
+          <Card title="改进建议" style={{ marginTop: 16 }}>
+            <List
+              dataSource={selectedReport.recommendations}
+              renderItem={(item, index) => (
+                <List.Item>
+                  <List.Item.Meta
+                    avatar={<BulbOutlined style={{ color: '#faad14', fontSize: 20 }} />}
+                    description={<Text>{item}</Text>}
+                  />
+                </List.Item>
+              )}
+            />
+          </Card>
+        )}
+
+        {/* 低分样本分析 */}
+        {selectedReport.lowScoreSamples && selectedReport.lowScoreSamples.length > 0 && (
+          <Card title="低分样本分析" style={{ marginTop: 16 }}>
+            <Timeline>
+              {selectedReport.lowScoreSamples.map((sample, index) => (
+                <Timeline.Item
+                  key={index}
+                  color={sample.score < 0.3 ? 'red' : sample.score < 0.6 ? 'orange' : 'blue'}
+                >
+                  <Text strong>问题: {sample.question}</Text>
+                  <br />
+                  <Text type="danger">得分: {Math.round(sample.score * 100)}% - {sample.issue}</Text>
+                </Timeline.Item>
+              ))}
+            </Timeline>
+          </Card>
+        )}
       </div>
     );
+  };
+
+  const getMetricDisplayName = (metric: string) => {
+    const metricNames: { [key: string]: string } = {
+      answer_correctness: '答案正确性',
+      faithfulness: '忠实度',
+      context_precision: '上下文精准度',
+      context_recall: '上下文召回率',
+      answer_relevancy: '答案相关性',
+    };
+    return metricNames[metric] || metric;
   };
 
   return (
@@ -420,6 +677,7 @@ const Reports: React.FC = () => {
               dataSource={reports}
               loading={loading}
               rowKey="task_id"
+              scroll={{ x: 1200 }}
               pagination={{
                 pageSize: 10,
                 showSizeChanger: true,

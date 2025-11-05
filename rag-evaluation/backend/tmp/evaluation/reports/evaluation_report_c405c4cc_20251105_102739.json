@@ -1,0 +1,55 @@
+{
+  "task_info": {
+    "task_id": "c405c4cc-339c-4fc9-8f32-50ceb23950bd",
+    "chat_id": "7f7c5296b8a211f08c9066fc51ac58de",
+    "dataset_id": "ee7e95db-f569-458f-8072-f27d89806217",
+    "created_at": "2025-11-05T10:27:39.553373",
+    "status": "completed"
+  },
+  "overall_scores": {
+    "answer_correctness": {
+      "mean": 0.15830293846392077,
+      "std": 0.0014976519174318894,
+      "min": 0.15679840824955793,
+      "max": 0.15979361598387665,
+      "valid_count": 3,
+      "total_count": 3
+    }
+  },
+  "detailed_scores": [
+    {
+      "user_input": "什么是人工智能？",
+      "actual_answer": "知识库中未找到您要的答案！",
+      "expected_answer": "人工智能是计算机科学的一个分支，致力于创建能够执行通常需要人类智能的任务的系统。",
+      "contexts": [],
+      "answer_correctness": 0.15679840824955793
+    },
+    {
+      "user_input": "什么是机器学习？",
+      "actual_answer": "知识库中未找到您要的答案！",
+      "expected_answer": "机器学习是人工智能的一个子集，使计算机能够在没有明确编程的情况下学习和改进。",
+      "contexts": [],
+      "answer_correctness": 0.15979361598387665
+    },
+    {
+      "user_input": "什么是深度学习？",
+      "actual_answer": "知识库中未找到您要的答案！",
+      "expected_answer": "深度学习是机器学习的一个子集，使用具有多个隐藏层的神经网络来学习数据的复杂模式。",
+      "contexts": [],
+      "answer_correctness": 0.15831679115832775
+    }
+  ],
+  "evaluation_metadata": {
+    "metrics": [
+      "answer_correctness"
+    ],
+    "total_samples": 3,
+    "success_count": 0,
+    "evaluation_time": 0
+  },
+  "summary": {
+    "total_questions": 3,
+    "success_rate": 0,
+    "average_score": 0
+  }
+}

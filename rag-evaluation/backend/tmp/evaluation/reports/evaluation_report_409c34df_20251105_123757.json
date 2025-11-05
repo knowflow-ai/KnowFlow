@@ -1,0 +1,41 @@
+{
+  "task_info": {
+    "task_id": "409c34df-67a1-4e15-87ff-518b5651ab17",
+    "chat_id": "7f7c5296b8a211f08c9066fc51ac58de",
+    "dataset_id": "ef877b2f-3f80-4760-a78a-d5ca7496c69d",
+    "created_at": "2025-11-05T12:37:57.987884",
+    "status": "completed"
+  },
+  "overall_scores": {
+    "answer_correctness": {
+      "mean": 0.0587947110088158,
+      "std": 0.0,
+      "min": 0.0587947110088158,
+      "max": 0.0587947110088158,
+      "valid_count": 1,
+      "total_count": 1
+    }
+  },
+  "detailed_scores": [
+    {
+      "user_input": "怎么进行表面处理",
+      "actual_answer": "知识库中未找到您要的答案！",
+      "expected_answer": "5.2.1除锈等级评判按照GB/T 8923 的规定进行。5.2.2 表面粗糙度按照GB/T 13288 或GB/T 10610 的规定进行。5.2.3表面油污检查可采用以下两种方法：a）粉笔试验法-适用于非光滑的钢结构表面对于怀疑有油污污染的区域，用粉笔划一条直线贯穿油污区域。如果在该区域内，粉笔线条变细或变浅，说明该区域可能被油污污染；）醇溶液试验法——适用于所有钢结构表面。对于怀疑有油污污染的部位，用蘸有异丙醇的脱脂棉球擦拭，并将异丙醇挤入透明的玻璃管中。加入 3$倍的蒸馏水，振荡混合约20min。以相同体积的异丙醇蒸馏水溶液为参照，如果溶液呈混浊状，表明钢结构表面有油污污染。5.2.4表面灰尘清洁度按GB/T 18570.3的规定进行。5.2.5表面可溶性氯化物按GB/T 18570.6和GB/T 18570.9的规定进行。",
+      "contexts": [],
+      "answer_correctness": 0.0587947110088158
+    }
+  ],
+  "evaluation_metadata": {
+    "metrics": [
+      "answer_correctness"
+    ],
+    "total_samples": 1,
+    "success_count": 0,
+    "evaluation_time": 0
+  },
+  "summary": {
+    "total_questions": 1,
+    "success_rate": 0,
+    "average_score": 0
+  }
+}

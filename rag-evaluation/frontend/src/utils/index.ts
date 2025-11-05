@@ -257,16 +257,13 @@ export const colors = {
   default: '#d9d9d9',
 };
 
-// 指标名称映射
+// 指标名称映射 - 只保留5个核心RAGAS指标
 export const metricNameMap: Record<string, string> = {
   'faithfulness': '忠实度',
   'answer_correctness': '答案正确性',
   'context_precision': '上下文精准度',
   'context_recall': '上下文召回率',
   'answer_relevancy': '答案相关性',
-  'answer_similarity': '答案相似度',
-  'response_time': '响应时间',
-  'token_usage': 'Token 使用量',
 };
 
 // 获取指标显示名称
