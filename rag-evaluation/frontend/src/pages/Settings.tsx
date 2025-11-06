@@ -11,38 +11,19 @@ import {
   Divider,
   Space,
   Alert,
-  Table,
-  Tag,
   Modal,
   message,
   Tabs,
-  Radio,
-  Checkbox,
   Row,
   Col,
-  List,
   Tooltip,
-  Descriptions,
-  Statistic,
-  Spin,
 } from 'antd';
 import {
   SaveOutlined,
   ReloadOutlined,
   ApiOutlined,
-  DatabaseOutlined,
-  ExperimentOutlined,
   SettingOutlined,
   KeyOutlined,
-  BellOutlined,
-  ClockCircleOutlined,
-  RobotOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  InfoCircleOutlined,
-  DownloadOutlined,
-  UploadOutlined,
 } from '@ant-design/icons';
 import { systemApi } from '../services/evaluation';
 
@@ -61,21 +42,9 @@ interface APIConfig {
   maxTokens: number;
 }
 
-interface NotificationConfig {
-  enabled: boolean;
-  emailEnabled: boolean;
-  webhookEnabled: boolean;
-  emailAddress?: string;
-  webhookUrl?: string;
-  notifyOnComplete: boolean;
-  notifyOnError: boolean;
-  notifyThreshold: number;
-}
-
 const Settings: React.FC = () => {
   const [form] = Form.useForm();
   const [apiForm] = Form.useForm();
-  const [notificationForm] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
@@ -88,15 +57,7 @@ const Settings: React.FC = () => {
     maxTokens: 2000,
   });
 
-  const [notificationConfig, setNotificationConfig] = useState<NotificationConfig>({
-    enabled: false,
-    emailEnabled: false,
-    webhookEnabled: false,
-    notifyOnComplete: false,
-    notifyOnError: false,
-    notifyThreshold: 60,
-  });
-
+  
   useEffect(() => {
     fetchConfig();
   }, []);
@@ -119,11 +80,7 @@ const Settings: React.FC = () => {
         apiForm.setFieldsValue(apiConfigForForm);
         console.log('Set API form values:', apiConfigForForm);
       }
-      if (config.notification) {
-        setNotificationConfig(config.notification);
-        notificationForm.setFieldsValue(config.notification);
-      }
-    } catch (error) {
+      } catch (error) {
       console.error('Failed to fetch config:', error);
     } finally {
       setLoading(false);
@@ -151,12 +108,6 @@ const Settings: React.FC = () => {
           }
         };
       }
-      // 如果有 enabled 字段，说明是通知配置表单
-      else if ('enabled' in values) {
-        configData = {
-          notification: values
-        };
-      }
       // 否则是常规设置表单
       else {
         configData = values;
@@ -174,14 +125,7 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleSaveApiConfig = (values: any) => {
-    setSaving(true);
-    setTimeout(() => {
-      setLoading(false);
-      message.success('设置已保存');
-    }, 1000);
-  };
-
+  
   // Provider 对应的默认 endpoint
   const providerEndpoints: Record<string, string> = {
     'siliconflow': 'https://api.siliconflow.cn/v1',
@@ -258,39 +202,7 @@ const Settings: React.FC = () => {
     });
   };
 
-  // 预设的评测模板
-  const evaluationTemplates = [
-    {
-      id: '1',
-      name: '基础评测',
-      description: '包含忠实度和答案正确性两个核心指标',
-      metrics: ['faithfulness', 'answer_correctness'],
-      isDefault: true,
-    },
-    {
-      id: '2',
-      name: '全面评测',
-      description: '包含所有可用的评测指标',
-      metrics: ['faithfulness', 'answer_correctness', 'context_precision', 'context_recall', 'answer_relevancy'],
-      isDefault: false,
-    },
-    {
-      id: '3',
-      name: '精简评测',
-      description: '仅评测忠实度，适合快速测试',
-      metrics: ['faithfulness'],
-      isDefault: false,
-    },
-  ];
-
-  const metricOptions = [
-    { value: 'faithfulness', label: '忠实度', cost: '高' },
-    { value: 'answer_correctness', label: '答案正确性', cost: '高' },
-    { value: 'context_precision', label: '上下文精准度', cost: '中' },
-    { value: 'context_recall', label: '上下文召回率', cost: '中' },
-    { value: 'answer_relevancy', label: '答案相关性', cost: '低' },
-  ];
-
+  
   return (
     <div>
       <Title level={2}>系统设置</Title>
@@ -600,262 +512,7 @@ const Settings: React.FC = () => {
           </Card>
         </TabPane>
 
-        <TabPane
-          tab={
-            <span>
-              <ExperimentOutlined />
-              评测模板
-            </span>
-          }
-          key="templates"
-        >
-          <Card>
-            <div style={{ marginBottom: 16 }}>
-              <Button type="primary" icon={<PlusOutlined />}>
-                创建模板
-              </Button>
-            </div>
-
-            <Table
-              dataSource={evaluationTemplates}
-              rowKey="id"
-              columns={[
-                {
-                  title: '模板名称',
-                  dataIndex: 'name',
-                  key: 'name',
-                  render: (text, record) => (
-                    <Space>
-                      {text}
-                      {record.isDefault && <Tag color="blue">默认</Tag>}
-                    </Space>
-                  ),
-                },
-                {
-                  title: '描述',
-                  dataIndex: 'description',
-                  key: 'description',
-                },
-                {
-                  title: '包含指标',
-                  dataIndex: 'metrics',
-                  key: 'metrics',
-                  render: (metrics: string[]) => (
-                    <Space wrap>
-                      {metrics.map((metric) => (
-                        <Tag key={metric}>
-                          {metricOptions.find((m) => m.value === metric)?.label}
-                        </Tag>
-                      ))}
-                    </Space>
-                  ),
-                },
-                {
-                  title: '操作',
-                  key: 'action',
-                  render: () => (
-                    <Space>
-                      <Button size="small" icon={<EditOutlined />}>
-                        编辑
-                      </Button>
-                      <Button size="small" danger icon={<DeleteOutlined />}>
-                        删除
-                      </Button>
-                    </Space>
-                  ),
-                },
-              ]}
-              pagination={false}
-            />
-          </Card>
-
-          <Card title="指标配置" style={{ marginTop: 16 }}>
-            <List
-              dataSource={metricOptions}
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Switch defaultChecked />,
-                    <Tag color={item.cost === '高' ? 'red' : item.cost === '中' ? 'orange' : 'green'}>
-                      成本: {item.cost}
-                    </Tag>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={item.label}
-                    description={`标识符: ${item.value}`}
-                  />
-                </List.Item>
-              )}
-            />
-          </Card>
-        </TabPane>
-
-        <TabPane
-          tab={
-            <span>
-              <BellOutlined />
-              通知设置
-            </span>
-          }
-          key="notifications"
-        >
-          <Card>
-            <Form
-              form={notificationForm}
-              layout="vertical"
-              onFinish={handleSaveSettings}
-              initialValues={notificationConfig}
-            >
-              <Form.Item
-                label="启用通知"
-                name="enabled"
-                valuePropName="checked"
-              >
-                <Switch checkedChildren="开启" unCheckedChildren="关闭" />
-              </Form.Item>
-
-              <Title level={4}>邮件通知</Title>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    label="启用邮件通知"
-                    name="emailEnabled"
-                    valuePropName="checked"
-                  >
-                    <Switch />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    label="接收邮箱"
-                    name="emailAddress"
-                  >
-                    <Input placeholder="admin@example.com" />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Title level={4}>Webhook 通知</Title>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    label="启用 Webhook"
-                    name="webhookEnabled"
-                    valuePropName="checked"
-                  >
-                    <Switch />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    label="Webhook URL"
-                    name="webhookUrl"
-                  >
-                    <Input placeholder="https://your-webhook-url.com" />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Title level={4}>通知规则</Title>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Checkbox defaultChecked>评测任务完成时通知</Checkbox>
-                <Checkbox defaultChecked>评测任务失败时通知</Checkbox>
-                <Checkbox>评测分数低于阈值时通知</Checkbox>
-                <Form.Item
-                  label="分数阈值"
-                  name="notifyThreshold"
-                  style={{ marginTop: 8 }}
-                >
-                  <InputNumber min={0} max={100} addonAfter="分" style={{ width: 200 }} />
-                </Form.Item>
-              </Space>
-
-              <Divider />
-
-              <Form.Item>
-                <Space>
-                  <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
-                    保存设置
-                  </Button>
-                  <Button>
-                    发送测试通知
-                  </Button>
-                </Space>
-              </Form.Item>
-            </Form>
-          </Card>
-        </TabPane>
-
-        <TabPane
-          tab={
-            <span>
-              <DatabaseOutlined />
-              数据管理
-            </span>
-          }
-          key="data"
-        >
-          <Card>
-            <Title level={4}>存储配置</Title>
-            <Descriptions column={2}>
-              <Descriptions.Item label="数据集存储路径">/data/evaluation/datasets</Descriptions.Item>
-              <Descriptions.Item label="报告存储路径">/data/evaluation/reports</Descriptions.Item>
-              <Descriptions.Item label="临时文件路径">/tmp/evaluation</Descriptions.Item>
-              <Descriptions.Item label="日志文件路径">/var/log/evaluation</Descriptions.Item>
-            </Descriptions>
-
-            <Divider />
-
-            <Title level={4}>数据清理</Title>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Alert
-                message="定期清理可以节省存储空间，但会删除历史数据"
-                type="info"
-                showIcon
-              />
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Card size="small">
-                    <Text>清理 30 天前的评测结果</Text>
-                    <br />
-                    <Button size="small" style={{ marginTop: 8 }}>
-                      立即清理
-                    </Button>
-                  </Card>
-                </Col>
-                <Col span={8}>
-                  <Card size="small">
-                    <Text>清理未使用的数据集</Text>
-                    <br />
-                    <Button size="small" style={{ marginTop: 8 }}>
-                      立即清理
-                    </Button>
-                  </Card>
-                </Col>
-                <Col span={8}>
-                  <Card size="small">
-                    <Text>清理所有临时文件</Text>
-                    <br />
-                    <Button size="small" style={{ marginTop: 8 }}>
-                      立即清理
-                    </Button>
-                  </Card>
-                </Col>
-              </Row>
-            </Space>
-
-            <Divider />
-
-            <Title level={4}>备份与恢复</Title>
-            <Space>
-              <Button icon={<DownloadOutlined />}>导出所有数据</Button>
-              <Button icon={<UploadOutlined />}>导入数据</Button>
-              <Button>创建备份</Button>
-            </Space>
-          </Card>
-        </TabPane>
-      </Tabs>
+        </Tabs>
     </div>
   );
 };

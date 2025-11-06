@@ -36,6 +36,8 @@ import type { UploadProps } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { datasetApi, taskApi, chatApi, metricApi } from '../services/evaluation';
 import type { Dataset as ApiDataset, Metric, TaskCreateParams } from '../services/evaluation';
+import { useBatchDelete } from '../hooks/useBatchDelete';
+import { BatchActionBar } from '../components/BatchActionBar';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -84,6 +86,20 @@ const Datasets: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // 使用统一的批量删除 Hook
+  const {
+    rowSelection,
+    batchDeleting,
+    handleBatchDelete,
+    clearSelection,
+    selectedRowKeys,
+  } = useBatchDelete({
+    apiCall: datasetApi.batchDelete,
+    itemName: '数据集',
+    onSuccess: fetchDatasets,
+    permanentWarning: true,
+  });
 
   const columns: ColumnsType<ApiDataset> = [
     {
@@ -272,6 +288,7 @@ const Datasets: React.FC = () => {
     });
   };
 
+  
   const handleUpload = async (file: File) => {
     const formValues = form.getFieldsValue();
 
@@ -352,11 +369,20 @@ const Datasets: React.FC = () => {
           </Space>
         </div>
 
+        <BatchActionBar
+          selectedCount={selectedRowKeys.length}
+          onDelete={handleBatchDelete}
+          onCancel={clearSelection}
+          deleting={batchDeleting}
+          itemName="数据集"
+        />
+
         <Table
           columns={columns}
           dataSource={datasets}
           loading={loading}
           rowKey="id"
+          rowSelection={rowSelection}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,

@@ -152,6 +152,17 @@ export const datasetApi = {
     return request.delete(`/evaluation/datasets/${datasetId}`);
   },
 
+  // 批量删除数据集
+  batchDelete: (datasetIds: string[]) => {
+    return request.delete<{
+      message: string;
+      deleted_count: number;
+      total_count: number;
+      failed_count: number;
+      failed_ids?: string[];
+    }>('/evaluation/datasets/batch', { dataset_ids: datasetIds });
+  },
+
   // 生成示例数据集
   generateSample: (type: 'basic' | 'with_reference' | 'with_contexts') => {
     return request.post<Dataset>(`/evaluation/datasets/generate/${type}`);
@@ -204,6 +215,19 @@ export const taskApi = {
   delete: (taskId: string) => {
     return request.delete(`/evaluation/tasks/${taskId}`);
   },
+
+  // 批量删除任务
+  batchDelete: (taskIds: string[]) => {
+    return request.delete<{
+      message: string;
+      deleted_count: number;
+      total_count: number;
+      failed_count: number;
+      running_count: number;
+      failed_ids?: string[];
+      running_tasks?: string[];
+    }>('/evaluation/tasks/batch', { task_ids: taskIds });
+  },
 };
 
 // 报告相关 API
@@ -224,6 +248,21 @@ export const reportApi = {
   // 获取报告列表
   list: (params?: { kb_id?: string; start_date?: string; end_date?: string }) => {
     return request.get<EvaluationReport[]>('/evaluation/reports', { params });
+  },
+
+  // 删除报告
+  delete: (taskId: string) => {
+    return request.delete(`/evaluation/reports/${taskId}`);
+  },
+
+  // 批量删除报告
+  batchDelete: (taskIds: string[]) => {
+    return request.delete<{
+      message: string;
+      deleted_count: number;
+      total_count: number;
+      failed_count: number;
+    }>('/evaluation/reports/batch', { task_ids: taskIds });
   },
 
   // 对比报告

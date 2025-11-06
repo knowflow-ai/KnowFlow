@@ -162,6 +162,48 @@ class DatasetManager:
         conn.close()
         return affected_rows > 0
 
+    def get_dataset_statistics(self) -> Dict[str, Any]:
+        """获取数据集统计信息"""
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+
+        # 获取总数据集数量
+        cursor.execute('SELECT COUNT(*) as total FROM datasets')
+        total_count = cursor.fetchone()['total']
+
+        # 获取最近7天创建的数据集数量
+        cursor.execute('''
+            SELECT COUNT(*) as recent_count
+            FROM datasets
+            WHERE created_at >= date('now', '-7 days')
+        ''')
+        recent_count = cursor.fetchone()['recent_count']
+
+        # 获取有参考答案的数据集数量
+        cursor.execute('''
+            SELECT COUNT(*) as with_reference_count
+            FROM datasets
+            WHERE has_reference = 1
+        ''')
+        with_reference_count = cursor.fetchone()['with_reference_count']
+
+        # 获取有上下文的数据集数量
+        cursor.execute('''
+            SELECT COUNT(*) as with_contexts_count
+            FROM datasets
+            WHERE has_contexts = 1
+        ''')
+        with_contexts_count = cursor.fetchone()['with_contexts_count']
+
+        conn.close()
+
+        return {
+            'total_count': total_count,
+            'recent_count': recent_count,
+            'with_reference_count': with_reference_count,
+            'with_contexts_count': with_contexts_count,
+        }
+
 
 class TaskManager:
     """评测任务管理器"""
@@ -248,6 +290,69 @@ class TaskManager:
         conn.close()
         return affected_rows > 0
 
+    def get_task_statistics(self) -> Dict[str, Any]:
+        """获取任务统计信息"""
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+
+        # 获取各状态的任务数量
+        cursor.execute('''
+            SELECT
+                status,
+                COUNT(*) as count,
+                AVG(CASE WHEN status = 'completed' THEN progress END) as avg_progress
+            FROM evaluation_tasks
+            GROUP BY status
+        ''')
+
+        status_counts = {}
+        total_progress = 0
+        total_count = 0
+
+        for row in cursor.fetchall():
+            status_counts[row['status']] = row['count']
+            if row['status'] == 'completed' and row['avg_progress']:
+                total_progress += row['avg_progress']
+                total_count += row['count']
+
+        # 获取总任务数
+        cursor.execute('SELECT COUNT(*) as total FROM evaluation_tasks')
+        total_tasks = cursor.fetchone()['total']
+
+        # 获取最近7天的任务数量
+        cursor.execute('''
+            SELECT COUNT(*) as recent_count
+            FROM evaluation_tasks
+            WHERE created_at >= date('now', '-7 days')
+        ''')
+        recent_tasks = cursor.fetchone()['recent_count']
+
+        # 计算平均处理时间（分钟）
+        cursor.execute('''
+            SELECT AVG(
+                (julianday(completed_at) - julianday(created_at)) * 24 * 60
+            ) as avg_time
+            FROM evaluation_tasks
+            WHERE status = 'completed'
+            AND completed_at IS NOT NULL
+            AND created_at IS NOT NULL
+        ''')
+        avg_time_result = cursor.fetchone()
+        avg_processing_time = round(avg_time_result['avg_time'] or 0, 1)
+
+        conn.close()
+
+        return {
+            'total_count': total_tasks,
+            'status_counts': status_counts,
+            'total_completed': status_counts.get('completed', 0),
+            'running_count': status_counts.get('running', 0),
+            'failed_count': status_counts.get('failed', 0),
+            'pending_count': status_counts.get('pending', 0),
+            'recent_count': recent_tasks,
+            'avg_processing_time': avg_processing_time,
+        }
+
 
 class ReportManager:
     """评测报告管理器"""
@@ -299,6 +404,118 @@ class ReportManager:
             'limit': limit,
             'offset': offset
         }
+
+    def delete_report(self, task_id: str) -> bool:
+        """删除评测报告"""
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('DELETE FROM evaluation_reports WHERE task_id = ?', (task_id,))
+        affected_rows = cursor.row_count
+
+        conn.commit()
+        conn.close()
+        return affected_rows > 0
+
+    def delete_reports_batch(self, task_ids: List[str]) -> int:
+        """批量删除评测报告"""
+        if not task_ids:
+            return 0
+
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+
+        placeholders = ','.join(['?'] * len(task_ids))
+        cursor.execute(f'DELETE FROM evaluation_reports WHERE task_id IN ({placeholders})', task_ids)
+        affected_rows = cursor.row_count
+
+        conn.commit()
+        conn.close()
+        return affected_rows
+
+    def get_report_statistics(self) -> Dict[str, Any]:
+        """获取报告统计信息"""
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+
+        # 获取最近完成的报告及其评分
+        cursor.execute('''
+            SELECT overall_scores
+            FROM evaluation_reports
+            WHERE overall_scores IS NOT NULL
+            AND overall_scores != ''
+            ORDER BY created_at DESC
+            LIMIT 20
+        ''')
+
+        recent_scores = []
+        metric_scores = {}
+        metric_counts = {}
+
+        for row in cursor.fetchall():
+            try:
+                scores = json.loads(row['overall_scores'])
+
+                # 处理真实报告数据格式（包含 mean, std 等统计信息）
+                for metric_name, metric_data in scores.items():
+                    if isinstance(metric_data, dict) and 'mean' in metric_data:
+                        # 这是真实的报告数据，使用平均值
+                        avg_score = metric_data['mean']
+                        if isinstance(avg_score, (int, float)):
+                            if metric_name == 'overall_score':
+                                recent_scores.append(avg_score)
+                            else:
+                                if metric_name not in metric_scores:
+                                    metric_scores[metric_name] = []
+                                metric_scores[metric_name].append(avg_score)
+                    elif isinstance(metric_data, (int, float)):
+                        # 这是直接的分数值
+                        if metric_name == 'overall_score':
+                            recent_scores.append(metric_data)
+                        else:
+                            if metric_name not in metric_scores:
+                                metric_scores[metric_name] = []
+                            metric_scores[metric_name].append(metric_data)
+            except (json.JSONDecodeError, TypeError) as e:
+                continue
+
+        # 计算各项指标的平均分
+        metric_averages = []
+        for metric_name, scores in metric_scores.items():
+            if scores:
+                avg_score = sum(scores) / len(scores)
+                # 将分数转换为百分比
+                avg_percent = round(avg_score * 100, 1)
+
+                # 获取指标显示名称
+                display_name = self.get_metric_display_name(metric_name)
+
+                metric_averages.append({
+                    'name': display_name,
+                    'score': avg_percent,
+                    'trend': 'stable'  # 简化处理，实际应该计算趋势
+                })
+
+        conn.close()
+
+        return {
+            'recent_scores': recent_scores,
+            'metric_averages': metric_averages,
+            'recent_count': len(recent_scores)
+        }
+
+    def get_metric_display_name(self, metric_name: str) -> str:
+        """获取指标的显示名称"""
+        display_names = {
+            'answer_correctness': '答案正确性',
+            'faithfulness': '忠实度',
+            'context_precision': '上下文精准度',
+            'context_recall': '上下文召回率',
+            'answer_relevancy': '答案相关性',
+            'context_entity_recall': '上下文实体召回',
+            'answer_similarity': '答案相似度',
+        }
+        return display_names.get(metric_name, metric_name)
 
 
 # 全局管理器实例

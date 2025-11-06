@@ -579,6 +579,75 @@ def generate_sample_dataset(dataset_type: str):
         return jsonify({'error': 'Failed to generate sample dataset'}), 500
 
 
+@evaluation_bp.route('/datasets/<dataset_id>', methods=['DELETE'])
+@cross_origin()
+def delete_dataset(dataset_id: str):
+    """删除单个数据集"""
+    try:
+        init_services()
+
+        success = dataset_manager.delete_dataset(dataset_id)
+
+        if success:
+            return jsonify({'message': 'Dataset deleted successfully'})
+        else:
+            return jsonify({'error': 'Dataset not found'}), 404
+
+    except Exception as e:
+        logger.error(f"Failed to delete dataset: {str(e)}")
+        return jsonify({'error': 'Failed to delete dataset'}), 500
+
+
+@evaluation_bp.route('/datasets/batch', methods=['DELETE'])
+@cross_origin()
+def delete_datasets_batch():
+    """批量删除数据集"""
+    try:
+        init_services()
+
+        data = request.get_json()
+        dataset_ids = data.get('dataset_ids', [])
+
+        if not dataset_ids:
+            return jsonify({'error': 'No dataset IDs provided'}), 400
+
+        logger.info(f"🗑️  开始批量删除数据集: {len(dataset_ids)} 个")
+
+        deleted_count = 0
+        failed_ids = []
+
+        for dataset_id in dataset_ids:
+            try:
+                success = dataset_manager.delete_dataset(dataset_id)
+                if success:
+                    deleted_count += 1
+                    logger.info(f"✅ 数据集删除成功: {dataset_id}")
+                else:
+                    failed_ids.append(dataset_id)
+                    logger.warning(f"⚠️  数据集删除失败: {dataset_id}")
+            except Exception as e:
+                failed_ids.append(dataset_id)
+                logger.error(f"❌ 数据集删除异常: {dataset_id}, 错误: {str(e)}")
+
+        response_data = {
+            'message': f'Successfully deleted {deleted_count} out of {len(dataset_ids)} datasets',
+            'deleted_count': deleted_count,
+            'total_count': len(dataset_ids),
+            'failed_count': len(failed_ids)
+        }
+
+        if failed_ids:
+            response_data['failed_ids'] = failed_ids
+
+        logger.info(f"🎉 批量删除完成: 成功 {deleted_count}/{len(dataset_ids)}")
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Failed to batch delete datasets: {str(e)}")
+        return jsonify({'error': 'Failed to batch delete datasets'}), 500
+
+
 # ==================== 任务管理 API ====================
 
 @evaluation_bp.route('/tasks', methods=['POST'])
@@ -1014,6 +1083,58 @@ def list_reports():
         return jsonify({'error': 'Failed to list reports'}), 500
 
 
+@evaluation_bp.route('/reports/<task_id>', methods=['DELETE'])
+@cross_origin()
+def delete_report(task_id: str):
+    """删除单个评测报告"""
+    try:
+        init_services()
+
+        success = report_manager.delete_report(task_id)
+
+        if success:
+            return jsonify({'message': 'Report deleted successfully'})
+        else:
+            return jsonify({'error': 'Report not found'}), 404
+
+    except Exception as e:
+        logger.error(f"Failed to delete report: {str(e)}")
+        return jsonify({'error': 'Failed to delete report'}), 500
+
+
+@evaluation_bp.route('/reports/batch', methods=['DELETE'])
+@cross_origin()
+def delete_reports_batch():
+    """批量删除评测报告"""
+    try:
+        init_services()
+
+        data = request.get_json()
+        task_ids = data.get('task_ids', [])
+
+        if not task_ids:
+            return jsonify({'error': 'No task IDs provided'}), 400
+
+        logger.info(f"🗑️  开始批量删除评测报告: {len(task_ids)} 个")
+
+        deleted_count = report_manager.delete_reports_batch(task_ids)
+
+        response_data = {
+            'message': f'Successfully deleted {deleted_count} out of {len(task_ids)} reports',
+            'deleted_count': deleted_count,
+            'total_count': len(task_ids),
+            'failed_count': len(task_ids) - deleted_count
+        }
+
+        logger.info(f"🎉 批量删除完成: 成功 {deleted_count}/{len(task_ids)}")
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Failed to batch delete reports: {str(e)}")
+        return jsonify({'error': 'Failed to batch delete reports'}), 500
+
+
 # ==================== 知识库适配器 API (为前端兼容) ====================
 
 @evaluation_bp.route('/knowledgebases', methods=['GET'])
@@ -1236,6 +1357,67 @@ def list_metrics():
 
 # ==================== 系统状态 API ====================
 
+@evaluation_bp.route('/statistics', methods=['GET'])
+@cross_origin()
+def get_statistics():
+    """获取统计数据"""
+    try:
+        init_services()
+        logger.info("📊 开始获取统计数据")
+
+        # 获取任务统计
+        task_stats = task_manager.get_task_statistics()
+        logger.info(f"📊 任务统计: {task_stats}")
+
+        # 获取数据集统计
+        dataset_stats = dataset_manager.get_dataset_statistics()
+        logger.info(f"📊 数据集统计: {dataset_stats}")
+
+        # 获取报告统计
+        report_stats = report_manager.get_report_statistics()
+        logger.info(f"📊 报告统计: {report_stats}")
+
+        # 计算健康度（基于最近完成的任务平均分）
+        health_score = calculate_health_score(report_stats.get('recent_scores', []))
+        logger.info(f"📊 健康度分数: {health_score}")
+
+        # 计算平均处理时间
+        avg_processing_time = task_stats.get('avg_processing_time', 0)
+
+        response_data = {
+            'health_score': health_score,
+            'total_evaluations': task_stats.get('total_completed', 0),
+            'active_datasets': dataset_stats.get('total_count', 0),
+            'avg_processing_time': avg_processing_time,
+            'task_status_counts': task_stats.get('status_counts', {}),
+            'recent_scores': report_stats.get('recent_scores', []),
+            'metric_scores': report_stats.get('metric_averages', []),
+            'total_tasks': task_stats.get('total_count', 0),
+            'running_tasks': task_stats.get('running_count', 0),
+            'completed_tasks': task_stats.get('total_completed', 0),
+            'failed_tasks': task_stats.get('failed_count', 0),
+        }
+
+        logger.info(f"📊 返回统计数据: {response_data}")
+        return jsonify(response_data)
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Failed to get statistics: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'Failed to get statistics'}), 500
+
+
+def calculate_health_score(scores):
+    """计算健康度分数"""
+    if not scores:
+        return 75  # 默认健康度
+
+    avg_score = sum(scores) / len(scores)
+    # 将分数映射到0-100范围
+    return round(min(100, max(0, avg_score * 100)))
+
+
 @evaluation_bp.route('/health', methods=['GET'])
 @cross_origin()
 def health_check():
@@ -1414,6 +1596,75 @@ def delete_task(task_id):
         import traceback
         logger.error(f"🗑️  详细错误信息: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to delete task'}), 500
+
+
+@evaluation_bp.route('/tasks/batch', methods=['DELETE'])
+@cross_origin()
+def delete_tasks_batch():
+    """批量删除任务"""
+    try:
+        init_services()
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+
+        task_ids = data.get('task_ids', [])
+
+        if not task_ids:
+            return jsonify({'error': 'No task IDs provided'}), 400
+
+        logger.info(f"🗑️  开始批量删除任务: {len(task_ids)} 个")
+
+        deleted_count = 0
+        failed_ids = []
+        running_tasks = []
+
+        for task_id in task_ids:
+            try:
+                task = task_manager.get_task(task_id)
+                if not task:
+                    failed_ids.append(task_id)
+                    logger.warning(f"⚠️  任务不存在: {task_id}")
+                    continue
+
+                if task['status'] == 'running':
+                    running_tasks.append(task_id)
+                    logger.warning(f"⚠️  跳过运行中的任务: {task_id}")
+                    continue
+
+                success = task_manager.delete_task(task_id)
+                if success:
+                    deleted_count += 1
+                    logger.info(f"✅ 任务删除成功: {task_id}")
+                else:
+                    failed_ids.append(task_id)
+                    logger.warning(f"⚠️  任务删除失败: {task_id}")
+            except Exception as e:
+                failed_ids.append(task_id)
+                logger.error(f"❌ 任务删除异常: {task_id}, 错误: {str(e)}")
+
+        response_data = {
+            'message': f'Successfully deleted {deleted_count} out of {len(task_ids)} tasks',
+            'deleted_count': deleted_count,
+            'total_count': len(task_ids),
+            'failed_count': len(failed_ids),
+            'running_count': len(running_tasks)
+        }
+
+        if failed_ids:
+            response_data['failed_ids'] = failed_ids
+        if running_tasks:
+            response_data['running_tasks'] = running_tasks
+            response_data['message'] += f" ({len(running_tasks)} running tasks were skipped)"
+
+        logger.info(f"🎉 批量删除完成: 成功 {deleted_count}/{len(task_ids)}")
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Failed to batch delete tasks: {str(e)}")
+        return jsonify({'error': 'Failed to batch delete tasks'}), 500
 
 
 @evaluation_bp.route('/test-connection', methods=['POST'])

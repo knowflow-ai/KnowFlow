@@ -83,8 +83,11 @@ export const request = {
     return apiClient.put(url, data, config);
   },
 
-  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    return apiClient.delete(url, config);
+  delete<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    return apiClient.delete(url, {
+      ...config,
+      data: data || config?.data
+    });
   },
 
   patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {

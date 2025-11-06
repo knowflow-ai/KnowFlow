@@ -42,6 +42,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { chatApi, datasetApi, metricApi, taskApi } from '../services/evaluation';
+import { useBatchDelete } from '../hooks/useBatchDelete';
+import { BatchActionBar } from '../components/BatchActionBar';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -204,6 +206,21 @@ const Tasks: React.FC = () => {
       console.log('🔄 fetchTasks完成，loading设置为false');
     }
   };
+
+  // 使用统一的批量删除 Hook
+  const {
+    rowSelection,
+    batchDeleting,
+    handleBatchDelete,
+    clearSelection,
+    selectedRowKeys,
+  } = useBatchDelete({
+    apiCall: taskApi.batchDelete,
+    itemName: '任务',
+    onSuccess: fetchTasks,
+    skipRunning: true,
+    permanentWarning: true,
+  });
 
   // 组件加载时获取数据
   useEffect(() => {
@@ -546,6 +563,7 @@ const Tasks: React.FC = () => {
     }
   };
 
+  
   const handleCreateTask = async () => {
     try {
       const values = await form.validateFields();
@@ -636,11 +654,20 @@ const Tasks: React.FC = () => {
           </Button>
         </div>
 
+        <BatchActionBar
+          selectedCount={selectedRowKeys.length}
+          onDelete={handleBatchDelete}
+          onCancel={clearSelection}
+          deleting={batchDeleting}
+          itemName="任务"
+        />
+
         <Table
           columns={columns}
           dataSource={tasks}
           rowKey="id"
           loading={loadingTasks}
+          rowSelection={rowSelection}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,

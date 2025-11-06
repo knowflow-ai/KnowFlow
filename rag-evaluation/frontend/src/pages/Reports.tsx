@@ -17,7 +17,6 @@ import {
   Tooltip,
   Select,
   DatePicker,
-  Radio,
   Tabs,
   List,
   Avatar,
@@ -36,10 +35,7 @@ import {
   PrinterOutlined,
   FilePdfOutlined,
   FileExcelOutlined,
-  LineChartOutlined,
-  BarChartOutlined,
-  PieChartOutlined,
-  TrophyOutlined,
+    TrophyOutlined,
   AlertOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -50,14 +46,16 @@ import {
   QuestionCircleOutlined,
   MessageOutlined,
   BulbOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { reportApi, datasetApi } from '../services/evaluation';
+import { reportApi, datasetApi, chatApi } from '../services/evaluation';
 import type { EvaluationReport as ApiReport, DatasetSample } from '../services/evaluation';
+import { useBatchDelete } from '../hooks/useBatchDelete';
+import { BatchActionBar } from '../components/BatchActionBar';
 
 const { Title, Text, Paragraph } = Typography;
 const { RangePicker } = DatePicker;
-const { TabPane } = Tabs;
 const { Panel } = Collapse;
 
 interface EvaluationReport {
@@ -112,9 +110,25 @@ const Reports: React.FC = () => {
   const [samplesLoading, setSamplesLoading] = useState(false);
   const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [knowledgeBases, setKnowledgeBases] = useState<any[]>([]);
+  const [selectedKbId, setSelectedKbId] = useState<string>('all');
+
+  // 获取知识库列表
+  const fetchKnowledgeBases = async () => {
+    try {
+      const response = await chatApi.list({ page: 1, page_size: 100 });
+      if (response.code === 0 && response.data) {
+        setKnowledgeBases(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch knowledge bases:', error);
+      message.error('获取知识库列表失败');
+    }
+  };
 
   useEffect(() => {
     fetchReports();
+    fetchKnowledgeBases();
 
     return () => {
       // 清理定时器
@@ -140,13 +154,24 @@ const Reports: React.FC = () => {
     }
   }, [reports]);
 
+  // 监听知识库筛选变化
+  useEffect(() => {
+    fetchReports();
+  }, [selectedKbId]);
+
   const fetchReports = async (isAutoRefresh = false) => {
     // 如果是自动刷新，不显示加载状态
     if (!isAutoRefresh) {
       setLoading(true);
     }
     try {
-      const response = await reportApi.list();
+      // 构建查询参数
+      const params: any = {};
+      if (selectedKbId && selectedKbId !== 'all') {
+        params.kb_id = selectedKbId;
+      }
+
+      const response = await reportApi.list(params);
       const reportsList = Array.isArray(response) ? response : [];
       setReports(reportsList);
 
@@ -179,6 +204,20 @@ const Reports: React.FC = () => {
       setSamplesLoading(false);
     }
   };
+
+  // 使用统一的批量删除 Hook
+  const {
+    rowSelection,
+    batchDeleting,
+    handleBatchDelete,
+    clearSelection,
+    selectedRowKeys,
+  } = useBatchDelete({
+    apiCall: reportApi.batchDelete,
+    itemName: '评测报告',
+    onSuccess: fetchReports,
+    permanentWarning: true,
+  });
 
   const columns: ColumnsType<ApiReport> = [
     {
@@ -246,61 +285,6 @@ const Reports: React.FC = () => {
       key: 'totalSamples',
       width: 100,
       render: (count) => count || 0,
-    },
-    {
-      title: '成功率',
-      dataIndex: 'successRate',
-      key: 'successRate',
-      width: 100,
-      render: (rate) => `${rate || 0}%`,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 120,
-      render: (status: string) => {
-        if (status === 'running') {
-          return (
-            <Space>
-              <Spin size="small" />
-              <Text type="warning">运行中</Text>
-            </Space>
-          );
-        } else if (status === 'completed') {
-          return <Tag color="success">已完成</Tag>;
-        } else if (status === 'failed') {
-          return <Tag color="error">失败</Tag>;
-        } else if (status === 'pending') {
-          return <Tag color="default">待执行</Tag>;
-        } else {
-          return <Tag>{status || '未知'}</Tag>;
-        }
-      },
-    },
-    {
-      title: '进度',
-      dataIndex: 'progress',
-      key: 'progress',
-      width: 120,
-      render: (progress: number, record: any) => {
-        if (record.status === 'running') {
-          return (
-            <Progress
-              percent={progress || 0}
-              size="small"
-              status="active"
-              format={(percent) => `${percent}%`}
-            />
-          );
-        } else if (record.status === 'completed') {
-          return <Progress percent={100} size="small" status="success" />;
-        } else if (record.status === 'failed') {
-          return <Progress percent={progress || 0} size="small" status="exception" />;
-        } else {
-          return <Progress percent={0} size="small" />;
-        }
-      },
     },
     {
       title: '生成时间',
@@ -713,24 +697,36 @@ const Reports: React.FC = () => {
             <div style={{ marginBottom: 16 }}>
               <Space>
                 <RangePicker />
-                <Select defaultValue="all" style={{ width: 120 }}>
+                <Select
+                  value={selectedKbId}
+                  onChange={(value) => setSelectedKbId(value)}
+                  style={{ width: 200 }}
+                  placeholder="选择知识库"
+                >
                   <Select.Option value="all">所有知识库</Select.Option>
-                  <Select.Option value="finance">金融知识库</Select.Option>
-                  <Select.Option value="medical">医疗知识库</Select.Option>
-                  <Select.Option value="law">法律知识库</Select.Option>
+                  {knowledgeBases.map((kb) => (
+                    <Select.Option key={kb.id} value={kb.id}>
+                      {kb.name}
+                    </Select.Option>
+                  ))}
                 </Select>
-                <Radio.Group defaultValue="table">
-                  <Radio.Button value="table">表格视图</Radio.Button>
-                  <Radio.Button value="card">卡片视图</Radio.Button>
-                </Radio.Group>
               </Space>
             </div>
+
+            <BatchActionBar
+              selectedCount={selectedRowKeys.length}
+              onDelete={handleBatchDelete}
+              onCancel={clearSelection}
+              deleting={batchDeleting}
+              itemName="评测报告"
+            />
 
             <Table
               columns={columns}
               dataSource={reports}
               loading={loading}
               rowKey="task_id"
+              rowSelection={rowSelection}
               scroll={{ x: 1200 }}
               pagination={{
                 pageSize: 10,
@@ -742,19 +738,7 @@ const Reports: React.FC = () => {
             />
           </Card>
 
-          <Row gutter={16} style={{ marginTop: 16 }}>
-            <Col span={12}>
-              <Card title="评测指标趋势">
-                <Empty description="趋势图表待集成" />
-              </Card>
-            </Col>
-            <Col span={12}>
-              <Card title="知识库对比">
-                <Empty description="对比图表待集成" />
-              </Card>
-            </Col>
-          </Row>
-        </>
+          </>
       ) : (
         <>
           <Button
