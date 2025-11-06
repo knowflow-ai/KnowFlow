@@ -933,9 +933,6 @@ def get_evaluation_report(task_id: str):
         total_count = metadata.get('total_samples', metadata.get('num_samples', metadata.get('total_count', len(detailed_scores))))
         success_rate = (success_count / total_count * 100) if total_count > 0 else 0
 
-        # 健康度 = 70% × (综合评分×100) + 30% × 成功率
-        health_score = round(overall_score * 100 * 0.7 + success_rate * 0.3, 2)
-
         # 生成优化建议
         recommendations = []
         for metric_name, scores in metric_scores.items():
@@ -1000,7 +997,6 @@ def get_evaluation_report(task_id: str):
             'kb_name': task.get('name', 'Unknown') if task else 'Unknown',
             'dataset_name': dataset.get('name', 'Unknown') if dataset else 'Unknown',
             'overall_score': round(overall_score, 4),
-            'health_score': health_score,
             'metric_scores': metric_scores,
             'summary': f"评测完成，共 {total_count} 个样本，成功率 {success_rate:.1f}%",
             'recommendations': recommendations,
@@ -1060,14 +1056,12 @@ def list_reports():
             success_count = metadata.get('success_count', 0)
             total_count = metadata.get('num_samples', metadata.get('total_count', 1))
             success_rate = (success_count / total_count * 100) if total_count > 0 else 0
-            health_score = round(overall_score * 70 + success_rate * 0.3, 2)
 
             enriched_reports.append({
                 'task_id': task_id,
                 'kb_name': task.get('name', 'Unknown') if task else 'Unknown',
                 'dataset_name': dataset.get('name', 'Unknown') if dataset else 'Unknown',
                 'overall_score': round(overall_score, 4),
-                'health_score': health_score,
                 'totalSamples': total_count,
                 'successRate': round(success_rate, 1),
                 'createdAt': report.get('created_at', ''),

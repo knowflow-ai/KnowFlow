@@ -33,8 +33,6 @@ import {
   DownloadOutlined,
   ShareAltOutlined,
   PrinterOutlined,
-  FilePdfOutlined,
-  FileExcelOutlined,
     TrophyOutlined,
   AlertOutlined,
   CheckCircleOutlined,
@@ -65,7 +63,6 @@ interface EvaluationReport {
   kbName: string;
   datasetName: string;
   overallScore: number;
-  healthScore: number;
   metricScores: {
     [key: string]: {
       mean: number;
@@ -77,7 +74,6 @@ interface EvaluationReport {
   createdAt: string;
   duration: string;
   totalSamples: number;
-  successRate: number;
   recommendations: string[];
   lowScoreSamples: Array<{
     question: string;
@@ -102,6 +98,33 @@ interface MetricTrend {
 }
 
 const Reports: React.FC = () => {
+  // Helper functions
+  const getMetricDisplayName = (metric: string) => {
+    const metricNames: { [key: string]: string } = {
+      answer_correctness: '答案正确性',
+      faithfulness: '忠实度',
+      context_precision: '上下文精准度',
+      context_recall: '上下文召回率',
+      answer_relevancy: '答案相关性',
+    };
+    return metricNames[metric] || metric;
+  };
+
+  const getMetricDescription = (metric: string) => {
+    const descriptions: { [key: string]: string } = {
+      answer_correctness: '衡量生成的答案与标准答案在事实准确性和完整性方面的匹配程度。分数越高表示答案越准确完整。',
+      faithfulness: '评估答案对参考上下文的忠实程度，确保答案没有包含上下文中不存在的信息。分数越高表示答案越忠实于原文。',
+      context_precision: '衡量检索到的上下文中有用信息的比例。分数越高表示检索的上下文更精准，噪音更少。',
+      context_recall: '评估检索系统是否找到了回答问题所需的所有相关信息。分数越高表示检索的上下文覆盖更全面。',
+      answer_relevancy: '衡量生成的答案与用户问题的相关程度。分数越高表示答案更贴切地回应了用户的问题。',
+    };
+    return descriptions[metric] || '该指标用于评估RAG系统的性能表现';
+  };
+
+  const getComprehensiveScoreDescription = () => {
+    return '基于所有评测指标的加权平均分，综合反映RAG系统在准确性、相关性、忠实度等方面的整体表现。分数范围0-100，越高表示系统性能越优秀。';
+  };
+
   const [selectedReport, setSelectedReport] = useState<EvaluationReport | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [reports, setReports] = useState<ApiReport[]>([]);
@@ -248,7 +271,14 @@ const Reports: React.FC = () => {
       render: (text) => <Tooltip title={text}>{text}</Tooltip>,
     },
     {
-      title: '综合评分',
+      title: (
+        <span>
+          综合评分
+          <Tooltip title={getComprehensiveScoreDescription()}>
+            <QuestionCircleOutlined style={{ marginLeft: 4, color: '#1890ff' }} />
+          </Tooltip>
+        </span>
+      ),
       dataIndex: 'overall_score',
       key: 'overall_score',
       width: 150,
@@ -267,17 +297,6 @@ const Reports: React.FC = () => {
         );
       },
       sorter: (a, b) => a.overall_score - b.overall_score,
-    },
-    {
-      title: '健康度',
-      dataIndex: 'health_score',
-      key: 'health_score',
-      width: 120,
-      render: (score) => {
-        const level = score >= 80 ? '优秀' : score >= 60 ? '良好' : '待改进';
-        const color = score >= 80 ? 'green' : score >= 60 ? 'orange' : 'red';
-        return <Tag color={color}>{level}</Tag>;
-      },
     },
     {
       title: '样本数',
@@ -310,7 +329,7 @@ const Reports: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 100,
       render: (_, record) => (
         <Space>
           <Button
@@ -320,12 +339,6 @@ const Reports: React.FC = () => {
           >
             查看
           </Button>
-          <Tooltip title="导出PDF">
-            <Button size="small" icon={<FilePdfOutlined />} />
-          </Tooltip>
-          <Tooltip title="导出Excel">
-            <Button size="small" icon={<FileExcelOutlined />} />
-          </Tooltip>
         </Space>
       ),
     },
@@ -380,8 +393,6 @@ const Reports: React.FC = () => {
             </Col>
             <Col span={8} style={{ textAlign: 'right' }}>
               <Space>
-                <Button icon={<FilePdfOutlined />}>导出PDF</Button>
-                <Button icon={<FileExcelOutlined />}>导出Excel</Button>
                 <Button icon={<ShareAltOutlined />}>分享报告</Button>
                 <Button icon={<PrinterOutlined />}>打印</Button>
               </Space>
@@ -390,10 +401,17 @@ const Reports: React.FC = () => {
         </Card>
 
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col span={6}>
+          <Col span={12}>
             <Card>
               <Statistic
-                title="综合评分"
+                title={
+                  <span>
+                    综合评分
+                    <Tooltip title={getComprehensiveScoreDescription()}>
+                      <QuestionCircleOutlined style={{ marginLeft: 4, color: '#1890ff' }} />
+                    </Tooltip>
+                  </span>
+                }
                 value={Math.round(scorePercent)}
                 suffix="/100"
                 prefix={scoreLevel.icon}
@@ -401,34 +419,12 @@ const Reports: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="健康度"
-                value={selectedReport.health_score || 0}
-                suffix="/100"
-                prefix={<TrophyOutlined />}
-                valueStyle={{ color: selectedReport.health_score >= 80 ? '#52c41a' : selectedReport.health_score >= 60 ? '#faad14' : '#ff4d4f' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
+          <Col span={12}>
             <Card>
               <Statistic
                 title="样本总数"
                 value={selectedReport.totalSamples || 0}
                 prefix={<FileTextOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="成功率"
-                value={selectedReport.successRate || 0}
-                suffix="%"
-                prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: (selectedReport.successRate || 0) >= 80 ? '#52c41a' : (selectedReport.successRate || 0) >= 60 ? '#faad14' : '#ff4d4f' }}
               />
             </Card>
           </Col>
@@ -439,7 +435,14 @@ const Reports: React.FC = () => {
           <Row gutter={16}>
             {Object.entries(selectedReport.metric_scores || {}).map(([metric, scores]) => (
               <Col span={8} key={metric} style={{ marginBottom: 16 }}>
-                <Card size="small" title={getMetricDisplayName(metric)}>
+                <Card size="small" title={
+                  <span>
+                    {getMetricDisplayName(metric)}
+                    <Tooltip title={getMetricDescription(metric)}>
+                      <QuestionCircleOutlined style={{ marginLeft: 4, color: '#1890ff' }} />
+                    </Tooltip>
+                  </span>
+                }>
                   <Row gutter={8}>
                     <Col span={12}>
                       <Statistic
@@ -495,7 +498,14 @@ const Reports: React.FC = () => {
               ...Object.keys(realSamples[0] || {})
                 .filter(key => key !== 'user_input' && key !== 'actual_answer' && key !== 'expected_answer' && key !== 'contexts' && typeof realSamples[0][key] === 'number')
                 .map(metric => ({
-                  title: getMetricDisplayName(metric),
+                  title: (
+                    <span>
+                      {getMetricDisplayName(metric)}
+                      <Tooltip title={getMetricDescription(metric)}>
+                        <QuestionCircleOutlined style={{ marginLeft: 4, color: '#1890ff' }} />
+                      </Tooltip>
+                    </span>
+                  ),
                   dataIndex: metric,
                   key: metric,
                   width: 120,
@@ -674,17 +684,6 @@ const Reports: React.FC = () => {
         )}
       </div>
     );
-  };
-
-  const getMetricDisplayName = (metric: string) => {
-    const metricNames: { [key: string]: string } = {
-      answer_correctness: '答案正确性',
-      faithfulness: '忠实度',
-      context_precision: '上下文精准度',
-      context_recall: '上下文召回率',
-      answer_relevancy: '答案相关性',
-    };
-    return metricNames[metric] || metric;
   };
 
   return (

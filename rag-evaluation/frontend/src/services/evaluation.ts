@@ -71,7 +71,6 @@ export interface EvaluationReport {
   kb_name: string;
   dataset_name: string;
   overall_score: number;
-  health_score: number;
   metric_scores: {
     [key: string]: {
       mean: number;

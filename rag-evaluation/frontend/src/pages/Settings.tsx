@@ -479,36 +479,6 @@ const Settings: React.FC = () => {
                 </Space>
               </Form.Item>
             </Form>
-
-            <Divider />
-
-            <Title level={4}>API 使用统计</Title>
-            <Row gutter={16}>
-              <Col span={6}>
-                <Card size="small">
-                  <Text type="secondary">本月调用次数</Text>
-                  <Title level={3}>12,456</Title>
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card size="small">
-                  <Text type="secondary">本月 Token 消耗</Text>
-                  <Title level={3}>2.5M</Title>
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card size="small">
-                  <Text type="secondary">预估费用</Text>
-                  <Title level={3}>$125.30</Title>
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card size="small">
-                  <Text type="secondary">剩余配额</Text>
-                  <Title level={3}>75%</Title>
-                </Card>
-              </Col>
-            </Row>
           </Card>
         </TabPane>
 

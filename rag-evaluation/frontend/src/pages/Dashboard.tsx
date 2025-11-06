@@ -12,6 +12,7 @@ import {
   FileTextOutlined,
   DatabaseOutlined,
   ExperimentOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
@@ -41,6 +42,12 @@ interface DashboardStats {
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  
+  // Helper function for health score description
+  const getHealthScoreDescription = () => {
+    return '综合所有评测报告的质量指标计算得出的系统整体健康度。基于答案正确性、忠实度、上下文精准度、上下文召回率、答案相关性等指标的平均表现，反映知识库的整体服务质量。';
+  };
+
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     health_score: 0,
@@ -197,7 +204,14 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="知识库健康度"
+              title={
+                <span>
+                  知识库健康度
+                  <Tooltip title={getHealthScoreDescription()}>
+                    <QuestionCircleOutlined style={{ marginLeft: 4, color: '#1890ff' }} />
+                  </Tooltip>
+                </span>
+              }
               value={stats.health_score}
               suffix="/100"
               prefix={<TrophyOutlined style={{ color: getHealthColor(stats.health_score) }} />}
