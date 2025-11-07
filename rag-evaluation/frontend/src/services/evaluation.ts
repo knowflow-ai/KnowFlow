@@ -166,6 +166,15 @@ export const datasetApi = {
   generateSample: (type: 'basic' | 'with_reference' | 'with_contexts') => {
     return request.post<Dataset>(`/evaluation/datasets/generate/${type}`);
   },
+  
+  // AI生成数据集
+  generateAIDataset: (params: {
+    kb_id: string;
+    sample_count: number;
+    question_types: string[];
+  }) => {
+    return request.post<Dataset>('/evaluation/datasets/generate/ai', params);
+  },
 };
 
 // 评测任务相关 API

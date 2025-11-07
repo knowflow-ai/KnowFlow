@@ -1,0 +1,83 @@
+{
+  "task_info": {
+    "task_id": "b4e0bc83-37b5-4567-94da-8f705c34623d",
+    "chat_id": "eaf4441abadd11f08c9066fc51ac58de",
+    "dataset_id": "50c199c1-7c9d-45c7-9c12-7f3cc161e603",
+    "created_at": "2025-11-07T11:23:53.228437",
+    "status": "completed"
+  },
+  "overall_scores": {
+    "answer_correctness": {
+      "mean": 0.7650819309400595,
+      "std": 0.3100462193567856,
+      "min": 0.31621460763882847,
+      "max": 1.0,
+      "valid_count": 5,
+      "total_count": 5
+    },
+    "faithfulness": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "valid_count": 5,
+      "total_count": 5
+    }
+  },
+  "detailed_scores": [
+    {
+      "user_input": "ATLASpix3如何处理触发读出和无触发读出？请详细说明其机制和过程。",
+      "actual_answer": "ATLASpix3提供了两种读出模式：触发读出和无触发读出。具体机制和流程如下： ATLASpix3芯片架构分为像素矩阵和周边电路两大块。每个像素包含传感器二极管、电荷敏感放大器、比较器、调谐DAC、4位RAM和输出驱动器。一列有372个像素，柱状结构共有132列。每个像素的输出被发送到位于底部的缓冲器。 - **触发读出**： - 在触发模式下，像素数据首先传输到每个像素的击中缓冲器，这里记录并存储了来自读出控制单元（RCU）的全局时间戳（TS）。 - 从这些像素击中缓冲器中，数据被输送到两乘四十（2 x 40）容量的内容可寻址缓冲器（CAB）。 - 这个传输过程由箭头在所示的图2中的ATLASpix3读出周边的简化方框图中描绘。 - 主RCU负责管理触发读出，它包括了时钟数据恢复的命令解码器、Aurora 64b/66b编码器和1.28 Gbps的串行数据链路。 - 像素触发后生成的击打数据通过驱动缓冲器到CAB中，CAB依据接收到的触发信号筛选并处理数据。 - **无触发读出**： - 对于无触发模式，像素数据直接从各自的击中缓冲器传递到所谓的列尾（EoCs）数据复用器中，用于进行非引导型（或无触发）读出。 - 辅助RCU提供对无触发模式的支持，并借鉴了ATLASpix1的设计理念。 - 通路下，数据传输到了数字前端包含了击中缓冲器（每个像素一个）、内容可寻址缓冲器（CAB）以及EoCs。 - 无触发模式下的操作跳过了CAB数据的触发过滤过程，直接执行数据的复用和输出。 总之，ATLASpix3支持外部配置，允许切换读出模式。CAB缓冲在有触发模式下的数据筛选过程中起关键作用，而无触发模式则绕过此步骤直接传输数据。",
+      "expected_answer": "ATLASpix3 supports triggered readout. As a test feature, triggerless readout is also implemented. In case of triggered readout, hit data is transfered to the Content Addressable Buffers (CAB) where hits are filtered based on a trigger signal. In case of triggerless readout, hit data is transferred from the hit buffers to the EoC for untriggered readout. The main RCU for triggered readout and the auxiliary RCU for triggerless readout are included in ATLASpix3. The main RCU includes a command decoder with clock data recovery, Aurora 64b/66b encoder and serial data link at 1.28 Gbps. The auxiliary RCU that supports triggerless readout, is adapted from ATLASpix1.",
+      "contexts": [],
+      "answer_correctness": 0.564282108123862,
+      "faithfulness": 0.0
+    },
+    {
+      "user_input": "本标准的附录A和附录B的性质是什么？",
+      "actual_answer": "本标准的附录A和附录B为规范性附录。",
+      "expected_answer": "本标准的附录A和附录B为规范性附录。",
+      "contexts": [],
+      "answer_correctness": 1.0,
+      "faithfulness": 0.0
+    },
+    {
+      "user_input": "《第五章 冲击地压防治》中的第二节标题是什么？",
+      "actual_answer": "第二节的标题是“冲击危险性预测”。",
+      "expected_answer": "冲击危险性预测",
+      "contexts": [],
+      "answer_correctness": 0.9449129389376069,
+      "faithfulness": 0.0
+    },
+    {
+      "user_input": "本标准的附录A和附录B的性质是什么？",
+      "actual_answer": "本标准的附录A和附录B为规范性附录。",
+      "expected_answer": "本标准的附录A和附录B为规范性附录。",
+      "contexts": [],
+      "answer_correctness": 1.0,
+      "faithfulness": 0.0
+    },
+    {
+      "user_input": "ATLASpix3 的读出方案可以如何配置？其信息传输机制是什么样的？",
+      "actual_answer": "ATLASpix3 的读出方案可以被外部配置为触发读出或无触发列排水读出。 信息传输通过一个1.28 Gbps 的串行链路进行。接口基于一个单一的命令输入，该输入用于提供时钟、触发和配置命令。主RCU（主要读出控制单元）负责处理触发读出，其中包括了一个带有时钟数据复原的功能的命令解码器，Aurora 64b/66b 编码器以及1.28 Gbps的串行数据链路。对于无触发读出，辅助RCU从ATLASpix1那里采用了设计。每当地址排序机制被启用时，基于该地址排序的数据传输协议将确保数据在被软触发提取前处于时间上的次序。",
+      "expected_answer": "The readout scheme can be externally configured as triggered or triggerless column drain readout. The hit information is transmitted through a 1.28 Gbit/s serial link.",
+      "contexts": [],
+      "answer_correctness": 0.31621460763882847,
+      "faithfulness": 0.0
+    }
+  ],
+  "evaluation_metadata": {
+    "metrics": [
+      "answer_correctness",
+      "faithfulness"
+    ],
+    "total_samples": 5,
+    "success_count": 0,
+    "evaluation_time": 0
+  },
+  "summary": {
+    "total_questions": 5,
+    "success_rate": 0,
+    "average_score": 0
+  }
+}

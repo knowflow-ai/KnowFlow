@@ -19,6 +19,7 @@ import {
   Empty,
   Statistic,
   Spin,
+  InputNumber,
 } from 'antd';
 import {
   UploadOutlined,
@@ -31,6 +32,7 @@ import {
   SearchOutlined,
   FileExcelOutlined,
   FileMarkdownOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -66,13 +68,31 @@ const Datasets: React.FC = () => {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loadingChats, setLoadingChats] = useState(false);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [knowledgeBases, setKnowledgeBases] = useState<any[]>([]);
+  const [loadingKnowledgeBases, setLoadingKnowledgeBases] = useState(false);
   const [form] = Form.useForm();
   const [generateForm] = Form.useForm();
   const [createTaskForm] = Form.useForm();
 
   useEffect(() => {
     fetchDatasets();
+    fetchKnowledgeBases();
   }, []);
+
+  const fetchKnowledgeBases = async () => {
+    setLoadingKnowledgeBases(true);
+    try {
+      const response = await chatApi.list({ page: 1, page_size: 100 });
+      if (response.code === 0 && response.data) {
+        setKnowledgeBases(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch knowledge bases:', error);
+      message.error('获取知识库列表失败');
+    } finally {
+      setLoadingKnowledgeBases(false);
+    }
+  };
 
   const fetchDatasets = async () => {
     setLoading(true);
@@ -314,7 +334,19 @@ const Datasets: React.FC = () => {
       const values = await generateForm.validateFields();
       setGenerating(true);
 
-      const response = await datasetApi.generateSample(values.type);
+      let response;
+      if (values.type === 'ai_generated') {
+        // AI 生成数据集
+        response = await datasetApi.generateAIDataset({
+          kb_id: values.kb_id,
+          sample_count: values.sample_count,
+          question_types: values.question_types || ['factual', 'analytical']
+        });
+      } else {
+        // 传统示例数据集
+        response = await datasetApi.generateSample(values.type);
+      }
+      
       message.success(`示例数据集生成成功: ${response.name}`);
       setGenerateVisible(false);
       generateForm.resetFields();
@@ -363,7 +395,7 @@ const Datasets: React.FC = () => {
             >
               上传数据集
             </Button>
-            <Button icon={<PlusOutlined />} onClick={() => setGenerateVisible(true)}>
+            <Button icon={<RobotOutlined />} onClick={() => setGenerateVisible(true)}>
               生成示例数据集
             </Button>
           </Space>
@@ -495,19 +527,111 @@ const Datasets: React.FC = () => {
                   </Text>
                 </div>
               </Select.Option>
+              <Select.Option value="ai_generated">
+                <div>
+                  <div><strong>AI 智能生成数据集</strong></div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    基于知识库内容，通过大模型自动生成问答数据
+                  </Text>
+                </div>
+              </Select.Option>
             </Select>
+          </Form.Item>
+
+          {/* 当选择AI生成时显示知识库选择 */}
+          <Form.Item shouldUpdate noStyle>
+            {({ getFieldValue }) => {
+              const type = getFieldValue('type');
+              return type === 'ai_generated' ? (
+                <>
+                  <Form.Item
+                    label="选择知识库"
+                    name="kb_id"
+                    rules={[{ required: true, message: '请选择知识库' }]}
+                  >
+                    <Select
+                      placeholder="选择要基于的知识库"
+                      loading={loadingKnowledgeBases}
+                      showSearch
+                      filterOption={(input, option) =>
+                        option?.children?.toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {knowledgeBases.map((kb) => (
+                        <Select.Option key={kb.id} value={kb.id}>
+                          {kb.name}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                  
+                  <Form.Item
+                    label="生成数量"
+                    name="sample_count"
+                    rules={[{ required: true, message: '请输入生成数量' }]}
+                    initialValue={10}
+                  >
+                    <InputNumber 
+                      min={5} 
+                      max={100} 
+                      placeholder="建议 10-50 个样本"
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="问题类型"
+                    name="question_types"
+                    initialValue={['factual', 'analytical']}
+                  >
+                    <Select
+                      mode="multiple"
+                      placeholder="选择要生成的问题类型"
+                      options={[
+                        { label: '事实性问题', value: 'factual' },
+                        { label: '分析性问题', value: 'analytical' },
+                        { label: '应用性问题', value: 'application' },
+                        { label: '比较性问题', value: 'comparison' },
+                        { label: '解释性问题', value: 'explanation' },
+                      ]}
+                    />
+                  </Form.Item>
+                </>
+              ) : null;
+            }}
           </Form.Item>
 
           <div style={{ marginTop: 16 }}>
             <Title level={5}>说明</Title>
-            <Paragraph>
-              <ul>
-                <li>示例数据集将自动生成 5 个样本</li>
-                <li>内容为关于 RAGFlow 的常见问题</li>
-                <li>可用于快速测试评测系统功能</li>
-                <li>生成后可在数据集列表中查看和使用</li>
-              </ul>
-            </Paragraph>
+            <Form.Item shouldUpdate noStyle>
+              {({ getFieldValue }) => {
+                const type = getFieldValue('type');
+                if (type === 'ai_generated') {
+                  return (
+                    <Paragraph>
+                      <ul>
+                        <li>基于选择的知识库内容，通过大模型智能生成问答数据</li>
+                        <li>自动提取知识库chunks，生成高质量的问题和答案</li>
+                        <li>支持多种问题类型：事实性、分析性、应用性等</li>
+                        <li>生成的数据包含问题、标准答案和相关上下文</li>
+                        <li>建议生成数量：10-50个样本，确保质量和多样性</li>
+                      </ul>
+                    </Paragraph>
+                  );
+                } else {
+                  return (
+                    <Paragraph>
+                      <ul>
+                        <li>示例数据集将自动生成 5 个样本</li>
+                        <li>内容为关于 RAGFlow 的常见问题</li>
+                        <li>可用于快速测试评测系统功能</li>
+                        <li>生成后可在数据集列表中查看和使用</li>
+                      </ul>
+                    </Paragraph>
+                  );
+                }
+              }}
+            </Form.Item>
           </div>
         </Form>
       </Modal>

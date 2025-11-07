@@ -579,6 +579,95 @@ def generate_sample_dataset(dataset_type: str):
         return jsonify({'error': 'Failed to generate sample dataset'}), 500
 
 
+@evaluation_bp.route('/datasets/generate/ai', methods=['POST'])
+@cross_origin()
+def generate_ai_dataset():
+    """基于知识库AI生成数据集"""
+    try:
+        init_services()
+        
+        data = request.get_json()
+        kb_id = data.get('kb_id')
+        sample_count = data.get('sample_count', 10)
+        question_types = data.get('question_types', ['factual', 'analytical'])
+        
+        if not kb_id:
+            return jsonify({'error': 'Knowledge base ID is required'}), 400
+            
+        if sample_count < 5 or sample_count > 100:
+            return jsonify({'error': 'Sample count must be between 5 and 100'}), 400
+        
+        # 获取知识库chunks
+        try:
+            from services.ai_dataset_generator import AIDatasetGenerator
+            generator = AIDatasetGenerator()
+            
+            # 生成数据集
+            samples = generator.generate_dataset_from_kb(
+                kb_id=kb_id,
+                sample_count=sample_count,
+                question_types=question_types
+            )
+            
+            if not samples:
+                return jsonify({'error': 'Failed to generate samples from knowledge base'}), 500
+            
+        except Exception as e:
+            logger.error(f"Failed to generate AI dataset: {str(e)}")
+            return jsonify({'error': f'AI generation failed: {str(e)}'}), 500
+        
+        # 创建数据集
+        dataset_id = str(uuid.uuid4())
+        dataset_name = f"AI Generated Dataset - {datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # 保存文件
+        storage_path = Path('tmp/datasets')
+        storage_path.mkdir(parents=True, exist_ok=True)
+        
+        file_path = storage_path / f"{dataset_id}.json"
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(samples, f, ensure_ascii=False, indent=2)
+        
+        dataset_data = {
+            'id': dataset_id,
+            'name': dataset_name,
+            'description': f'AI generated dataset from knowledge base {kb_id} with {sample_count} samples',
+            'file_name': 'ai_generated.json',
+            'file_type': '.json',
+            'file_size': os.path.getsize(file_path),
+            'storage_path': str(file_path),
+            'num_samples': len(samples),
+            'has_reference': any('expected_answer' in sample for sample in samples),
+            'has_contexts': any('contexts' in sample for sample in samples),
+            'sample_fields': list(samples[0].keys()) if samples else [],
+            'created_by': 'ai-generator',
+            'generation_params': {
+                'kb_id': kb_id,
+                'sample_count': sample_count,
+                'question_types': question_types
+            }
+        }
+        
+        dataset_manager.create_dataset(dataset_data)
+        
+        return jsonify({
+            'id': dataset_id,
+            'name': dataset_name,
+            'description': dataset_data['description'],
+            'file_name': 'ai_generated.json',
+            'file_type': '.json',
+            'num_samples': len(samples),
+            'has_reference': dataset_data['has_reference'],
+            'has_contexts': dataset_data['has_contexts'],
+            'sample_fields': dataset_data['sample_fields'],
+            'created_at': datetime.now().isoformat()
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Failed to generate AI dataset: {str(e)}")
+        return jsonify({'error': 'Failed to generate AI dataset'}), 500
+
+
 @evaluation_bp.route('/datasets/<dataset_id>', methods=['DELETE'])
 @cross_origin()
 def delete_dataset(dataset_id: str):
@@ -1134,11 +1223,11 @@ def delete_reports_batch():
 @evaluation_bp.route('/knowledgebases', methods=['GET'])
 @cross_origin()
 def list_knowledge_bases():
-    """获取知识库列表 (适配前端接口，实际返回 RAGFlow 的对话助手列表)"""
+    """获取知识库列表 (返回 RAGFlow 的数据集列表)"""
     try:
         init_services()
 
-        # 从 RAGFlow 获取对话助手列表
+        # 从 RAGFlow 获取数据集列表
         import requests
         ragflow_api_key = os.getenv('RAGFLOW_API_KEY')
         ragflow_base_url = os.getenv('RAGFLOW_BASE_URL', 'http://localhost:9380')
@@ -1154,9 +1243,9 @@ def list_knowledge_bases():
             'Content-Type': 'application/json'
         }
 
-        # 请求 RAGFlow 的对话助手列表
+        # 请求 RAGFlow 的数据集列表
         response = requests.get(
-            f"{ragflow_base_url}/api/v1/chats",
+            f"{ragflow_base_url}/api/v1/datasets",
             headers=headers,
             timeout=10
         )
@@ -1167,15 +1256,17 @@ def list_knowledge_bases():
             if ragflow_data.get('code') == 0 and ragflow_data.get('data'):
                 # 转换为前端期望的格式
                 knowledge_bases = []
-                for chat in ragflow_data['data']:
+                datasets = ragflow_data['data'].get('datasets', [])
+                for dataset in datasets:
                     knowledge_bases.append({
-                        'id': chat['id'],
-                        'name': chat['name'],
-                        'description': chat.get('description', 'RAGFlow 对话助手'),
-                        'doc_num': len(chat.get('datasets', [])),
-                        'llm': chat.get('llm', {}),
-                        'created_at': chat.get('create_date'),
-                        'status': chat.get('status')
+                        'id': dataset['id'],
+                        'name': dataset['name'],
+                        'description': dataset.get('description', 'RAGFlow 数据集'),
+                        'doc_num': dataset.get('document_count', 0),
+                        'chunk_count': dataset.get('chunk_count', 0),
+                        'created_at': dataset.get('created_at'),
+                        'updated_at': dataset.get('updated_at'),
+                        'status': dataset.get('status', '1')
                     })
 
                 return jsonify({
@@ -1213,11 +1304,11 @@ def list_knowledge_bases():
 @evaluation_bp.route('/knowledgebases/<kb_id>', methods=['GET'])
 @cross_origin()
 def get_knowledge_base(kb_id: str):
-    """获取知识库详情 (适配前端接口)"""
+    """获取知识库详情 (返回 RAGFlow 数据集详情)"""
     try:
         init_services()
 
-        # 从 RAGFlow 获取对话助手详情
+        # 从 RAGFlow 获取数据集详情
         import requests
         ragflow_api_key = os.getenv('RAGFLOW_API_KEY')
         ragflow_base_url = os.getenv('RAGFLOW_BASE_URL', 'http://localhost:9380')
@@ -1234,38 +1325,46 @@ def get_knowledge_base(kb_id: str):
         }
 
         response = requests.get(
-            f"{ragflow_base_url}/api/v1/chats/{kb_id}",
+            f"{ragflow_base_url}/api/v1/datasets?id={kb_id}",
             headers=headers,
             timeout=10
         )
 
         if response.status_code == 200:
-            chat_data = response.json()
+            dataset_data = response.json()
 
-            if chat_data.get('code') == 0 and chat_data.get('data'):
-                chat = chat_data['data']
-                # 转换为前端期望的格式
-                knowledge_base = {
-                    'id': chat['id'],
-                    'name': chat['name'],
-                    'description': chat.get('description', 'RAGFlow 对话助手'),
-                    'doc_num': len(chat.get('datasets', [])),
-                    'datasets': chat.get('datasets', []),
-                    'llm': chat.get('llm', {}),
-                    'prompt': chat.get('prompt', {}),
-                    'created_at': chat.get('create_date'),
-                    'updated_at': chat.get('update_date'),
-                    'status': chat.get('status')
-                }
+            if dataset_data.get('code') == 0 and dataset_data.get('data'):
+                datasets = dataset_data['data'].get('datasets', [])
+                if datasets:
+                    dataset = datasets[0]  # 获取匹配的数据集
+                    # 转换为前端期望的格式
+                    knowledge_base = {
+                        'id': dataset['id'],
+                        'name': dataset['name'],
+                        'description': dataset.get('description', 'RAGFlow 数据集'),
+                        'doc_num': dataset.get('document_count', 0),
+                        'chunk_count': dataset.get('chunk_count', 0),
+                        'embedding_model': dataset.get('embedding_model', ''),
+                        'chunk_method': dataset.get('chunk_method', ''),
+                        'parser_config': dataset.get('parser_config', {}),
+                        'created_at': dataset.get('created_at'),
+                        'updated_at': dataset.get('updated_at'),
+                        'status': dataset.get('status', '1')
+                    }
 
-                return jsonify({
-                    'code': 0,
-                    'data': knowledge_base
-                })
+                    return jsonify({
+                        'code': 0,
+                        'data': knowledge_base
+                    })
+                else:
+                    return jsonify({
+                        'code': -1,
+                        'message': 'Dataset not found'
+                    }), 404
             else:
                 return jsonify({
-                    'code': chat_data.get('code', -1),
-                    'message': chat_data.get('message', 'Chat not found')
+                    'code': dataset_data.get('code', -1),
+                    'message': dataset_data.get('message', 'Dataset not found')
                 }), 404
         else:
             return jsonify({
