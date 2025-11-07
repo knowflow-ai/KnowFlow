@@ -20,6 +20,7 @@ import {
   Statistic,
   Spin,
   InputNumber,
+  App,
 } from 'antd';
 import {
   UploadOutlined,
@@ -74,6 +75,7 @@ const Datasets: React.FC = () => {
   const [generateForm] = Form.useForm();
   const [createTaskForm] = Form.useForm();
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const appContext = App.useApp();
 
   useEffect(() => {
     fetchDatasets();
@@ -229,21 +231,9 @@ const Datasets: React.FC = () => {
           <Button size="small" type="primary" onClick={() => handleCreateTask(record)}>
             创建评测
           </Button>
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'delete',
-                  label: '删除',
-                  icon: <DeleteOutlined />,
-                  danger: true,
-                  onClick: () => handleDelete(record),
-                },
-              ],
-            }}
-          >
-            <Button size="small">更多</Button>
-          </Dropdown>
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
+            删除
+          </Button>
         </Space>
       ),
     },
@@ -345,20 +335,55 @@ const Datasets: React.FC = () => {
   };
 
   const handleDelete = async (dataset: ApiDataset) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除数据集"${dataset.name}"吗？此操作不可恢复。`,
-      onOk: async () => {
-        try {
-          await datasetApi.delete(dataset.id);
-          message.success('删除成功');
-          fetchDatasets();
-        } catch (error) {
-          console.error('Failed to delete dataset:', error);
-          message.error('删除失败');
-        }
-      },
-    });
+    if (appContext.modal) {
+      appContext.modal.confirm({
+        title: '确认删除',
+        content: (
+          <div>
+            <p>确定要删除数据集 <strong>"{dataset.name}"</strong> 吗？</p>
+            <p style={{ color: '#ff4d4f', fontSize: '12px' }}>此操作无法撤销。</p>
+          </div>
+        ),
+        okText: '删除',
+        okType: 'danger',
+        cancelText: '取消',
+        width: 400,
+        onOk: async () => {
+          try {
+            await datasetApi.batchDelete([dataset.id]);
+            message.success('删除成功');
+            fetchDatasets();
+          } catch (error) {
+            console.error('Failed to delete dataset:', error);
+            message.error('删除失败');
+          }
+        },
+      });
+    } else {
+      Modal.confirm({
+        title: '确认删除',
+        content: (
+          <div>
+            <p>确定要删除数据集 <strong>"{dataset.name}"</strong> 吗？</p>
+            <p style={{ color: '#ff4d4f', fontSize: '12px' }}>此操作无法撤销。</p>
+          </div>
+        ),
+        okText: '删除',
+        okType: 'danger',
+        cancelText: '取消',
+        width: 400,
+        onOk: async () => {
+          try {
+            await datasetApi.batchDelete([dataset.id]);
+            message.success('删除成功');
+            fetchDatasets();
+          } catch (error) {
+            console.error('Failed to delete dataset:', error);
+            message.error('删除失败');
+          }
+        },
+      });
+    }
   };
 
   
