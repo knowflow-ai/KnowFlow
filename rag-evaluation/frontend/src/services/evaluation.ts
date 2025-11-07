@@ -1,8 +1,10 @@
 import { request, uploadFile } from './api';
 import axios from 'axios';
 
-// RAGFlow API 配置 - 通过后端代理访问
-const RAGFLOW_API_BASE = '/api/ragflow/api/v1';
+// RAGFlow API 配置 - 通过后端统一代理访问
+// 请求路径: /api/v1/evaluation/ragflow/api/v1/xxx
+// 后端会转发到: {RAGFLOW_BASE_URL}/api/v1/xxx
+const RAGFLOW_API_BASE = '/api/v1/evaluation/ragflow/api/v1';
 
 const ragflowClient = axios.create({
   baseURL: RAGFLOW_API_BASE,
@@ -360,8 +362,20 @@ export const systemApi = {
   },
 };
 
-// 已废弃：使用 chatApi 替代知识库相关功能
-// export const knowledgeBaseApi = { ... };
+// 知识库相关 API
+export const knowledgeBaseApi = {
+  // 获取知识库列表
+  list: async (params?: { current_page?: number; size?: number; name?: string }) => {
+    const response = await request.get('/evaluation/knowledgebases', { params });
+    return response;
+  },
+
+  // 获取知识库详情
+  get: async (kbId: string) => {
+    const response = await request.get(`/evaluation/knowledgebases/${kbId}`);
+    return response;
+  },
+};
 
 // Chat 助手相关 API（直接调用 RAGFlow）
 export const chatApi = {

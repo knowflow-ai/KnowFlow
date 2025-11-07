@@ -1291,25 +1291,24 @@ def list_knowledge_bases():
             if ragflow_data.get('code') == 0 and ragflow_data.get('data'):
                 # 转换为前端期望的格式
                 knowledge_bases = []
-                datasets = ragflow_data['data'].get('datasets', [])
-                for dataset in datasets:
-                    knowledge_bases.append({
-                        'id': dataset['id'],
-                        'name': dataset['name'],
-                        'description': dataset.get('description', 'RAGFlow 数据集'),
-                        'doc_num': dataset.get('document_count', 0),
-                        'chunk_count': dataset.get('chunk_count', 0),
-                        'created_at': dataset.get('created_at'),
-                        'updated_at': dataset.get('updated_at'),
-                        'status': dataset.get('status', '1')
-                    })
+                # RAGFlow 直接返回数组，不是 {datasets: [...]}
+                datasets = ragflow_data.get('data', [])
+                if isinstance(datasets, list):
+                    for dataset in datasets:
+                        knowledge_bases.append({
+                            'id': dataset['id'],
+                            'name': dataset['name'],
+                            'description': dataset.get('description') or '',
+                            'doc_num': dataset.get('document_count', 0),
+                            'chunk_num': dataset.get('chunk_count', 0),
+                            'created_at': dataset.get('create_time'),
+                            'updated_at': dataset.get('update_time'),
+                            'status': '1'
+                        })
 
                 return jsonify({
-                    'code': 0,
-                    'data': {
-                        'knowledgebases': knowledge_bases,
-                        'total': len(knowledge_bases)
-                    }
+                    'knowledgebases': knowledge_bases,
+                    'total': len(knowledge_bases)
                 })
             else:
                 return jsonify({
@@ -1412,6 +1411,69 @@ def get_knowledge_base(kb_id: str):
         return jsonify({
             'code': 500,
             'message': 'Failed to get knowledge base'
+        }), 500
+
+
+# ==================== RAGFlow 代理 API ====================
+
+@evaluation_bp.route('/ragflow/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+@cross_origin()
+def ragflow_proxy(path):
+    """RAGFlow API 通用代理 - 统一从后端转发到 RAGFlow"""
+    try:
+        import requests
+        
+        # 从环境变量获取 RAGFlow 配置
+        ragflow_api_key = os.getenv('RAGFLOW_API_KEY')
+        ragflow_base_url = os.getenv('RAGFLOW_BASE_URL', 'http://localhost:9380')
+        
+        if not ragflow_api_key:
+            return jsonify({
+                'code': 1,
+                'message': 'RAGFlow API key not configured'
+            }), 500
+        
+        # 构建目标 URL
+        target_url = f"{ragflow_base_url}/{path}"
+        
+        # 准备请求头
+        headers = {
+            'Authorization': f'Bearer {ragflow_api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        # 转发请求参数
+        params = request.args.to_dict()
+        
+        # 转发请求体
+        data = None
+        if request.method in ['POST', 'PUT', 'PATCH']:
+            data = request.get_json()
+        
+        # 发送请求到 RAGFlow
+        response = requests.request(
+            method=request.method,
+            url=target_url,
+            headers=headers,
+            params=params,
+            json=data,
+            timeout=30
+        )
+        
+        # 返回 RAGFlow 的响应
+        return jsonify(response.json()), response.status_code
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"RAGFlow proxy error: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': f'Failed to connect to RAGFlow: {str(e)}'
+        }), 500
+    except Exception as e:
+        logger.error(f"RAGFlow proxy error: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': f'RAGFlow proxy error: {str(e)}'
         }), 500
 
 

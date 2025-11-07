@@ -32,74 +32,24 @@ class AIDatasetGenerator:
             logger.info("RAGFlow API key loaded successfully")
     
     def get_knowledge_base_chunks(self, kb_id: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """获取知识库的chunks"""
+        """获取知识库的chunks
+        
+        Args:
+            kb_id: 知识库ID (dataset_id)，直接从 RAGFlow dataset 获取 chunks
+            limit: 最多返回的 chunks 数量
+        """
         try:
-            logger.info(f"Getting chunks from knowledge base (chat_id): {kb_id}")
+            logger.info(f"Getting chunks from knowledge base (dataset_id): {kb_id}")
             
-            # 1. 首先获取chat助手的信息，获取其关联的dataset_ids
-            chat_url = f"{self.ragflow_base_url}/chats"
-            headers = {
-                'Content-Type': 'application/json',
-            }
-            if self.ragflow_api_key:
-                headers['Authorization'] = f'Bearer {self.ragflow_api_key}'
+            # 直接从 dataset 获取 chunks，不需要通过 chat
+            chunks = self._get_chunks_from_dataset(kb_id, limit)
             
-            params = {'id': kb_id}
-            response = requests.get(chat_url, headers=headers, params=params, timeout=30)
-            
-            if response.status_code != 200:
-                logger.warning(f"Failed to get chat assistant info: {response.status_code}")
+            if chunks:
+                logger.info(f"Successfully retrieved {len(chunks)} chunks from dataset {kb_id}")
+                return chunks
+            else:
+                logger.warning(f"No chunks found in dataset {kb_id}, using mock data")
                 return self._get_mock_chunks()
-            
-            chat_data = response.json()
-            if chat_data.get('code') != 0:
-                logger.warning(f"Chat API returned error: {chat_data}")
-                return self._get_mock_chunks()
-            
-            # 从chat列表中获取匹配的chat助手
-            chats = chat_data.get('data', [])
-            if not chats:
-                logger.warning(f"No chat assistant found with ID {kb_id}")
-                return self._get_mock_chunks()
-            
-            # 找到匹配的chat助手
-            chat_info = None
-            for chat in chats:
-                if chat.get('id') == kb_id:
-                    chat_info = chat
-                    break
-            
-            if not chat_info:
-                logger.warning(f"Chat assistant {kb_id} not found in response")
-                return self._get_mock_chunks()
-            
-            # 获取关联的数据集
-            datasets = chat_info.get('datasets', [])
-            if not datasets:
-                logger.warning(f"No datasets found for chat assistant {kb_id}")
-                return self._get_mock_chunks()
-            
-            logger.info(f"Found {len(datasets)} datasets for chat assistant")
-            
-            # 2. 获取所有数据集的chunks
-            all_chunks = []
-            chunks_per_dataset = max(1, limit // len(datasets))
-            
-            for dataset in datasets:
-                dataset_id = dataset.get('id')
-                if not dataset_id:
-                    continue
-                    
-                dataset_chunks = self._get_chunks_from_dataset(dataset_id, chunks_per_dataset)
-                all_chunks.extend(dataset_chunks)
-                
-                if len(all_chunks) >= limit:
-                    break
-            
-            final_chunks = all_chunks[:limit]
-            logger.info(f"Successfully retrieved {len(final_chunks)} chunks")
-            
-            return final_chunks if final_chunks else self._get_mock_chunks()
                 
         except Exception as e:
             logger.error(f"Error getting chunks from knowledge base {kb_id}: {str(e)}")
@@ -222,10 +172,13 @@ class AIDatasetGenerator:
         """调用大模型生成内容"""
         try:
             import sqlite3
+            import os
             from langchain_openai import ChatOpenAI
             
             # 连接数据库获取API配置
-            db_path = 'evaluation.db'
+            # 使用绝对路径，确保找到正确的数据库文件
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # backend/ 目录
+            db_path = os.path.join(base_dir, 'evaluation.db')
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             
@@ -325,6 +278,19 @@ class AIDatasetGenerator:
                         response = response[start:end].strip()
                 
                 qa_data = json.loads(response)
+                
+                # 处理不同的返回格式
+                if isinstance(qa_data, list):
+                    # 如果返回的是列表，取第一个元素
+                    if len(qa_data) > 0 and isinstance(qa_data[0], dict):
+                        qa_data = qa_data[0]
+                    else:
+                        logger.warning(f"Invalid list format in response (attempt {attempt + 1})")
+                        continue
+                elif not isinstance(qa_data, dict):
+                    logger.warning(f"Response is not dict or list: {type(qa_data)} (attempt {attempt + 1})")
+                    continue
+                
                 question = qa_data.get('question', '').strip()
                 expected_answer = qa_data.get('expected_answer', '').strip()
                 

@@ -17,9 +17,15 @@ class DatabaseManager:
     def __init__(self, db_path: str = None):
         # 使用绝对路径，确保数据持久化
         if db_path is None:
-            db_path = os.path.join(os.getcwd(), "evaluation.db")
+            # 使用 backend/ 目录下的 evaluation.db，避免因工作目录不同创建多个数据库
+            base_dir = os.path.dirname(os.path.abspath(__file__))  # models/ 目录
+            backend_dir = os.path.dirname(base_dir)  # backend/ 目录
+            db_path = os.path.join(backend_dir, "evaluation.db")
         elif not os.path.isabs(db_path):
-            db_path = os.path.join(os.getcwd(), db_path)
+            # 如果是相对路径，也基于 backend/ 目录
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            backend_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(backend_dir, db_path)
 
         self.db_path = db_path
         self.init_database()

@@ -38,7 +38,7 @@ import {
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { datasetApi, taskApi, chatApi, metricApi } from '../services/evaluation';
+import { datasetApi, taskApi, chatApi, metricApi, knowledgeBaseApi } from '../services/evaluation';
 import type { Dataset as ApiDataset, Metric, TaskCreateParams } from '../services/evaluation';
 import { useBatchDelete } from '../hooks/useBatchDelete';
 import { BatchActionBar } from '../components/BatchActionBar';
@@ -112,9 +112,14 @@ const Datasets: React.FC = () => {
   const fetchKnowledgeBases = async () => {
     setLoadingKnowledgeBases(true);
     try {
-      const response = await chatApi.list({ page: 1, page_size: 100 });
-      if (response.code === 0 && response.data) {
-        setKnowledgeBases(Array.isArray(response.data) ? response.data : []);
+      console.log('Fetching knowledge bases...');
+      const response = await knowledgeBaseApi.list({ current_page: 1, size: 100 });
+      console.log('Knowledge bases response:', response);
+      if (response.knowledgebases) {
+        console.log('Setting knowledge bases:', response.knowledgebases);
+        setKnowledgeBases(response.knowledgebases);
+      } else {
+        console.warn('No knowledgebases in response:', response);
       }
     } catch (error) {
       console.error('Failed to fetch knowledge bases:', error);
