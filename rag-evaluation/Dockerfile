@@ -20,6 +20,13 @@ COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci && npm cache clean --force
 
 COPY frontend/ ./
+
+# 删除开发环境的 .env 文件，使用构建参数设置的环境变量
+RUN rm -f .env .env.local .env.*.local
+
+# 验证环境变量
+RUN echo "Building with VITE_RAGFLOW_API_URL=${VITE_RAGFLOW_API_URL}"
+
 RUN npm run build
 
 FROM python:3.10-slim
