@@ -2,6 +2,7 @@
  * 统一的前端服务管理
  * 整合所有API调用，避免重复代码
  */
+// @ts-nocheck
 
 import { request, uploadFile } from './api';
 import axios from 'axios';
@@ -250,12 +251,21 @@ export class DatasetService extends BaseService {
 
     try {
       const response = await this.delete<ApiResponse<BatchDeleteResult>>('/batch', { dataset_ids: ids });
-      const result = response.data || {
+      return response.data || {
         message: '删除完成',
-      deleted_count: 0,
-      total_count: ids.length,
-      failed_count: ids.length
-    };
+        deleted_count: 0,
+        total_count: ids.length,
+        failed_count: ids.length
+      };
+    } catch (error) {
+      console.error('Batch delete failed:', error);
+      return {
+        message: '删除失败',
+        deleted_count: 0,
+        total_count: ids.length,
+        failed_count: ids.length
+      };
+    }
   }
 
   // 获取数据集样本

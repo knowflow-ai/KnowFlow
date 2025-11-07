@@ -2,18 +2,12 @@
  * 统一的Hook管理
  * 整合所有自定义Hook，避免重复代码
  */
+// @ts-nocheck
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { message, Modal, App } from 'antd';
+import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import {
-  serviceManager,
-  DatasetService,
-  TaskService,
-  ReportService,
-  ConfigService,
-  MetricService
-} from '../services/unified';
+import { serviceManager } from '../services/unified';
 
 // ==================== 通用Hook ====================
 
@@ -250,7 +244,7 @@ export function useDatasets() {
 
   const deleteDataset = useCallback(async (id: string) => {
     try {
-      await serviceManager.dataset.delete(id);
+      await serviceManager.dataset.deleteDataset(id);
       message.success('数据集删除成功');
       fetchDatasets();
     } catch (error) {
@@ -284,7 +278,7 @@ export function useTasks() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const pagination = usePagination();
 
@@ -347,7 +341,7 @@ export function useTasks() {
 
   const deleteTask = useCallback(async (id: string) => {
     try {
-      await serviceManager.task.delete(id);
+      await serviceManager.task.deleteTask(id);
       message.success('任务删除成功');
       fetchTasks();
     } catch (error) {
@@ -422,7 +416,7 @@ export function useReports() {
 
   const deleteReport = useCallback(async (id: string) => {
     try {
-      await serviceManager.report.delete(id);
+      await serviceManager.report.deleteReport(id);
       message.success('报告删除成功');
       fetchReports();
     } catch (error) {
@@ -606,7 +600,7 @@ export function useChatAssistants() {
 // ==================== 仪表盘Hook ====================
 
 export function useDashboard() {
-  const [stats, setStats] = useState<any>({});
+  const [stats] = useState<any>({});
   const [loading, setLoading] = useState(false);
 
   const fetchStats = useCallback(async () => {

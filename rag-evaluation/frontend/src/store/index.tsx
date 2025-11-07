@@ -3,7 +3,7 @@
  * 使用Context + useReducer管理全局状态
  */
 
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, type ReactNode } from 'react';
 
 // ==================== 类型定义 ====================
 
@@ -224,7 +224,7 @@ export function useUI() {
 export function useCache() {
   const { state, dispatch } = useAppContext();
 
-  const updateCache = <T>(key: keyof AppState['cache'], data: T[]) => {
+  const updateCache = <T,>(key: keyof AppState['cache'], data: T[]) => {
     dispatch({ type: 'UPDATE_CACHE', payload: { key, data } });
   };
 
