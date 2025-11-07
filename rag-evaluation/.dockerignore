@@ -35,13 +35,8 @@ npm-debug.log
 yarn-error.log
 .npmrc
 
-# Frontend dev
-frontend/src
-frontend/public
+# Frontend dev (保留构建所需文件)
 frontend/.vite
-frontend/tsconfig*
-frontend/vite.config.ts
-frontend/eslint.config.js
 
 # Testing
 test*
