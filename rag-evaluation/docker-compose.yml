@@ -41,5 +41,4 @@ services:
 
 networks:
   rag-network:
-    external: true
-    name: ragflow_ragflow
+    driver: "bridge"

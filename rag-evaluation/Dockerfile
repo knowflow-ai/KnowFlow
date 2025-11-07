@@ -31,6 +31,7 @@ RUN apt-get update && \
     nginx \
     supervisor \
     curl \
+    git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
