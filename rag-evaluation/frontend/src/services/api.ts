@@ -3,7 +3,9 @@ import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { message } from 'antd';
 
 // API 基础配置
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+// 生产环境使用相对路径 /api/v1，由 Nginx 反向代理到后端
+// 开发环境使用 http://localhost:5002/api/v1
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 // 创建 axios 实例
 const apiClient: AxiosInstance = axios.create({
