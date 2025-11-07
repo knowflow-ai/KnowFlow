@@ -1,0 +1,83 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+README*
+LICENSE
+INSTALL*
+DATABASE*
+OPTIMIZATION*
+
+# Environment
+.env
+.env.*
+!.env.docker
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist
+build
+*.egg
+venv
+.venv
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+.npmrc
+
+# Frontend dev
+frontend/src
+frontend/public
+frontend/.vite
+frontend/tsconfig*
+frontend/vite.config.ts
+frontend/eslint.config.js
+
+# Testing
+test*
+*.test.*
+*.spec.*
+coverage
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs
+*.log
+
+# Temp
+tmp
+temp
+.cache
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Scripts
+install.sh
+start.sh
+switch-python.sh
+test.sh
+*.sh
