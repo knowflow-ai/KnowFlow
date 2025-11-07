@@ -5,6 +5,15 @@
 
 FROM node:20-alpine AS frontend-builder
 
+# 定义构建参数，从 docker-compose 传入
+ARG RAGFLOW_BASE_URL=http://localhost:9380
+ARG RAGFLOW_API_KEY=
+
+# 将 RAGFLOW_* 映射为 VITE_* 前缀供前端使用
+ENV VITE_API_BASE_URL=/api/v1
+ENV VITE_RAGFLOW_API_URL=${RAGFLOW_BASE_URL}/api/v1
+ENV VITE_RAGFLOW_API_KEY=${RAGFLOW_API_KEY}
+
 WORKDIR /build/frontend
 
 COPY frontend/package.json frontend/package-lock.json* ./

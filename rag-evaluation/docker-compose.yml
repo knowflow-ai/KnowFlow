@@ -2,6 +2,12 @@ version: '3.8'
 
 services:
   rag-evaluation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - RAGFLOW_BASE_URL=${RAGFLOW_BASE_URL}
+        - RAGFLOW_API_KEY=${RAGFLOW_API_KEY}
     image: rag-evaluation:latest
     container_name: rag-evaluation
     restart: unless-stopped
