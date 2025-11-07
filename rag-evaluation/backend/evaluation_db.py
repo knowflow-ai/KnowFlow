@@ -613,8 +613,8 @@ def generate_ai_dataset():
         if not kb_id:
             return jsonify({'error': 'Knowledge base ID is required'}), 400
             
-        if sample_count < 5 or sample_count > 100:
-            return jsonify({'error': 'Sample count must be between 5 and 100'}), 400
+        if sample_count < 1 or sample_count > 100:
+            return jsonify({'error': 'Sample count must be between 1 and 100'}), 400
         
         dataset_id = str(uuid.uuid4())
         dataset_name = f"AI Generated Dataset - {datetime.now().strftime('%Y%m%d_%H%M%S')}"

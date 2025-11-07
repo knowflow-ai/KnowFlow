@@ -8,7 +8,7 @@ import os
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -119,6 +119,43 @@ def create_app():
                 'default_llm': app.config.get('DEFAULT_LLM_MODEL')
             }
         }
+
+    # RAGFlow API 代理
+    @app.route('/api/ragflow/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+    def ragflow_proxy(path):
+        """代理 RAGFlow API 请求"""
+        import requests
+        
+        # 从配置读取 RAGFlow 地址
+        ragflow_base_url = app.config.get('RAGFLOW_BASE_URL', 'http://localhost:9380')
+        ragflow_api_key = app.config.get('RAGFLOW_API_KEY', '')
+        
+        # 构建目标 URL
+        target_url = f"{ragflow_base_url}/{path}"
+        
+        # 准备请求头
+        headers = dict(request.headers)
+        headers.pop('Host', None)  # 移除 Host 头
+        if ragflow_api_key:
+            headers['Authorization'] = f'Bearer {ragflow_api_key}'
+        
+        # 转发请求
+        try:
+            resp = requests.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                params=request.args,
+                json=request.get_json(silent=True),
+                data=request.get_data() if request.get_json(silent=True) is None else None,
+                timeout=30
+            )
+            
+            # 返回响应
+            return resp.content, resp.status_code, dict(resp.headers)
+        except Exception as e:
+            app.logger.error(f"RAGFlow proxy error: {str(e)}")
+            return {'error': f'Failed to connect to RAGFlow: {str(e)}'}, 502
 
     # 根路径
     @app.route('/')

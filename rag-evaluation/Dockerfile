@@ -5,28 +5,12 @@
 
 FROM node:20-alpine AS frontend-builder
 
-# 定义构建参数，从 docker-compose 传入
-ARG RAGFLOW_BASE_URL=http://localhost:9380
-ARG RAGFLOW_API_KEY=
-
-# 将 RAGFLOW_* 映射为 VITE_* 前缀供前端使用
-ENV VITE_API_BASE_URL=/api/v1
-ENV VITE_RAGFLOW_API_URL=${RAGFLOW_BASE_URL}/api/v1
-ENV VITE_RAGFLOW_API_KEY=${RAGFLOW_API_KEY}
-
 WORKDIR /build/frontend
 
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci && npm cache clean --force
 
 COPY frontend/ ./
-
-# 删除开发环境的 .env 文件，使用构建参数设置的环境变量
-RUN rm -f .env .env.local .env.*.local
-
-# 验证环境变量
-RUN echo "Building with VITE_RAGFLOW_API_URL=${VITE_RAGFLOW_API_URL}"
-
 RUN npm run build
 
 FROM python:3.10-slim

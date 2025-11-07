@@ -605,7 +605,7 @@ const Datasets: React.FC = () => {
                     initialValue={10}
                   >
                     <InputNumber 
-                      min={5} 
+                      min={1} 
                       max={100} 
                       placeholder="建议 10-50 个样本"
                       style={{ width: '100%' }}

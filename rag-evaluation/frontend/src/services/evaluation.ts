@@ -1,23 +1,15 @@
 import { request, uploadFile } from './api';
 import axios from 'axios';
 
-// RAGFlow API 配置
-const RAGFLOW_API_BASE = import.meta.env.VITE_RAGFLOW_API_URL || 'http://localhost:9380/api/v1';
-const RAGFLOW_API_KEY = import.meta.env.VITE_RAGFLOW_API_KEY || '';
-
-const ragflowHeaders: Record<string, string> = {
-  'Content-Type': 'application/json'
-};
-
-// 只有配置了 API Key 才添加 Authorization header
-if (RAGFLOW_API_KEY) {
-  ragflowHeaders['Authorization'] = `Bearer ${RAGFLOW_API_KEY}`;
-}
+// RAGFlow API 配置 - 通过后端代理访问
+const RAGFLOW_API_BASE = '/api/ragflow/api/v1';
 
 const ragflowClient = axios.create({
   baseURL: RAGFLOW_API_BASE,
   timeout: 30000,
-  headers: ragflowHeaders
+  headers: {
+    'Content-Type': 'application/json'
+  }
 });
 
 // 类型定义
