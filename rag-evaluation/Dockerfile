@@ -51,9 +51,9 @@ COPY backend/*.py /app/
 COPY backend/services/ /app/services/
 COPY backend/models/ /app/models/
 
+# 编译 Python 文件为 .pyc (使用 -b 生成 .pyc 在源文件旁边，而不是 __pycache__)
 RUN python3 -m compileall -b /app && \
-    find /app -type f -name "*.py" ! -name "__init__.py" -delete && \
-    find /app -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    find /app -type f -name "*.py" ! -name "__init__.py" -delete
 
 COPY --from=frontend-builder /build/frontend/dist /app/static
 
