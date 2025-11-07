@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   Table,
@@ -73,11 +73,38 @@ const Datasets: React.FC = () => {
   const [form] = Form.useForm();
   const [generateForm] = Form.useForm();
   const [createTaskForm] = Form.useForm();
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchDatasets();
     fetchKnowledgeBases();
+    
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    const hasProcessing = datasets.some(
+      (ds) => ds.status === 'processing' || ds.status === 'pending'
+    );
+    
+    if (hasProcessing && !pollingIntervalRef.current) {
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          const response = await datasetApi.list({ limit: 100 });
+          setDatasets(response.datasets || []);
+        } catch (error) {
+          console.error('Failed to fetch datasets:', error);
+        }
+      }, 3000);
+    } else if (!hasProcessing && pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, [datasets.map(d => d.status).join(',')]);
 
   const fetchKnowledgeBases = async () => {
     setLoadingKnowledgeBases(true);
@@ -148,15 +175,41 @@ const Datasets: React.FC = () => {
       sorter: (a, b) => a.num_samples - b.num_samples,
     },
     {
+      title: '状态',
+      key: 'status',
+      render: (_, record) => {
+        const statusMap: Record<string, { color: string; text: string; icon?: React.ReactNode }> = {
+          pending: { color: 'default', text: '待处理' },
+          processing: { color: 'processing', text: '处理中' },
+          completed: { color: 'success', text: '已完成' },
+          failed: { color: 'error', text: '失败' },
+        };
+        const status = statusMap[record.status] || statusMap.pending;
+        return (
+          <Space>
+            <Tag color={status.color}>{status.text}</Tag>
+            {record.status === 'processing' && record.progress !== undefined && (
+              <span style={{ fontSize: 12, color: '#666' }}>{record.progress}%</span>
+            )}
+          </Space>
+        );
+      },
+    },
+    {
       title: '数据完整性',
       key: 'completeness',
-      render: (_, record) => (
-        <Space>
-          {record.has_reference && <Tag color="green">包含参考答案</Tag>}
-          {record.has_contexts && <Tag color="blue">包含上下文</Tag>}
-          {!record.has_reference && !record.has_contexts && <Tag>仅问题</Tag>}
-        </Space>
-      ),
+      render: (_, record) => {
+        const hasReference = Boolean(record.has_reference);
+        const hasContexts = Boolean(record.has_contexts);
+        
+        return (
+          <Space>
+            {hasReference && <Tag color="green">包含参考答案</Tag>}
+            {hasContexts && <Tag color="blue">包含上下文</Tag>}
+            {!hasReference && !hasContexts && <Tag>仅问题</Tag>}
+          </Space>
+        );
+      },
     },
     {
       title: '创建时间',
@@ -334,26 +387,19 @@ const Datasets: React.FC = () => {
       const values = await generateForm.validateFields();
       setGenerating(true);
 
-      let response;
-      if (values.type === 'ai_generated') {
-        // AI 生成数据集
-        response = await datasetApi.generateAIDataset({
-          kb_id: values.kb_id,
-          sample_count: values.sample_count,
-          question_types: values.question_types || ['factual', 'analytical']
-        });
-      } else {
-        // 传统示例数据集
-        response = await datasetApi.generateSample(values.type);
-      }
+      const response = await datasetApi.generateAIDataset({
+        kb_id: values.kb_id,
+        sample_count: values.sample_count,
+        question_types: values.question_types || ['factual', 'analytical']
+      });
       
-      message.success(`示例数据集生成成功: ${response.name}`);
+      message.success(`AI 数据集生成成功: ${response.name}`);
       setGenerateVisible(false);
       generateForm.resetFields();
       fetchDatasets();
     } catch (error) {
-      console.error('Failed to generate sample dataset:', error);
-      message.error('生成示例数据集失败');
+      console.error('Failed to generate AI dataset:', error);
+      message.error('生成 AI 数据集失败');
     } finally {
       setGenerating(false);
     }
@@ -396,7 +442,7 @@ const Datasets: React.FC = () => {
               上传数据集
             </Button>
             <Button icon={<RobotOutlined />} onClick={() => setGenerateVisible(true)}>
-              生成示例数据集
+              AI 智能生成数据集
             </Button>
           </Space>
         </div>
@@ -481,9 +527,9 @@ const Datasets: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* 生成示例数据集模态框 */}
+      {/* AI 智能生成数据集模态框 */}
       <Modal
-        title="生成示例数据集"
+        title="AI 智能生成数据集"
         open={generateVisible}
         onOk={handleGenerate}
         onCancel={() => {
@@ -495,55 +541,12 @@ const Datasets: React.FC = () => {
         cancelText="取消"
         width={600}
       >
-        <Form layout="vertical" form={generateForm}>
-          <Form.Item
-            label="数据集类型"
-            name="type"
-            rules={[{ required: true, message: '请选择数据集类型' }]}
-            initialValue="basic"
-          >
-            <Select>
-              <Select.Option value="basic">
-                <div>
-                  <div><strong>基础数据集</strong></div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    仅包含问题，适合测试基本的 RAG 流程
-                  </Text>
-                </div>
-              </Select.Option>
-              <Select.Option value="with_reference">
-                <div>
-                  <div><strong>带参考答案的数据集</strong></div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    包含问题和参考答案，适合测试答案正确性
-                  </Text>
-                </div>
-              </Select.Option>
-              <Select.Option value="with_contexts">
-                <div>
-                  <div><strong>带上下文的数据集</strong></div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    包含问题、答案和上下文，适合全面评测
-                  </Text>
-                </div>
-              </Select.Option>
-              <Select.Option value="ai_generated">
-                <div>
-                  <div><strong>AI 智能生成数据集</strong></div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    基于知识库内容，通过大模型自动生成问答数据
-                  </Text>
-                </div>
-              </Select.Option>
-            </Select>
+        <Form layout="vertical" form={generateForm} initialValues={{ type: 'ai_generated' }}>
+          <Form.Item name="type" initialValue="ai_generated" hidden>
+            <input type="hidden" />
           </Form.Item>
 
-          {/* 当选择AI生成时显示知识库选择 */}
-          <Form.Item shouldUpdate noStyle>
-            {({ getFieldValue }) => {
-              const type = getFieldValue('type');
-              return type === 'ai_generated' ? (
-                <>
+          <>
                   <Form.Item
                     label="选择知识库"
                     name="kb_id"
@@ -553,9 +556,13 @@ const Datasets: React.FC = () => {
                       placeholder="选择要基于的知识库"
                       loading={loadingKnowledgeBases}
                       showSearch
-                      filterOption={(input, option) =>
-                        option?.children?.toLowerCase().includes(input.toLowerCase())
-                      }
+                      filterOption={(input, option) => {
+                        const children = option?.children;
+                        if (typeof children === 'string') {
+                          return children.toLowerCase().includes(input.toLowerCase());
+                        }
+                        return false;
+                      }}
                     >
                       {knowledgeBases.map((kb) => (
                         <Select.Option key={kb.id} value={kb.id}>
@@ -597,41 +604,18 @@ const Datasets: React.FC = () => {
                     />
                   </Form.Item>
                 </>
-              ) : null;
-            }}
-          </Form.Item>
 
           <div style={{ marginTop: 16 }}>
             <Title level={5}>说明</Title>
-            <Form.Item shouldUpdate noStyle>
-              {({ getFieldValue }) => {
-                const type = getFieldValue('type');
-                if (type === 'ai_generated') {
-                  return (
-                    <Paragraph>
-                      <ul>
-                        <li>基于选择的知识库内容，通过大模型智能生成问答数据</li>
-                        <li>自动提取知识库chunks，生成高质量的问题和答案</li>
-                        <li>支持多种问题类型：事实性、分析性、应用性等</li>
-                        <li>生成的数据包含问题、标准答案和相关上下文</li>
-                        <li>建议生成数量：10-50个样本，确保质量和多样性</li>
-                      </ul>
-                    </Paragraph>
-                  );
-                } else {
-                  return (
-                    <Paragraph>
-                      <ul>
-                        <li>示例数据集将自动生成 5 个样本</li>
-                        <li>内容为关于 RAGFlow 的常见问题</li>
-                        <li>可用于快速测试评测系统功能</li>
-                        <li>生成后可在数据集列表中查看和使用</li>
-                      </ul>
-                    </Paragraph>
-                  );
-                }
-              }}
-            </Form.Item>
+            <Paragraph>
+              <ul>
+                <li>基于选择的知识库内容，通过大模型智能生成问答数据</li>
+                <li>自动提取知识库chunks，生成高质量的问题和答案</li>
+                <li>支持多种问题类型：事实性、分析性、应用性等</li>
+                <li>生成的数据包含问题、标准答案和相关上下文</li>
+                <li>建议生成数量：10-50个样本，确保质量和多样性</li>
+              </ul>
+            </Paragraph>
           </div>
         </Form>
       </Modal>

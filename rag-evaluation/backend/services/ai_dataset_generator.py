@@ -278,20 +278,25 @@ class AIDatasetGenerator:
         
         question_desc = question_type_map.get(question_type, question_type)
         
-        # 生成时就包含质量控制的提示词
         prompt = f"""你是专业的问答生成助手。基于以下文档内容生成{question_desc}。
 
 文档内容：
 {content}
 
-生成要求：
-1. 问题必须基于文档中存在的具体内容（概念、术语、事实）
-2. 答案必须直接摘录文档原文，不允许总结或改写
-3. 问题和答案必须来自同一段文档内容
-4. 如果文档内容不足以生成该类型问题，请回复"无法生成"
+严格要求：
+1. 问题必须是完整的疑问句，清晰明确，长度在5-100字之间
+2. 答案必须直接从文档中摘录原文，长度在20-500字之间，不能只是标题或片段
+3. 问题和答案必须来自同一段文档内容，确保答案能完整回答问题
+4. 答案不能是"# 标题"这种格式，必须包含实质性内容
+5. 如果文档内容不足以生成高质量的{question_desc}，请回复"无法生成"
 
-请先检查：文档中是否有足够信息生成{question_desc}？
-如果有，请严格按JSON格式返回：{{"question": "问题", "expected_answer": "摘录的原文"}}"""
+质量自检：
+- 问题是否清晰可回答？
+- 答案是否完整且信息充分？
+- 答案是否真的摘录自文档原文？
+
+如果通过自检，请严格按JSON格式返回：{{"question": "问题", "expected_answer": "摘录的原文"}}
+如果不符合要求，请回复"无法生成"""
 
         # 最多重试2次
         for attempt in range(max_retries):
@@ -323,18 +328,37 @@ class AIDatasetGenerator:
                 question = qa_data.get('question', '').strip()
                 expected_answer = qa_data.get('expected_answer', '').strip()
                 
-                if question and expected_answer:
-                    logger.info(f"Generated QA pair: Q='{question[:30]}...' A='{expected_answer[:30]}...'")
-                    return {
-                        'question': question,
-                        'expected_answer': expected_answer,
-                        'contexts': [content],
-                        'source_doc': doc_name,
-                        'question_type': question_type,
-                        'chunk_id': chunk.get('id', ''),
-                        'generation_method': 'llm',
-                        'attempts_used': attempt + 1
-                    }
+                if not question or not expected_answer:
+                    logger.warning(f"Empty question or answer (attempt {attempt + 1})")
+                    continue
+                
+                # 质量检查1: 问题长度检查 (5-150字符)
+                if len(question) < 5 or len(question) > 150:
+                    logger.warning(f"Question length invalid: {len(question)} chars (attempt {attempt + 1})")
+                    continue
+                
+                # 质量检查2: 答案长度检查 (10-800字符)
+                if len(expected_answer) < 10 or len(expected_answer) > 800:
+                    logger.warning(f"Answer length invalid: {len(expected_answer)} chars (attempt {attempt + 1})")
+                    continue
+            
+                
+                # 质量检查4: 拒绝过于简单的答案
+                if len(expected_answer.replace('#', '').replace('\n', '').strip()) < 20:
+                    logger.warning(f"Answer too simple: '{expected_answer}' (attempt {attempt + 1})")
+                    continue
+                
+                logger.info(f"✅ Generated valid QA pair: Q='{question[:30]}...' A='{expected_answer[:30]}...'")
+                return {
+                    'question': question,
+                    'expected_answer': expected_answer,
+                    'contexts': [content],
+                    'source_doc': doc_name,
+                    'question_type': question_type,
+                    'chunk_id': chunk.get('id', ''),
+                    'generation_method': 'llm',
+                    'attempts_used': attempt + 1
+                }
                 
             except json.JSONDecodeError as e:
                 logger.error(f"JSON parse error (attempt {attempt + 1}): {str(e)}")
@@ -371,11 +395,12 @@ class AIDatasetGenerator:
                 max_chunk_tries = 10  # 最多尝试10个不同的chunk
                 
                 for _ in range(max_chunk_tries):
-                    # 选择可用的chunk（排除已失败的chunk）
+                    # 选择可用的chunk（排除已失败的chunk，且长度>=128）
                     available_chunks = [
                         c for c in chunks 
                         if c.get('id') not in failed_chunks 
-                        and chunk_attempt_count.get(c.get('id'), 0) < 2  # 每个chunk最多尝试2次
+                        and chunk_attempt_count.get(c.get('id'), 0) < 1
+                        and len(c.get('content', '')) >= 128  # chunk长度必须>=128字符
                     ]
                     
                     if not available_chunks:

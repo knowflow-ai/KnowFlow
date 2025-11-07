@@ -30,6 +30,9 @@ export interface Dataset {
   num_samples: number;
   has_reference: boolean;
   has_contexts: boolean;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress?: number;
+  error_message?: string;
   created_at: string;
   created_by: string;
 }

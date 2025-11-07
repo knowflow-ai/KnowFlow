@@ -348,11 +348,10 @@ def list_datasets():
 @evaluation_bp.route('/datasets', methods=['POST'])
 @cross_origin()
 def upload_dataset():
-    """上传评测数据集"""
+    """上传评测数据集（异步）"""
     try:
         init_services()
 
-        # 检查文件
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
 
@@ -360,45 +359,18 @@ def upload_dataset():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
 
-        # 获取表单数据
         dataset_name = request.form.get('name', file.filename)
         description = request.form.get('description', '')
 
-        # 读取文件内容
         file_content = file.read()
         file_size = len(file_content)
-
-        # 解析文件内容（这里需要实现文件解析逻辑）
-        try:
-            # 假设是 JSON 文件
-            samples = json.loads(file_content.decode('utf-8'))
-            num_samples = len(samples)
-
-            # 检查样本结构
-            has_reference = any('expected_answer' in sample for sample in samples)
-            has_contexts = any('contexts' in sample for sample in samples)
-            sample_fields = list(samples[0].keys()) if samples else []
-
-        except json.JSONDecodeError:
-            # 如果不是 JSON，可以尝试 CSV
-            try:
-                df = pd.read_csv(pd.io.common.StringIO(file_content.decode('utf-8')))
-                samples = df.to_dict('records')
-                num_samples = len(samples)
-                has_reference = 'expected_answer' in df.columns
-                has_contexts = 'contexts' in df.columns
-                sample_fields = list(df.columns)
-            except Exception as e:
-                return jsonify({'error': f'Unsupported file format: {str(e)}'}), 400
-
-        # 创建数据集记录
+        
         dataset_id = str(uuid.uuid4())
         file_type = Path(file.filename).suffix.lower()
-
-        # 保存文件到磁盘
+        
         storage_path = Path('tmp/datasets')
         storage_path.mkdir(parents=True, exist_ok=True)
-
+        
         file_path = storage_path / f"{dataset_id}{file_type}"
         with open(file_path, 'wb') as f:
             f.write(file_content)
@@ -411,14 +383,62 @@ def upload_dataset():
             'file_type': file_type,
             'file_size': file_size,
             'storage_path': str(file_path),
-            'num_samples': num_samples,
-            'has_reference': has_reference,
-            'has_contexts': has_contexts,
-            'sample_fields': sample_fields,
+            'num_samples': 0,
+            'has_reference': False,
+            'has_contexts': False,
+            'sample_fields': [],
+            'status': 'processing',
+            'progress': 0,
             'created_by': request.headers.get('X-User-Id', 'anonymous')
         }
 
         dataset_manager.create_dataset(dataset_data)
+
+        import threading
+        def process_async():
+            try:
+                try:
+                    samples = json.loads(file_content.decode('utf-8'))
+                    num_samples = len(samples)
+                    has_reference = any('expected_answer' in sample for sample in samples)
+                    has_contexts = any('contexts' in sample for sample in samples)
+                    sample_fields = list(samples[0].keys()) if samples else []
+                except json.JSONDecodeError:
+                    try:
+                        df = pd.read_csv(pd.io.common.StringIO(file_content.decode('utf-8')))
+                        samples = df.to_dict('records')
+                        num_samples = len(samples)
+                        has_reference = 'expected_answer' in df.columns
+                        has_contexts = 'contexts' in df.columns
+                        sample_fields = list(df.columns)
+                    except Exception as e:
+                        dataset_manager.update_dataset_status(
+                            dataset_id, 
+                            'failed', 
+                            error_message=f'Unsupported file format: {str(e)}'
+                        )
+                        return
+                
+                dataset_manager.update_dataset_status(
+                    dataset_id,
+                    'completed',
+                    progress=100,
+                    num_samples=num_samples,
+                    has_reference=has_reference,
+                    has_contexts=has_contexts
+                )
+                
+            except Exception as e:
+                logger.error(f"Failed to process dataset: {str(e)}")
+                dataset_manager.update_dataset_status(
+                    dataset_id, 
+                    'failed', 
+                    error_message=str(e)
+                )
+        
+        thread = threading.Thread(target=process_async)
+        thread.daemon = True
+        thread.start()
 
         return jsonify({
             'id': dataset_id,
@@ -426,12 +446,11 @@ def upload_dataset():
             'description': description,
             'file_name': secure_filename(file.filename),
             'file_type': file_type,
-            'num_samples': num_samples,
-            'has_reference': has_reference,
-            'has_contexts': has_contexts,
-            'sample_fields': sample_fields,
+            'num_samples': 0,
+            'status': 'processing',
+            'progress': 0,
             'created_at': datetime.now().isoformat()
-        }), 201
+        }), 202
 
     except Exception as e:
         logger.error(f"Failed to upload dataset: {str(e)}")
@@ -582,7 +601,7 @@ def generate_sample_dataset(dataset_type: str):
 @evaluation_bp.route('/datasets/generate/ai', methods=['POST'])
 @cross_origin()
 def generate_ai_dataset():
-    """基于知识库AI生成数据集"""
+    """基于知识库AI生成数据集（异步）"""
     try:
         init_services()
         
@@ -597,36 +616,8 @@ def generate_ai_dataset():
         if sample_count < 5 or sample_count > 100:
             return jsonify({'error': 'Sample count must be between 5 and 100'}), 400
         
-        # 获取知识库chunks
-        try:
-            from services.ai_dataset_generator import AIDatasetGenerator
-            generator = AIDatasetGenerator()
-            
-            # 生成数据集
-            samples = generator.generate_dataset_from_kb(
-                kb_id=kb_id,
-                sample_count=sample_count,
-                question_types=question_types
-            )
-            
-            if not samples:
-                return jsonify({'error': 'Failed to generate samples from knowledge base'}), 500
-            
-        except Exception as e:
-            logger.error(f"Failed to generate AI dataset: {str(e)}")
-            return jsonify({'error': f'AI generation failed: {str(e)}'}), 500
-        
-        # 创建数据集
         dataset_id = str(uuid.uuid4())
         dataset_name = f"AI Generated Dataset - {datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
-        # 保存文件
-        storage_path = Path('tmp/datasets')
-        storage_path.mkdir(parents=True, exist_ok=True)
-        
-        file_path = storage_path / f"{dataset_id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(samples, f, ensure_ascii=False, indent=2)
         
         dataset_data = {
             'id': dataset_id,
@@ -634,21 +625,66 @@ def generate_ai_dataset():
             'description': f'AI generated dataset from knowledge base {kb_id} with {sample_count} samples',
             'file_name': 'ai_generated.json',
             'file_type': '.json',
-            'file_size': os.path.getsize(file_path),
-            'storage_path': str(file_path),
-            'num_samples': len(samples),
-            'has_reference': any('expected_answer' in sample for sample in samples),
-            'has_contexts': any('contexts' in sample for sample in samples),
-            'sample_fields': list(samples[0].keys()) if samples else [],
-            'created_by': 'ai-generator',
-            'generation_params': {
-                'kb_id': kb_id,
-                'sample_count': sample_count,
-                'question_types': question_types
-            }
+            'file_size': 0,
+            'storage_path': f'tmp/datasets/{dataset_id}.json',
+            'num_samples': 0,
+            'has_reference': False,
+            'has_contexts': False,
+            'sample_fields': [],
+            'status': 'processing',
+            'progress': 0,
+            'created_by': 'ai-generator'
         }
         
         dataset_manager.create_dataset(dataset_data)
+        
+        import threading
+        def generate_async():
+            try:
+                from services.ai_dataset_generator import AIDatasetGenerator
+                generator = AIDatasetGenerator()
+                
+                samples = generator.generate_dataset_from_kb(
+                    kb_id=kb_id,
+                    sample_count=sample_count,
+                    question_types=question_types
+                )
+                
+                if not samples:
+                    dataset_manager.update_dataset_status(
+                        dataset_id, 
+                        'failed', 
+                        error_message='Failed to generate samples from knowledge base'
+                    )
+                    return
+                
+                storage_path = Path('tmp/datasets')
+                storage_path.mkdir(parents=True, exist_ok=True)
+                
+                file_path = storage_path / f"{dataset_id}.json"
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(samples, f, ensure_ascii=False, indent=2)
+                
+                dataset_manager.update_dataset_status(
+                    dataset_id,
+                    'completed',
+                    progress=100,
+                    num_samples=len(samples),
+                    has_reference=any('expected_answer' in sample for sample in samples),
+                    has_contexts=any('contexts' in sample for sample in samples)
+                )
+                
+            except Exception as e:
+                logger.error(f"Failed to generate AI dataset: {str(e)}")
+                dataset_manager.update_dataset_status(
+                    dataset_id, 
+                    'failed', 
+                    error_message=str(e)
+                )
+        
+        thread = threading.Thread(target=generate_async)
+        thread.daemon = True
+        thread.start()
         
         return jsonify({
             'id': dataset_id,
@@ -656,16 +692,15 @@ def generate_ai_dataset():
             'description': dataset_data['description'],
             'file_name': 'ai_generated.json',
             'file_type': '.json',
-            'num_samples': len(samples),
-            'has_reference': dataset_data['has_reference'],
-            'has_contexts': dataset_data['has_contexts'],
-            'sample_fields': dataset_data['sample_fields'],
+            'num_samples': 0,
+            'status': 'processing',
+            'progress': 0,
             'created_at': datetime.now().isoformat()
-        }), 201
+        }), 202
         
     except Exception as e:
-        logger.error(f"Failed to generate AI dataset: {str(e)}")
-        return jsonify({'error': 'Failed to generate AI dataset'}), 500
+        logger.error(f"Failed to create AI dataset task: {str(e)}")
+        return jsonify({'error': 'Failed to create AI dataset task'}), 500
 
 
 @evaluation_bp.route('/datasets/<dataset_id>', methods=['DELETE'])
@@ -1502,12 +1537,11 @@ def get_statistics():
 
 
 def calculate_health_score(scores):
-    """计算健康度分数"""
+    """计算健康度分数 - 基于实际评测数据"""
     if not scores:
-        return 75  # 默认健康度
+        return 0  # 没有评测数据时返回0
 
     avg_score = sum(scores) / len(scores)
-    # 将分数映射到0-100范围
     return round(min(100, max(0, avg_score * 100)))
 
 

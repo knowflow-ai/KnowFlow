@@ -149,6 +149,14 @@ class DatasetManager:
 
         return samples
 
+    def update_dataset_status(self, dataset_id: str, status: str, progress: int = None, 
+                             error_message: str = None, num_samples: int = None,
+                             has_reference: bool = None, has_contexts: bool = None):
+        """更新数据集状态"""
+        return self.db.update_dataset_status(
+            dataset_id, status, progress, error_message, 
+            num_samples, has_reference, has_contexts
+        )
     
     def delete_dataset(self, dataset_id: str) -> bool:
         """删除数据集"""
@@ -427,7 +435,7 @@ class ReportManager:
 
         placeholders = ','.join(['?'] * len(task_ids))
         cursor.execute(f'DELETE FROM evaluation_reports WHERE task_id IN ({placeholders})', task_ids)
-        affected_rows = cursor.row_count
+        affected_rows = cursor.rowcount
 
         conn.commit()
         conn.close()
@@ -455,27 +463,27 @@ class ReportManager:
         for row in cursor.fetchall():
             try:
                 scores = json.loads(row['overall_scores'])
-
-                # 处理真实报告数据格式（包含 mean, std 等统计信息）
+                
+                report_metric_scores = []
+                
                 for metric_name, metric_data in scores.items():
                     if isinstance(metric_data, dict) and 'mean' in metric_data:
-                        # 这是真实的报告数据，使用平均值
                         avg_score = metric_data['mean']
                         if isinstance(avg_score, (int, float)):
-                            if metric_name == 'overall_score':
-                                recent_scores.append(avg_score)
-                            else:
-                                if metric_name not in metric_scores:
-                                    metric_scores[metric_name] = []
-                                metric_scores[metric_name].append(avg_score)
-                    elif isinstance(metric_data, (int, float)):
-                        # 这是直接的分数值
-                        if metric_name == 'overall_score':
-                            recent_scores.append(metric_data)
-                        else:
+                            report_metric_scores.append(avg_score)
                             if metric_name not in metric_scores:
                                 metric_scores[metric_name] = []
-                            metric_scores[metric_name].append(metric_data)
+                            metric_scores[metric_name].append(avg_score)
+                    elif isinstance(metric_data, (int, float)):
+                        report_metric_scores.append(metric_data)
+                        if metric_name not in metric_scores:
+                            metric_scores[metric_name] = []
+                        metric_scores[metric_name].append(metric_data)
+                
+                if report_metric_scores:
+                    overall_score = sum(report_metric_scores) / len(report_metric_scores)
+                    recent_scores.append(overall_score)
+                    
             except (json.JSONDecodeError, TypeError) as e:
                 continue
 

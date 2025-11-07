@@ -80,6 +80,9 @@ class DatabaseManager:
                 has_reference BOOLEAN DEFAULT 0,
                 has_contexts BOOLEAN DEFAULT 0,
                 sample_fields TEXT,  -- JSON 格式存储字段信息
+                status VARCHAR(20) DEFAULT 'pending',  -- pending, processing, completed, failed
+                progress INTEGER DEFAULT 0,
+                error_message TEXT,
                 created_by VARCHAR(100),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -346,8 +349,8 @@ class DatabaseManager:
             INSERT INTO datasets (
                 id, name, description, file_name, file_type, file_size,
                 storage_path, num_samples, has_reference, has_contexts,
-                sample_fields, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                sample_fields, status, progress, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             dataset_data['id'],
             dataset_data['name'],
@@ -360,12 +363,73 @@ class DatabaseManager:
             dataset_data.get('has_reference', False),
             dataset_data.get('has_contexts', False),
             json.dumps(dataset_data.get('sample_fields', [])),
+            dataset_data.get('status', 'pending'),
+            dataset_data.get('progress', 0),
             dataset_data.get('created_by', 'system')
         ))
 
         conn.commit()
         conn.close()
         return dataset_data['id']
+
+    def update_dataset_status(self, dataset_id: str, status: str, progress: int = None, 
+                             error_message: str = None, num_samples: int = None,
+                             has_reference: bool = None, has_contexts: bool = None):
+        """更新数据集状态"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        update_fields = ['status = ?', 'updated_at = CURRENT_TIMESTAMP']
+        update_values = [status]
+
+        if progress is not None:
+            update_fields.append('progress = ?')
+            update_values.append(progress)
+
+        if error_message is not None:
+            update_fields.append('error_message = ?')
+            update_values.append(error_message)
+            
+        if num_samples is not None:
+            update_fields.append('num_samples = ?')
+            update_values.append(num_samples)
+            
+        if has_reference is not None:
+            update_fields.append('has_reference = ?')
+            update_values.append(has_reference)
+            
+        if has_contexts is not None:
+            update_fields.append('has_contexts = ?')
+            update_values.append(has_contexts)
+
+        update_values.append(dataset_id)
+
+        cursor.execute(f'''
+            UPDATE datasets
+            SET {', '.join(update_fields)}
+            WHERE id = ?
+        ''', update_values)
+
+        conn.commit()
+        conn.close()
+
+    def get_dataset(self, dataset_id: str) -> Optional[Dict[str, Any]]:
+        """获取单个数据集"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM datasets WHERE id = ?', (dataset_id,))
+        row = cursor.fetchone()
+        
+        if row:
+            dataset = dict(row)
+            if dataset['sample_fields']:
+                dataset['sample_fields'] = json.loads(dataset['sample_fields'])
+            conn.close()
+            return dataset
+            
+        conn.close()
+        return None
 
     def get_datasets(self, limit: int = 20, offset: int = 0) -> Dict[str, Any]:
         """获取数据集列表"""
@@ -384,7 +448,6 @@ class DatabaseManager:
         datasets = []
         for row in cursor.fetchall():
             dataset = dict(row)
-            # 解析 JSON 字段
             if dataset['sample_fields']:
                 dataset['sample_fields'] = json.loads(dataset['sample_fields'])
             datasets.append(dataset)
