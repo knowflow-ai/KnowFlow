@@ -339,7 +339,8 @@ class AIDatasetGenerator:
             logger.info(f"Starting AI dataset generation for KB {kb_id}, {sample_count} samples")
             
             # 获取知识库chunks，获取足够的chunk以应对质量过滤
-            chunks = self.get_knowledge_base_chunks(kb_id, limit=min(200, sample_count * 4))
+            # 提高倍数以确保有足够的候选 chunk（考虑到 LLM 可能拒绝部分 chunk）
+            chunks = self.get_knowledge_base_chunks(kb_id, limit=min(500, sample_count * 50))
             if not chunks:
                 logger.error("No chunks retrieved from knowledge base")
                 return []
@@ -361,12 +362,12 @@ class AIDatasetGenerator:
                 max_chunk_tries = 10  # 最多尝试10个不同的chunk
                 
                 for _ in range(max_chunk_tries):
-                    # 选择可用的chunk（排除已失败的chunk，且长度>=128）
+                    # 选择可用的chunk（排除已使用的chunk）
+                    # 每个 chunk 只使用一次
                     available_chunks = [
                         c for c in chunks 
                         if c.get('id') not in failed_chunks 
-                        and chunk_attempt_count.get(c.get('id'), 0) < 1
-                        and len(c.get('content', '')) >= 128  # chunk长度必须>=128字符
+                        and chunk_attempt_count.get(c.get('id'), 0) == 0
                     ]
                     
                     if not available_chunks:
@@ -376,24 +377,36 @@ class AIDatasetGenerator:
                     # 随机选择一个chunk
                     chunk = random.choice(available_chunks)
                     chunk_id = chunk.get('id')
+                    chunk_content = chunk.get('content', '')
                     
-                    # 记录尝试次数
-                    chunk_attempt_count[chunk_id] = chunk_attempt_count.get(chunk_id, 0) + 1
+                    # 标记该chunk已使用
+                    chunk_attempt_count[chunk_id] = 1
                     
-                    logger.info(f"Trying chunk {chunk_id} (attempt {chunk_attempt_count[chunk_id]}) for sample {i + 1}")
+                    # 预检查：chunk长度要求
+                    if len(chunk_content) < 128:
+                        logger.info(f"Skipping chunk {chunk_id}: too short ({len(chunk_content)} chars)")
+                        failed_chunks.add(chunk_id)
+                        continue
                     
-                    # 使用LLM生成
-                    qa_pair = self.generate_qa_pair_with_llm(chunk, question_type, max_retries=2)
+                    # 预检查：chunk必须包含实质性内容（不能只是标题或空白）
+                    cleaned_content = chunk_content.replace('#', '').replace('\n', '').replace(' ', '').strip()
+                    if len(cleaned_content) < 50:
+                        logger.info(f"Skipping chunk {chunk_id}: insufficient content after cleaning")
+                        failed_chunks.add(chunk_id)
+                        continue
+                    
+                    logger.info(f"Trying chunk {chunk_id} for sample {i + 1} (content length: {len(chunk_content)} chars)")
+                    
+                    # 使用LLM生成（只尝试一次）
+                    qa_pair = self.generate_qa_pair_with_llm(chunk, question_type, max_retries=1)
                     
                     if qa_pair:
-                        logger.info(f"Successfully generated QA pair using chunk {chunk_id}")
+                        logger.info(f"✅ Successfully generated QA pair using chunk {chunk_id}")
                         break
                     else:
-                        logger.warning(f"Failed to generate valid QA pair from chunk {chunk_id}")
-                        # 如果该chunk已经尝试了2次，标记为失败
-                        if chunk_attempt_count[chunk_id] >= 2:
-                            failed_chunks.add(chunk_id)
-                            logger.info(f"Marking chunk {chunk_id} as failed after 2 attempts")
+                        logger.warning(f"❌ Failed to generate valid QA pair from chunk {chunk_id}")
+                        # 标记为失败，该chunk不再使用
+                        failed_chunks.add(chunk_id)
                 
                 if qa_pair:
                     samples.append(qa_pair)

@@ -17,6 +17,7 @@ import {
   Row,
   Col,
   Tooltip,
+  App,
 } from 'antd';
 import {
   SaveOutlined,
@@ -24,6 +25,7 @@ import {
   ApiOutlined,
   SettingOutlined,
   KeyOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { systemApi } from '../services/evaluation';
 
@@ -43,11 +45,14 @@ interface APIConfig {
 }
 
 const Settings: React.FC = () => {
+  const { modal } = App.useApp();
   const [form] = Form.useForm();
   const [apiForm] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(true);
 
   const [apiConfig, setApiConfig] = useState<APIConfig>({
     provider: 'openai',
@@ -80,7 +85,7 @@ const Settings: React.FC = () => {
         apiForm.setFieldsValue(apiConfigForForm);
         console.log('Set API form values:', apiConfigForForm);
       }
-      } catch (error) {
+    } catch (error) {
       console.error('Failed to fetch config:', error);
     } finally {
       setLoading(false);
@@ -145,6 +150,45 @@ const Settings: React.FC = () => {
     }
   };
 
+  // 自动保存 API 配置
+  const autoSaveApiKey = async () => {
+    setIsAutoSaving(true);
+    try {
+      const values = apiForm.getFieldsValue();
+      
+      // 处理 model 字段
+      let modelValue = values.model;
+      if (Array.isArray(modelValue)) {
+        modelValue = modelValue[0] || 'gpt-4';
+      }
+
+      const configData = {
+        api_config: {
+          ...values,
+          model: modelValue
+        }
+      };
+
+      await systemApi.updateConfig(configData);
+      setIsSaved(true);
+      message.success('已自动保存', 1);
+    } catch (error: any) {
+      console.error('Auto save failed:', error);
+      message.error('自动保存失败');
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
+
+  // 任意字段失去焦点时自动保存
+  const handleFieldBlur = () => {
+    const values = apiForm.getFieldsValue();
+    // 至少要有 API Key 才保存
+    if (values.apiKey && values.apiKey.trim()) {
+      autoSaveApiKey();
+    }
+  };
+
   const handleTestConnection = async () => {
     setTestingConnection(true);
     try {
@@ -179,13 +223,22 @@ const Settings: React.FC = () => {
       });
 
       if (result.success) {
-        message.success(result.message || '连接测试成功');
+        modal.success({
+          title: '连接测试成功',
+          content: result.message || 'API 连接正常，可以开始使用',
+        });
       } else {
-        message.error(result.message || '连接测试失败');
+        modal.error({
+          title: '连接测试失败',
+          content: result.message || '请检查 API 配置是否正确',
+        });
       }
     } catch (error: any) {
       console.error('Failed to test connection:', error);
-      message.error(error?.response?.data?.message || '连接测试失败，请检查配置');
+      modal.error({
+        title: '连接测试失败',
+        content: error?.response?.data?.message || '请检查网络连接和 API 配置',
+      });
     } finally {
       setTestingConnection(false);
     }
@@ -361,7 +414,10 @@ const Settings: React.FC = () => {
                     name="provider"
                     rules={[{ required: true }]}
                   >
-                    <Select onChange={handleProviderChange}>
+                    <Select 
+                      onChange={handleProviderChange}
+                      onBlur={handleFieldBlur}
+                    >
                       <Option value="openai">OpenAI</Option>
                       <Option value="anthropic">Anthropic</Option>
                       <Option value="azure">Azure OpenAI</Option>
@@ -384,6 +440,7 @@ const Settings: React.FC = () => {
                       mode="tags"
                       maxCount={1}
                       placeholder="选择或输入模型名称"
+                      onBlur={handleFieldBlur}
                     >
                       <Option value="gpt-4">GPT-4</Option>
                       <Option value="gpt-4-turbo">GPT-4 Turbo</Option>
@@ -409,6 +466,8 @@ const Settings: React.FC = () => {
                 <Input.Password
                   placeholder="输入您的 API 密钥"
                   prefix={<KeyOutlined />}
+                  onBlur={handleFieldBlur}
+                  onChange={() => setIsSaved(false)}
                 />
               </Form.Item>
 
@@ -417,7 +476,10 @@ const Settings: React.FC = () => {
                 name="endpoint"
                 tooltip="留空则使用默认端点。SiliconFlow: https://api.siliconflow.cn/v1"
               >
-                <Input placeholder="https://api.siliconflow.cn/v1" />
+                <Input 
+                  placeholder="https://api.siliconflow.cn/v1"
+                  onBlur={handleFieldBlur}
+                />
               </Form.Item>
 
               <Form.Item
@@ -430,6 +492,7 @@ const Settings: React.FC = () => {
                   maxCount={1}
                   placeholder="选择或输入 Embedding 模型名称"
                   allowClear
+                  onBlur={handleFieldBlur}
                 >
                   <Option value="BAAI/bge-large-zh-v1.5">BAAI/bge-large-zh-v1.5 (SiliconFlow)</Option>
                   <Option value="BAAI/bge-m3">BAAI/bge-m3 (SiliconFlow)</Option>
@@ -446,7 +509,13 @@ const Settings: React.FC = () => {
                     name="temperature"
                     tooltip="控制输出的随机性，0 表示确定性输出"
                   >
-                    <InputNumber min={0} max={1} step={0.1} style={{ width: '100%' }} />
+                    <InputNumber 
+                      min={0} 
+                      max={1} 
+                      step={0.1} 
+                      style={{ width: '100%' }}
+                      onBlur={handleFieldBlur}
+                    />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
@@ -454,29 +523,25 @@ const Settings: React.FC = () => {
                     label="最大 Token 数"
                     name="maxTokens"
                   >
-                    <InputNumber min={100} max={8000} style={{ width: '100%' }} />
+                    <InputNumber 
+                      min={100} 
+                      max={8000} 
+                      style={{ width: '100%' }}
+                      onBlur={handleFieldBlur}
+                    />
                   </Form.Item>
                 </Col>
               </Row>
 
               <Form.Item>
-                <Space>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    icon={<SaveOutlined />}
-                    loading={loading}
-                  >
-                    保存配置
-                  </Button>
-                  <Button
-                    icon={<ApiOutlined />}
-                    onClick={handleTestConnection}
-                    loading={testingConnection}
-                  >
-                    测试连接
-                  </Button>
-                </Space>
+                <Button
+                  type="primary"
+                  icon={<ApiOutlined />}
+                  onClick={handleTestConnection}
+                  loading={testingConnection}
+                >
+                  测试连接
+                </Button>
               </Form.Item>
             </Form>
           </Card>

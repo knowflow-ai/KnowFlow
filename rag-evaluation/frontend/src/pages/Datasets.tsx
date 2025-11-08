@@ -664,7 +664,7 @@ const Datasets: React.FC = () => {
         ]}
       >
         {selectedDataset && (
-          <Tabs defaultActiveKey="info">
+          <Tabs defaultActiveKey="samples">
             <Tabs.TabPane tab="基本信息" key="info">
               <Descriptions column={2}>
                 <Descriptions.Item label="数据集ID">{selectedDataset.id}</Descriptions.Item>
@@ -766,7 +766,7 @@ const Datasets: React.FC = () => {
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
               }
               options={chatAssistants.map((chat) => ({
-                label: `${chat.name} (${chat.dataset_ids?.length || 0} 个知识库)`,
+                label: chat.name,
                 value: chat.id,
               }))}
             />

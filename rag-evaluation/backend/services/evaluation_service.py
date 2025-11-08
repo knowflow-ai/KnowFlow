@@ -198,7 +198,9 @@ class EvaluationService:
 
         return {
             'faithfulness': Faithfulness(),
-            'answer_correctness': AnswerCorrectness(),  # 需要 embeddings
+            # 调整权重: [语义相似度权重, 事实性权重] = [0.5, 0.5]
+            # 默认是 [0.25, 0.75]，现在更重视语义相似度，减少对格式的依赖
+            'answer_correctness': AnswerCorrectness(weights=[0.5, 0.5]),
             'context_precision': ContextPrecision(),
             'context_recall': ContextRecall(),
             'answer_relevancy': AnswerRelevancy()  # 需要 embeddings

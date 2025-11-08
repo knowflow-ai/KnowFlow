@@ -1876,6 +1876,7 @@ def test_api_connection():
     logger.info("🔗 收到API连接测试请求")
 
     try:
+        init_services()
         data = request.get_json()
         logger.info(f"📝 连接配置: {json.dumps(data, ensure_ascii=False)}")
 
@@ -1890,6 +1891,20 @@ def test_api_connection():
                 'success': False,
                 'message': 'API Key 不能为空'
             }), 400
+
+        # 如果收到的是脱敏的 key（包含 *），则从数据库读取完整的 key
+        if '*' in api_key:
+            logger.info("🔑 检测到脱敏 API Key，从数据库读取完整 Key")
+            default_config = config_manager.get_default_api_config()
+            if default_config and default_config.get('apiKey'):
+                api_key = default_config['apiKey']
+                logger.info("✅ 成功从数据库读取完整 API Key")
+            else:
+                logger.warning("⚠️ 无法从数据库读取 API Key")
+                return jsonify({
+                    'success': False,
+                    'message': '无法获取完整的 API Key，请重新输入'
+                }), 400
 
         # 根据 provider 设置默认 endpoint
         provider_endpoints = {
