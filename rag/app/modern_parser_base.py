@@ -32,7 +32,8 @@ from rag.nlp import rag_tokenizer, tokenize, add_positions
 from rag.app.parser_utils import (
     ensure_pdf,
     extract_text_and_coordinates,
-    call_chunking_service
+    call_chunking_service,
+    process_markdown_images
 )
 
 
@@ -183,6 +184,10 @@ class ModernParserBase(ABC):
                     with open(pdf_path, 'r', encoding='utf-8') as f:
                         markdown_text = f.read()
 
+                # 处理 Markdown 中的图片（上传到 MinIO 并替换路径）
+                callback(0.3, "Processing images in Markdown...")
+                markdown_text = process_markdown_images(markdown_text, pdf_path, kb_id)
+
                 # Markdown 不需要坐标映射
                 coordinate_map = {}
 
@@ -190,7 +195,7 @@ class ModernParserBase(ABC):
                 sections = [(markdown_text, "")]
                 tables = []
 
-                callback(0.5, "Markdown file read successfully.")
+                callback(0.5, "Markdown file processed successfully.")
             else:
                 # PDF 文件：使用现有��程
                 # 4. 根据 layout_recognize 选择解析器

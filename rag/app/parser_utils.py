@@ -26,9 +26,12 @@ import re
 import copy
 import requests
 import tempfile
+from pathlib import Path
+from urllib.parse import urlparse, unquote
 
 from deepdoc.parser import MinerUParser
 from rag.nlp import rag_tokenizer, tokenize, add_positions
+from rag.utils.storage_factory import STORAGE_IMPL
 
 
 # Gotenberg 配置
@@ -455,6 +458,128 @@ def convert_chunks_to_ragflow_format(chunks_with_positions, base_doc, lang, call
         res.append(d)
 
     return res
+
+
+def process_markdown_images(markdown_text, markdown_file_path, kb_id):
+    """
+    处理 Markdown 文件中的图片引用
+
+    提取图片引用，上传到 MinIO，并替换路径为 MinIO 路径
+
+    Args:
+        markdown_text: Markdown 文本内容
+        markdown_file_path: Markdown 文件路径（用于解析相对路径）
+        kb_id: 知识库ID
+
+    Returns:
+        str: 处理后的 Markdown 文本（图片路径已替换为 MinIO 路径）
+    """
+    if not kb_id:
+        logging.warning("No kb_id provided, skipping image processing")
+        return markdown_text
+
+    # 提取 Markdown 中的图片引用
+    # 支持两种格式:
+    # 1. ![alt](path)
+    # 2. <img src="path" ...>
+
+    image_pattern_md = r'!\[([^\]]*)\]\(([^)]+)\)'
+    image_pattern_html = r'<img[^>]+src=["\']([^"\']+)["\'][^>]*>'
+
+    markdown_dir = os.path.dirname(os.path.abspath(markdown_file_path)) if markdown_file_path else os.getcwd()
+
+    processed_text = markdown_text
+    uploaded_images = {}  # 缓存已上传的图片 {原始路径: MinIO路径}
+
+    def upload_and_replace(match):
+        """上传图片并返回替换后的 Markdown"""
+        nonlocal uploaded_images
+
+        # 判断是 Markdown 格式还是 HTML 格式
+        if match.group(0).startswith('!'):
+            # Markdown 格式: ![alt](path)
+            alt_text = match.group(1)
+            image_path = match.group(2)
+            is_html = False
+        else:
+            # HTML 格式: <img src="path" ...>
+            image_path = match.group(1)
+            alt_text = ""
+            is_html = True
+
+        # 跳过已经是 MinIO 或 HTTP 路径的图片
+        if image_path.startswith(('/minio/', 'http://', 'https://')):
+            return match.group(0)
+
+        # 如果已经上传过，直接使用缓存的路径
+        if image_path in uploaded_images:
+            minio_path = uploaded_images[image_path]
+            if is_html:
+                return match.group(0).replace(image_path, minio_path)
+            else:
+                return f"![{alt_text}]({minio_path})"
+
+        # 解析图片路径
+        image_path_decoded = unquote(image_path)
+
+        # 处理相对路径
+        if not os.path.isabs(image_path_decoded):
+            full_image_path = os.path.join(markdown_dir, image_path_decoded)
+        else:
+            full_image_path = image_path_decoded
+
+        full_image_path = os.path.normpath(full_image_path)
+
+        # 检查文件是否存在
+        if not os.path.exists(full_image_path):
+            logging.warning(f"Image file not found: {full_image_path}, keeping original reference")
+            return match.group(0)
+
+        # 检查文件类型
+        image_ext = os.path.splitext(full_image_path)[1].lower()
+        if image_ext not in ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp'):
+            logging.warning(f"Unsupported image type: {image_ext}, skipping {full_image_path}")
+            return match.group(0)
+
+        # 上传到 MinIO
+        try:
+            image_name = os.path.basename(full_image_path)
+
+            # 读取图片文件
+            with open(full_image_path, 'rb') as f:
+                image_binary = f.read()
+
+            # 上传到 MinIO
+            STORAGE_IMPL.put(kb_id, image_name, image_binary)
+
+            # 生成 MinIO 路径
+            minio_path = f"/minio/{kb_id}/{image_name}"
+
+            # 缓存结果
+            uploaded_images[image_path] = minio_path
+
+            logging.info(f"Uploaded image to MinIO: {full_image_path} -> {minio_path}")
+
+            # 替换路径
+            if is_html:
+                return match.group(0).replace(image_path, minio_path)
+            else:
+                return f"![{alt_text}]({minio_path})"
+
+        except Exception as e:
+            logging.error(f"Failed to upload image {full_image_path} to MinIO: {e}")
+            return match.group(0)  # 保留原始引用
+
+    # 替换 Markdown 格式的图片
+    processed_text = re.sub(image_pattern_md, upload_and_replace, processed_text)
+
+    # 替换 HTML 格式的图片
+    processed_text = re.sub(image_pattern_html, upload_and_replace, processed_text)
+
+    if uploaded_images:
+        logging.info(f"Processed {len(uploaded_images)} images in Markdown file")
+
+    return processed_text
 
 
 def mineru_chunk_pipeline(
