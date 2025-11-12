@@ -88,9 +88,12 @@ class OCRToMiddleJsonConverter:
         for page_idx in sorted(pages_blocks.keys()):
             page_blocks = pages_blocks[page_idx]
 
+            # 预处理：合并 figure_title 和 table/image（模仿 MinerU 的 caption 机制）
+            processed_blocks = self._merge_captions_with_content(page_blocks)
+
             # 转换块列表
             para_blocks = []
-            for block in page_blocks:
+            for block in processed_blocks:
                 para_block = self._convert_block_to_para_block(
                     block, page_idx
                 )
@@ -107,6 +110,55 @@ class OCRToMiddleJsonConverter:
         )
 
         return {'pdf_info': pdf_info}
+
+    def _merge_captions_with_content(self, blocks: List[Dict]) -> List[Dict]:
+        """
+        合并 figure_title 和紧随其后的 table/image 块
+
+        模仿 MinerU 的设计：
+        - figure_title 块作为 caption 嵌入到 table/image 块的 blocks 数组中
+        - 最终结构：table/image 块包含 [caption_block, body_block]
+
+        Args:
+            blocks: 同一页的所有块列表
+
+        Returns:
+            处理后的块列表
+        """
+        result = []
+        i = 0
+
+        while i < len(blocks):
+            current_block = blocks[i]
+            current_label = current_block.get('block_label', '')
+
+            # 检查是否是 figure_title 且下一个块是 table/image
+            if current_label == 'figure_title' and i + 1 < len(blocks):
+                next_block = blocks[i + 1]
+                next_label = next_block.get('block_label', '')
+
+                # 如果下一个块是 table 或 image，进行合并
+                if next_label in ('table', 'chart_box'):
+                    self.logger.debug(
+                        f"Merging figure_title (block {current_block.get('block_id')}) "
+                        f"with {next_label} (block {next_block.get('block_id')})"
+                    )
+
+                    # 将 caption 信息添加到 next_block
+                    next_block['_caption_block'] = current_block
+                    result.append(next_block)
+                    i += 2  # 跳过 caption 和 content 块
+                    continue
+
+            # 正常添加块
+            result.append(current_block)
+            i += 1
+
+        self.logger.debug(
+            f"Caption merging: {len(blocks)} blocks -> {len(result)} blocks"
+        )
+
+        return result
 
     def _convert_block_to_para_block(
         self,
@@ -150,8 +202,8 @@ class OCRToMiddleJsonConverter:
         """
         block_label = block.get('block_label', 'text')
 
-        # 过滤掉页眉、页脚、页码、侧边栏等非内容块
-        skip_labels = ['header', 'footer', 'number', 'aside_text']
+        # 过滤掉页眉、页脚、页码、侧边栏、页眉图片等非内容块
+        skip_labels = ['header', 'footer', 'number', 'aside_text', 'header_image']
         if block_label in skip_labels:
             self.logger.debug(f"Skipping {block_label} block")
             return None
@@ -185,13 +237,46 @@ class OCRToMiddleJsonConverter:
                 }]
             }
 
+            # 如果有 caption，创建 MinerU 风格的嵌套结构
+            if '_caption_block' in block:
+                caption_block = block['_caption_block']
+                caption_content = caption_block.get('block_content', '')
+                caption_bbox = self._convert_bbox_to_pdf_coords(
+                    caption_block.get('block_bbox', block_bbox_raw)
+                )
+
+                # 创建 blocks 数组：[image_caption, image_body]
+                para_block['blocks'] = [
+                    {
+                        'type': 'image_caption',
+                        'bbox': caption_bbox,
+                        'lines': self._create_pseudo_lines(
+                            caption_content, caption_bbox, 'text'
+                        )
+                    },
+                    {
+                        'type': 'image_body',
+                        'bbox': block_bbox,
+                        'image_path': img_key
+                    }
+                ]
+
+                # 添加 paddleocr_block 信息（用于追踪）
+                para_block['_paddleocr_block'] = {
+                    'block_label': block_label,
+                    'block_id': block_id,
+                    'block_order': block_order,
+                    'caption_block_id': caption_block.get('block_id')
+                }
+
             # 如果有图片数据，添加到块中
             if hasattr(self, 'images') and self.images and img_key in self.images:
                 para_block['_image_data'] = self.images[img_key]
 
             return para_block
 
-        if not block_content:
+        # 检查是否为空内容（但图片块允许为空）
+        if not block_content and block_label not in ('chart_box',):
             self.logger.debug(
                 f"Skipping empty block {block_id} "
                 f"(label={block_label})"
@@ -218,10 +303,39 @@ class OCRToMiddleJsonConverter:
             }
         }
 
+        # 如果是表格且有 caption，创建 MinerU 风格的嵌套结构
+        if block_type == 'table' and '_caption_block' in block:
+            caption_block = block['_caption_block']
+            caption_content = caption_block.get('block_content', '')
+            caption_bbox = self._convert_bbox_to_pdf_coords(
+                caption_block.get('block_bbox', block_bbox_raw)
+            )
+
+            # 创建 blocks 数组：[table_caption, table_body]
+            para_block['blocks'] = [
+                {
+                    'type': 'table_caption',
+                    'bbox': caption_bbox,
+                    'lines': self._create_pseudo_lines(
+                        caption_content, caption_bbox, 'text'
+                    )
+                },
+                {
+                    'type': 'table_body',
+                    'bbox': block_bbox,
+                    'lines': self._create_pseudo_lines(
+                        block_content, block_bbox, block_type
+                    )
+                }
+            ]
+
+            # 保留合并信息（用于调试和追踪）
+            para_block['_paddleocr_block']['caption_block_id'] = caption_block.get('block_id')
+
         # 标题块添加 level
         if block_type == 'title':
             para_block['level'] = self._infer_title_level(
-                block_content, block_bbox
+                block_content, block_label
             )
 
         return para_block
@@ -249,8 +363,8 @@ class OCRToMiddleJsonConverter:
             'text': 'text',
             'table': 'table',
             'image': 'image',
-            'header_image': 'image',  # 头部图片
             'chart': 'image',          # 图表
+            'chart_box': 'image',      # 图表框（PaddleOCR 特定）
             'figure': 'image',         # 图形
             'list': 'list',
             # 其他可能的类型
@@ -313,23 +427,24 @@ class OCRToMiddleJsonConverter:
             }]
         }]
 
-    def _infer_title_level(self, content: str, bbox: List[float]) -> int:
+    def _infer_title_level(self, content: str, block_label: str) -> int:
         """
-        推断标题级别
+        推断标题级别 - 基于 PaddleOCR 返回的 block_label
 
-        启发式规则:
-        1. 内容以 "# " 开头 -> 解析 markdown
-        2. 内容长度 < 20 字符 -> 可能是高级标题
-        3. bbox 高度较大 -> 可能是高级标题
+        PaddleOCR 的 block_label 层级映射:
+        - doc_title: 文档标题 -> H1
+        - paragraph_title: 段落/章节标题 -> H2
+        - title: 通用标题 -> H3
+        - 其他: 默认 H3
 
         Args:
             content: 标题内容
-            bbox: 标题坐标
+            block_label: PaddleOCR 返回的块标签
 
         Returns:
             标题级别 (1-6)
         """
-        # 如果内容已经是 markdown 标题格式
+        # 如果内容已经是 markdown 标题格式，优先使用
         if content.startswith('#'):
             level = 0
             for char in content:
@@ -339,18 +454,20 @@ class OCRToMiddleJsonConverter:
                     break
             return min(level, 6)
 
-        # 根据长度和高度启发式推断
-        content_length = len(content.strip())
-        bbox_height = bbox[3] - bbox[1] if len(bbox) >= 4 else 20
+        # 基于 block_label 直接映射
+        label_to_level = {
+            'doc_title': 1,        # 文档主标题
+            'paragraph_title': 2,  # 章节标题
+            'title': 3,           # 通用标题
+            # 其他可能的标题类型
+            'section_title': 2,   # 节标题
+            'subsection_title': 3, # 子节标题
+            'heading': 3,         # 标题
+            'subheading': 4,      # 子标题
+        }
 
-        if content_length <= 10 and bbox_height > 30:
-            return 1  # 一级标题
-        elif content_length <= 20 and bbox_height > 25:
-            return 2  # 二级标题
-        elif content_length <= 30:
-            return 3  # 三级标题
-        else:
-            return 4  # 四级及以下
+        # 返回对应的级别，默认为 3
+        return label_to_level.get(block_label.lower(), 3)
 
     def get_statistics(self, middle_json: dict) -> Dict[str, Any]:
         """

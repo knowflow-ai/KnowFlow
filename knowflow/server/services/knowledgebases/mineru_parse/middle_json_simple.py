@@ -348,11 +348,11 @@ class SimpleMiddleJsonConverter:
                     if sub_block.get('type') == 'table_caption':
                         caption_text = self._extract_text_from_lines(sub_block)
 
-            # 提取 HTML 表格
-            # 直接从 block 获取 HTML
+            # 提取 HTML 表格 - 支持多种结构
+            # 1. 直接从 block 获取 HTML
             if 'html' in block:
                 table_html = block['html']
-            # 从嵌套结构获取 HTML (blocks[0].lines[0].spans[0].html)
+            # 2. 从嵌套 blocks 结构获取 HTML (MinerU 格式)
             elif 'blocks' in block:
                 for sub_block in block['blocks']:
                     if sub_block.get('type') == 'table_body' and 'lines' in sub_block:
@@ -362,6 +362,21 @@ class SimpleMiddleJsonConverter:
                                     if 'html' in span:
                                         table_html = span['html']
                                         break
+            # 3. 从 lines/spans 直接获取 content (PaddleOCR 格式)
+            if not table_html and 'lines' in block:
+                for line in block['lines']:
+                    if 'spans' in line:
+                        for span in line['spans']:
+                            # PaddleOCR: HTML 在 content 字段中
+                            if span.get('type') == 'table' and 'content' in span:
+                                table_html = span['content']
+                                break
+                            # 也支持 html 字段
+                            elif 'html' in span:
+                                table_html = span['html']
+                                break
+                    if table_html:
+                        break
 
             # 如果有标题和表格内容,将标题作为 HTML 注释嵌入表格
             if caption_text and table_html:
