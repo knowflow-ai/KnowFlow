@@ -149,6 +149,13 @@ class OCRToMiddleJsonConverter:
         }
         """
         block_label = block.get('block_label', 'text')
+
+        # 过滤掉页眉、页脚、页码、侧边栏等非内容块
+        skip_labels = ['header', 'footer', 'number', 'aside_text']
+        if block_label in skip_labels:
+            self.logger.debug(f"Skipping {block_label} block")
+            return None
+
         block_content = block.get('block_content', '').strip()
         block_bbox_raw = block.get('block_bbox', [0, 0, 0, 0])
         block_id = block.get('block_id', 0)
@@ -173,7 +180,7 @@ class OCRToMiddleJsonConverter:
                 'lines': [{
                     'spans': [{
                         'type': 'text',
-                        'content': block_content or f'[Image: {img_key}]'
+                        'content': ''  # 图片块不需要文本内容
                     }]
                 }]
             }
@@ -254,12 +261,7 @@ class OCRToMiddleJsonConverter:
             'abstract': 'text',        # 摘要
             'reference_content': 'text', # 参考文献
             'figure_title': 'text',    # 图片标题作为文本
-            # 非内容块，映射为 text
-            'header': 'text',
-            'footer': 'text',
-            'aside_text': 'text',
-            'footnote': 'text',
-            'number': 'text',
+            'footnote': 'text',        # 脚注保留为文本,
         }
 
         return label_to_type.get(block_label.lower(), 'text')
