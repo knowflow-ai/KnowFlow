@@ -99,7 +99,7 @@ paddleocr:
   url: "http://8.134.177.47:15003"
 
   # 请求超时时间（秒）
-  timeout: 300
+  timeout: 30000
 
   # 单次请求最大文件大小（MB）
-  max_file_size: 50
+  max_file_size: 5000

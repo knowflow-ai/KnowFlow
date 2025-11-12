@@ -583,12 +583,14 @@ def health_check():
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
-    logger.info(f"KnowFlow Server 启动中... 端口: {port}")
-    
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+
+    logger.info(f"KnowFlow Server 启动中... 端口: {port}, Debug模式: {debug_mode}")
+
     # 检查是否是werkzeug reloader进程
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         logger.info("主工作进程启动 - RBAC将在后台自动初始化")
     else:
         logger.info("监控进程启动 - 等待主工作进程")
-    
-    app.run(host='0.0.0.0', port=port, debug=True)
+
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)

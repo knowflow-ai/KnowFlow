@@ -59,6 +59,7 @@ services:
     ports:
       - "5000:5000"
     environment:
+      - FLASK_DEBUG=false
       - RAGFLOW_BASE_URL=${RAGFLOW_BASE_URL:-http://ragflow-server:9380}
       - DB_HOST=${DB_HOST:-mysql}
       - MYSQL_PORT=3306
