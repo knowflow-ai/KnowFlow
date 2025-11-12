@@ -22,6 +22,7 @@ from .markdown_parser import MarkdownElementExtractor
 from .markdown_parser import RAGFlowMarkdownParser as MarkdownParser
 from .mineru_parser import MinerUParser
 from .dots_parser import DOTSParser
+from .paddleocr_parser import PaddleOCRParser
 from .pdf_parser import PlainParser
 from .pdf_parser import RAGFlowPdfParser as PdfParser
 from .ppt_parser import RAGFlowPptParser as PptParser
@@ -32,6 +33,7 @@ __all__ = [
     "PlainParser",
     "MinerUParser",
     "DOTSParser",
+    "PaddleOCRParser",
     "DocxParser",
     "ExcelParser",
     "PptParser",

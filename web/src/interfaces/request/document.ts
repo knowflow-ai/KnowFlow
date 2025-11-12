@@ -1,7 +1,7 @@
 export interface IChangeParserConfigRequestBody {
   pages: number[][];
   chunk_token_num: number;
-  layout_recognize: boolean;
+  layout_recognize: string;
   task_page_size: number;
 }
 

@@ -260,7 +260,7 @@ class ModernParserBase(ABC):
         根据 layout_recognizer 选择并使用对应的解析器
 
         Args:
-            layout_recognizer: 布局识别器类型 (MinerU/DOTS/DeepDOC)
+            layout_recognizer: 布局识别器类型 (MinerU/DOTS/PaddleOCR/DeepDOC)
             pdf_path: PDF 文件路径
             pdf_binary: PDF 二进制数据
             from_page: 起始页码
@@ -276,8 +276,11 @@ class ModernParserBase(ABC):
         elif layout_recognizer == "DOTS":
             from deepdoc.parser import DOTSParser
             pdf_parser = DOTSParser()
+        elif layout_recognizer == "PaddleOCR":
+            from deepdoc.parser import PaddleOCRParser
+            pdf_parser = PaddleOCRParser()
         else:
-            # 默认使用 MinerU（未来可以支持 DeepDOC）
+            # 默认使用 MinerU
             logging.warning(f"Unknown layout_recognizer: {layout_recognizer}, falling back to MinerU")
             from deepdoc.parser import MinerUParser
             pdf_parser = MinerUParser()

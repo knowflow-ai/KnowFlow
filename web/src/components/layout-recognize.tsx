@@ -20,6 +20,7 @@ const LayoutRecognize = () => {
       DocumentType.PlainText,
       'MinerU',
       'DOTS',
+      'PaddleOCR',
     ].map((x) => ({
       label:
         x === DocumentType.PlainText
@@ -28,7 +29,9 @@ const LayoutRecognize = () => {
             ? 'MinerU'
             : x === 'DOTS'
               ? 'DOTS'
-              : 'DeepDoc',
+              : x === 'PaddleOCR'
+                ? 'PaddleOCR'
+                : 'DeepDoc',
       value: x,
     }));
 

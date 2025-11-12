@@ -2,8 +2,9 @@ import { DocumentParserType } from '@/constants/knowledge';
 import { useHandleChunkMethodSelectChange } from '@/hooks/logic-hooks';
 import { useSelectParserList } from '@/hooks/user-setting-hooks';
 import {
-  filterParsersByLayoutRecognize,
+  ModernLayoutRecognizers,
   ModernParsers,
+  filterParsersByLayoutRecognize,
 } from '@/utils/parser-filter';
 import { Form, FormInstance } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -189,18 +190,18 @@ export const useFetchParserListOnMount = (
 
     prevLayoutRecognizeRef.current = layoutRecognize;
 
-    const isMinerUOrDOTS =
-      layoutRecognize === 'MinerU' || layoutRecognize === 'DOTS';
+    const isModernLayoutRecognizer =
+      ModernLayoutRecognizers.includes(layoutRecognize);
     const isCurrentParserModern = ModernParsers.includes(selectedTag);
 
-    // If layout_recognize is MinerU/DOTS but current parser is not modern, switch to smart
-    if (isMinerUOrDOTS && !isCurrentParserModern) {
+    // If layout_recognize is MinerU/DOTS/PaddleOCR but current parser is not modern, switch to smart
+    if (isModernLayoutRecognizer && !isCurrentParserModern) {
       const smartParser = DocumentParserType.Smart;
       setSelectedTag(smartParser);
       handleChunkMethodSelectChange(smartParser);
     }
-    // If layout_recognize is not MinerU/DOTS but current parser is modern, switch to general (naive)
-    else if (!isMinerUOrDOTS && isCurrentParserModern) {
+    // If layout_recognize is not MinerU/DOTS/PaddleOCR but current parser is modern, switch to naive
+    else if (!isModernLayoutRecognizer && isCurrentParserModern) {
       const naiveParser = DocumentParserType.Naive;
       setSelectedTag(naiveParser);
       handleChunkMethodSelectChange(naiveParser);

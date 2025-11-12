@@ -1,6 +1,6 @@
 import { useTranslate } from '@/hooks/common-hooks';
 import { useHandleChunkMethodSelectChange } from '@/hooks/logic-hooks';
-import { ModernParsers } from '@/utils/parser-filter';
+import { ModernLayoutRecognizers, ModernParsers } from '@/utils/parser-filter';
 import { Form, Select } from 'antd';
 import { memo, useEffect, useRef } from 'react';
 import {
@@ -63,17 +63,17 @@ export const ChunkMethodItem = memo(function ChunkMethodItem() {
 
     prevLayoutRecognizeRef.current = layoutRecognize;
 
-    const isMinerUOrDOTS =
-      layoutRecognize === 'MinerU' || layoutRecognize === 'DOTS';
+    const isModernLayoutRecognizer =
+      ModernLayoutRecognizers.includes(layoutRecognize);
     const isCurrentParserModern = ModernParsers.includes(currentParserId);
 
-    // If layout_recognize is MinerU/DOTS but current parser is not modern, switch to smart
-    if (isMinerUOrDOTS && !isCurrentParserModern) {
+    // If layout_recognize is MinerU/DOTS/PaddleOCR but current parser is not modern, switch to smart
+    if (isModernLayoutRecognizer && !isCurrentParserModern) {
       form.setFieldsValue({ parser_id: 'smart' });
       handleChunkMethodSelectChange('smart');
     }
-    // If layout_recognize is not MinerU/DOTS but current parser is modern, switch to naive
-    else if (!isMinerUOrDOTS && isCurrentParserModern) {
+    // If layout_recognize is not MinerU/DOTS/PaddleOCR but current parser is modern, switch to naive
+    else if (!isModernLayoutRecognizer && isCurrentParserModern) {
       form.setFieldsValue({ parser_id: 'naive' });
       handleChunkMethodSelectChange('naive');
     }
