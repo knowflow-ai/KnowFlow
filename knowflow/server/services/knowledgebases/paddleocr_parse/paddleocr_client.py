@@ -66,7 +66,8 @@ class PaddleOCRClient:
                 self.endpoint,
                 json={
                     'file': base64_data,
-                    'fileType': 0  # 0 = PDF
+                    'fileType': 0,  # 0 = PDF
+                    'visualize': False  # 禁用可视化以提升性能
                 },
                 timeout=timeout
             )
@@ -203,7 +204,8 @@ class PaddleOCRClient:
                 self.endpoint,
                 json={
                     'file': base64_data,
-                    'fileType': 1  # 1 = 图像
+                    'fileType': 1,  # 1 = 图像
+                    'visualize': False  # 禁用可视化以提升性能
                 },
                 timeout=timeout
             )
