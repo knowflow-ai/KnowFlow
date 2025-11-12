@@ -26,6 +26,8 @@ class OCRToMiddleJsonConverter:
         """
         self.kb_id = kb_id
         self.logger = logging.getLogger(__name__)
+        # PaddleOCR 使用 144 DPI，需要转换为 72 DPI PDF 坐标
+        self.dpi_scale_factor = 72.0 / 144.0  # 0.5
 
     def convert(self, ocr_result: Dict[str, Any]) -> dict:
         """
@@ -143,7 +145,7 @@ class OCRToMiddleJsonConverter:
         """
         block_label = block.get('block_label', 'text')
         block_content = block.get('block_content', '').strip()
-        block_bbox = block.get('block_bbox', [0, 0, 0, 0])
+        block_bbox_raw = block.get('block_bbox', [0, 0, 0, 0])
         block_id = block.get('block_id', 0)
         block_order = block.get('block_order', 0)
 
@@ -153,6 +155,9 @@ class OCRToMiddleJsonConverter:
                 f"(label={block_label})"
             )
             return None
+
+        # 转换 bbox 坐标：144 DPI -> 72 DPI
+        block_bbox = self._convert_bbox_to_pdf_coords(block_bbox_raw)
 
         # 映射块类型到 middle.json 类型
         block_type = self._map_block_label_to_type(block_label)
@@ -326,3 +331,30 @@ class OCRToMiddleJsonConverter:
             'total_blocks': total_blocks,
             'block_types': block_types
         }
+
+    def _convert_bbox_to_pdf_coords(self, bbox: List[Any]) -> List[int]:
+        """
+        将 PaddleOCR 144 DPI 坐标转换为 72 DPI PDF 坐标
+
+        PaddleOCR 使用 144 DPI (2x 72 DPI)，需要除以 2
+
+        Args:
+            bbox: [x0, y0, x1, y1] 格式的坐标（144 DPI）
+
+        Returns:
+            [x0, y0, x1, y1] 格式的坐标（72 DPI）
+        """
+        if not bbox or len(bbox) != 4:
+            return [0, 0, 0, 0]
+
+        try:
+            scale = self.dpi_scale_factor  # 0.5
+            x0, y0, x1, y1 = [float(v) for v in bbox]
+            pdf_x0 = int(round(x0 * scale))
+            pdf_y0 = int(round(y0 * scale))
+            pdf_x1 = int(round(x1 * scale))
+            pdf_y1 = int(round(y1 * scale))
+            return [pdf_x0, pdf_y0, pdf_x1, pdf_y1]
+        except (TypeError, ValueError) as e:
+            self.logger.warning(f"Failed to convert bbox {bbox}: {e}")
+            return [0, 0, 0, 0]
