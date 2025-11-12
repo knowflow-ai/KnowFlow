@@ -206,3 +206,51 @@ export const useFetchChunk = (chunkId?: string): ResponseType<any> => {
 
   return data;
 };
+
+export const useFetchParentChunk = (parentChunkId?: string, docId?: string) => {
+  const { data, isFetching: loading } = useQuery({
+    queryKey: ['fetchParentChunk', parentChunkId, docId],
+    enabled: !!parentChunkId && !!docId,
+    initialData: null,
+    gcTime: 0,
+    queryFn: async () => {
+      const { data } = await kbService.get_parent({
+        parent_chunk_id: parentChunkId,
+        doc_id: docId,
+      });
+      if (data.code === 0) {
+        return data.data;
+      }
+      return null;
+    },
+  });
+
+  return { data, loading };
+};
+
+export const useUpdateParentChunk = () => {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: ['updateParentChunk'],
+    mutationFn: async (payload: {
+      doc_id: string;
+      parent_chunk_id: string;
+      content_with_weight: string;
+    }) => {
+      const { data } = await kbService.set_parent(payload);
+      if (data.code === 0) {
+        message.success(t('message.modified'));
+        queryClient.invalidateQueries({ queryKey: ['fetchParentChunk'] });
+      }
+      return data?.code;
+    },
+  });
+
+  return { data, loading, updateParentChunk: mutateAsync };
+};

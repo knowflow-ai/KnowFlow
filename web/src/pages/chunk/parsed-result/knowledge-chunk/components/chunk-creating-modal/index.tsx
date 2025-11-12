@@ -1,5 +1,9 @@
 import EditTag from '@/components/edit-tag';
-import { useFetchChunk } from '@/hooks/chunk-hooks';
+import {
+  useFetchChunk,
+  useFetchParentChunk,
+  useUpdateParentChunk,
+} from '@/hooks/chunk-hooks';
 import { IModalProps } from '@/interfaces/common';
 import { IChunk } from '@/interfaces/database/knowledge';
 import { DeleteOutlined } from '@ant-design/icons';
@@ -33,9 +37,17 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
   parserId,
 }) => {
   const [form] = Form.useForm();
+  const [parentForm] = Form.useForm();
   const [checked, setChecked] = useState(false);
+  const [parentChunkId, setParentChunkId] = useState<string | undefined>();
   const { removeChunk } = useDeleteChunkByIds();
   const { data } = useFetchChunk(chunkId);
+  const { data: parentData, loading: parentLoading } = useFetchParentChunk(
+    parentChunkId,
+    doc_id,
+  );
+  const { updateParentChunk, loading: parentUpdateLoading } =
+    useUpdateParentChunk();
   const { t } = useTranslation();
 
   const isTagParser = parserId === 'tag';
@@ -67,15 +79,38 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
 
   useEffect(() => {
     if (data?.code === 0) {
-      const { available_int, tag_feas } = data.data;
+      const { available_int, tag_feas, parent_chunk_id } = data.data;
       form.setFieldsValue({
         ...(data.data || {}),
         tag_feas: transformTagFeaturesObjectToArray(tag_feas),
       });
 
       setChecked(available_int !== 0);
+      setParentChunkId(parent_chunk_id);
     }
   }, [data, form, chunkId]);
+
+  useEffect(() => {
+    if (parentData) {
+      parentForm.setFieldsValue({
+        content_with_weight: parentData.content_with_weight,
+      });
+    }
+  }, [parentData, parentForm]);
+
+  const handleSaveParentChunk = useCallback(async () => {
+    if (!parentChunkId) return;
+    try {
+      const values = await parentForm.validateFields();
+      await updateParentChunk({
+        doc_id,
+        parent_chunk_id: parentChunkId,
+        content_with_weight: values.content_with_weight,
+      });
+    } catch (errorInfo) {
+      console.log('Failed to update parent chunk:', errorInfo);
+    }
+  }, [parentChunkId, parentForm, updateParentChunk, doc_id]);
 
   return (
     <Modal
@@ -132,6 +167,34 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
               <DeleteOutlined /> {t('common.delete')}
             </span>
           </Space>
+        </section>
+      )}
+
+      {chunkId && parentChunkId && (
+        <section style={{ marginTop: 16 }}>
+          <Divider orientation="left" style={{ margin: '16px 0' }}>
+            {t('chunk.parentChunk')}
+          </Divider>
+          <Form form={parentForm} layout="vertical">
+            <Form.Item
+              label={t('chunk.parentChunkContent')}
+              name="content_with_weight"
+            >
+              <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <button
+                  type="button"
+                  className="ant-btn ant-btn-primary"
+                  onClick={handleSaveParentChunk}
+                  disabled={parentUpdateLoading}
+                >
+                  {t('common.save')}
+                </button>
+              </Space>
+            </Form.Item>
+          </Form>
         </section>
       )}
     </Modal>

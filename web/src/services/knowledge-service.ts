@@ -20,6 +20,8 @@ const {
   create_chunk,
   set_chunk,
   get_chunk,
+  get_parent,
+  set_parent,
   switch_chunk,
   rm_chunk,
   retrieval_test,
@@ -123,6 +125,14 @@ const methods = {
   get_chunk: {
     url: get_chunk,
     method: 'get',
+  },
+  get_parent: {
+    url: get_parent,
+    method: 'get',
+  },
+  set_parent: {
+    url: set_parent,
+    method: 'post',
   },
   switch_chunk: {
     url: switch_chunk,

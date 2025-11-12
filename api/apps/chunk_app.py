@@ -15,6 +15,7 @@
 #
 import datetime
 import json
+import logging
 import os
 import re
 
@@ -77,6 +78,7 @@ def list_chunk():
                 "image_id": sres.field[id].get("img_id", ""),
                 "available_int": int(sres.field[id].get("available_int", 1)),
                 "positions": sres.field[id].get("position_int", []),
+                "parent_chunk_id": sres.field[id].get("parent_chunk_id", ""),  # 添加父块ID
             }
             assert isinstance(d["positions"], list)
             assert len(d["positions"]) == 0 or (isinstance(d["positions"][0], list) and len(d["positions"][0]) == 5)
@@ -117,6 +119,66 @@ def get():
     except Exception as e:
         if str(e).find("NotFoundError") >= 0:
             return get_json_result(data=False, message='Chunk not found!',
+                                   code=settings.RetCode.DATA_ERROR)
+        return server_error_response(e)
+
+
+@manager.route('/get_parent', methods=['GET'])  # noqa: F821
+@login_required
+def get_parent():
+    """获取父块内容"""
+    req = request.args
+    parent_chunk_id = req.get("parent_chunk_id")
+    doc_id = req.get("doc_id")
+
+    # 手动验证必需参数
+    if not parent_chunk_id:
+        return get_data_error_result(message="parent_chunk_id is required")
+    if not doc_id:
+        return get_data_error_result(message="doc_id is required")
+
+    try:
+        # 获取文档信息（包含 kb_id）
+        e, doc = DocumentService.get_by_id(doc_id)
+        if not e:
+            return get_data_error_result(message="Document not found!")
+
+        kb_id = doc.kb_id
+
+        # 获取 tenant_id
+        tenant_id = DocumentService.get_tenant_id(doc_id)
+        if not tenant_id:
+            return get_data_error_result(message="Tenant not found!")
+
+        # 构造父块索引名
+        parent_index = f"{search.index_name(tenant_id)}_parent"
+
+        logging.info(f"Querying parent chunk: parent_id={parent_chunk_id}, index={parent_index}, kb_id={kb_id}")
+
+        # 使用 docStoreConn.get 查询父块（传递 kb_id）
+        parent_chunk_data = settings.docStoreConn.get(
+            parent_chunk_id,
+            parent_index,
+            [kb_id]
+        )
+
+        if not parent_chunk_data:
+            logging.warning(f"Parent chunk not found: {parent_chunk_id}")
+            return get_json_result(data=False, message='Parent chunk not found!',
+                                   code=settings.RetCode.DATA_ERROR)
+
+        # 返回父块数据
+        result = {
+            "chunk_id": parent_chunk_id,
+            "content_with_weight": parent_chunk_data.get("content_with_weight", ""),
+            "doc_id": parent_chunk_data.get("doc_id", ""),
+        }
+
+        logging.info(f"Successfully retrieved parent chunk: {parent_chunk_id}")
+        return get_json_result(data=result)
+    except Exception as e:
+        if str(e).find("NotFoundError") >= 0 or str(e).find("not_found") >= 0:
+            return get_json_result(data=False, message='Parent chunk not found!',
                                    code=settings.RetCode.DATA_ERROR)
         return server_error_response(e)
 
@@ -173,6 +235,51 @@ def set():
         v = 0.1 * v[0] + 0.9 * v[1] if doc.parser_id != ParserType.QA else v[1]
         d["q_%d_vec" % len(v)] = v.tolist()
         settings.docStoreConn.update({"id": req["chunk_id"]}, d, search.index_name(tenant_id), doc.kb_id)
+        return get_json_result(data=True)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route('/set_parent', methods=['POST'])  # noqa: F821
+@login_required
+@validate_request("doc_id", "parent_chunk_id", "content_with_weight")
+def set_parent():
+    """更新父块内容"""
+    req = request.json
+    parent_chunk_id = req["parent_chunk_id"]
+    content = req["content_with_weight"]
+    doc_id = req["doc_id"]
+
+    try:
+        # 获取租户ID和文档信息
+        tenant_id = DocumentService.get_tenant_id(doc_id)
+        if not tenant_id:
+            return get_data_error_result(message="Tenant not found!")
+
+        e, doc = DocumentService.get_by_id(doc_id)
+        if not e:
+            return get_data_error_result(message="Document not found!")
+
+        # 构造父块索引名
+        parent_index = f"{search.index_name(tenant_id)}_parent"
+
+        # 准备更新数据(父块不需要向量,只更新内容)
+        d = {
+            "id": parent_chunk_id,
+            "content_with_weight": content
+        }
+        # 分词处理
+        d["content_ltks"] = rag_tokenizer.tokenize(content)
+        d["content_sm_ltks"] = rag_tokenizer.fine_grained_tokenize(d["content_ltks"])
+
+        # 更新父块索引
+        settings.docStoreConn.update(
+            {"id": parent_chunk_id},
+            d,
+            parent_index,
+            doc.kb_id
+        )
+
         return get_json_result(data=True)
     except Exception as e:
         return server_error_response(e)

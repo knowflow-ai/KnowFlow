@@ -1955,7 +1955,15 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
                 doc_id, kb_id, tenant_id
             )
 
-        # 6. 返回子块（带真实 ID，并处理标题添加到内容）
+        # 6. 创建子块ID到父块ID的映射
+        child_to_parent_map = {}
+        for rel in updated_relationships:
+            child_id = rel.get('child_id', '')
+            parent_id = rel.get('parent_id', '')
+            if child_id and parent_id:
+                child_to_parent_map[child_id] = parent_id
+
+        # 7. 返回子块（带真实 ID、parent_chunk_id，并处理标题添加到内容）
         result = []
         for chunk in child_chunks:
             # 提取标题元数据
@@ -1968,14 +1976,20 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
             if enable_heading_in_content and headers:
                 chunk_content = _add_missing_parent_headings(chunk_content, headers)
 
+            parent_id = child_to_parent_map.get(chunk.id, "")
             chunk_dict = {
                 "content": chunk_content,
                 "id": chunk.id,
+                "parent_chunk_id": parent_id,  # 添加父块ID
                 "heading_metadata": {
                     'headers': headers,
                     'level': max(headers.keys()) if headers else 0
                 }
             }
+
+            # 调试日志
+            logging.info(f"[DEBUG] 子块 {chunk.id[:16]}... 的 parent_chunk_id: {parent_id}")
+
             result.append(chunk_dict)
 
         logging.info(f"父子分块完成: 返回 {len(result)} 个子块")

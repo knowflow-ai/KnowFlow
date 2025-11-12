@@ -106,6 +106,7 @@ export interface IChunk {
   tag_kwd?: string[];
   positions: number[][];
   tag_feas?: Record<string, number>;
+  parent_chunk_id?: string; // 子块所属的父块 ID
 }
 
 export interface ITestingChunk {

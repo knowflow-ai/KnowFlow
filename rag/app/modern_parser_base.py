@@ -312,6 +312,13 @@ class ModernParserBase(ABC):
             if 'id' in chunk_data:
                 d['_id_override'] = chunk_data['id']
 
+            # 如果有 parent_chunk_id（父子分块），保留它
+            if 'parent_chunk_id' in chunk_data:
+                d['parent_chunk_id'] = chunk_data['parent_chunk_id']
+                logging.info(f"[DEBUG] 转换时保留 parent_chunk_id: {chunk_data['parent_chunk_id']}")
+            else:
+                logging.info(f"[DEBUG] chunk_data 中没有 parent_chunk_id，字段: {list(chunk_data.keys())}")
+
             # 添加坐标信息
             if positions:
                 add_positions(d, positions)

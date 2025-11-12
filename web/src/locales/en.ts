@@ -483,6 +483,8 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
       enable: 'Enable',
       disable: 'Disable',
       delete: 'Delete',
+      parentChunk: 'Parent Chunk',
+      parentChunkContent: 'Parent Chunk Content',
     },
     chat: {
       messagePlaceholder: 'Type your message here...',

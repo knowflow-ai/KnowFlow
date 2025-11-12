@@ -107,6 +107,8 @@ def smart_chunk():
                 }
                 if 'id' in chunk:
                     result['id'] = chunk['id']
+                if 'parent_chunk_id' in chunk:
+                    result['parent_chunk_id'] = chunk['parent_chunk_id']
                 return result
             else:
                 return {'content': str(chunk), 'positions': []}

@@ -58,6 +58,8 @@ export default {
   create_chunk: `${api_host}/chunk/create`,
   set_chunk: `${api_host}/chunk/set`,
   get_chunk: `${api_host}/chunk/get`,
+  get_parent: `${api_host}/chunk/get_parent`,
+  set_parent: `${api_host}/chunk/set_parent`,
   switch_chunk: `${api_host}/chunk/switch`,
   rm_chunk: `${api_host}/chunk/rm`,
   retrieval_test: `${api_host}/chunk/retrieval_test`,
