@@ -23,9 +23,11 @@ import 'katex/dist/katex.min.css'; // `rehype-katex` does not import the CSS for
 import { preprocessLaTeX, replaceThinkToSection } from '@/utils/chat';
 import { currentReg, replaceTextByOldReg } from '../utils';
 
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import classNames from 'classnames';
 import { omit } from 'lodash';
 import { pipe } from 'lodash/fp';
+import { useState } from 'react';
 import styles from './index.less';
 
 const getChunkIndex = (match: string) => Number(match);
@@ -43,6 +45,7 @@ const MarkdownContent = ({
   const { t } = useTranslation();
   const { setDocumentIds, data: fileThumbnails } =
     useFetchDocumentThumbnailsByIds();
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const contentWithCursor = useMemo(() => {
     let text = content;
     if (text === '') {
@@ -196,41 +199,69 @@ const MarkdownContent = ({
       </span>
     </div>
   ) : (
-    <Markdown
-      rehypePlugins={[rehypeWrapReference, rehypeKatex, rehypeRaw]}
-      remarkPlugins={[remarkGfm, remarkMath]}
-      className={styles.markdownContentWrapper}
-      components={
-        {
-          'custom-typography': ({ children }: { children: string }) =>
-            renderReference(children),
-          code(props: any) {
-            const { children, className, ...rest } = props;
-            const restProps = omit(rest, 'node');
-            const match = /language-(\w+)/.exec(className || '');
-            return match ? (
-              <SyntaxHighlighter
-                {...restProps}
-                PreTag="div"
-                language={match[1]}
-                wrapLongLines
-              >
-                {String(children).replace(/\n$/, '')}
-              </SyntaxHighlighter>
-            ) : (
-              <code
-                {...restProps}
-                className={classNames(className, 'text-wrap')}
-              >
-                {children}
-              </code>
-            );
-          },
-        } as any
-      }
-    >
-      {contentWithCursor}
-    </Markdown>
+    <>
+      <Markdown
+        rehypePlugins={[rehypeWrapReference, rehypeKatex, rehypeRaw]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        className={styles.markdownContentWrapper}
+        components={
+          {
+            'custom-typography': ({ children }: { children: string }) =>
+              renderReference(children),
+            code(props: any) {
+              const { children, className, ...rest } = props;
+              const restProps = omit(rest, 'node');
+              const match = /language-(\w+)/.exec(className || '');
+              return match ? (
+                <SyntaxHighlighter
+                  {...restProps}
+                  PreTag="div"
+                  language={match[1]}
+                  wrapLongLines
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              ) : (
+                <code
+                  {...restProps}
+                  className={classNames(className, 'text-wrap')}
+                >
+                  {children}
+                </code>
+              );
+            },
+            img(props: any) {
+              const { src, alt, ...rest } = props;
+              return (
+                <img
+                  {...rest}
+                  src={src}
+                  alt={alt || ''}
+                  onClick={() => setPreviewImage(src)}
+                />
+              );
+            },
+          } as any
+        }
+      >
+        {contentWithCursor}
+      </Markdown>
+
+      <Dialog
+        open={!!previewImage}
+        onOpenChange={(open) => !open && setPreviewImage(null)}
+      >
+        <DialogContent className={styles.imagePreviewDialog}>
+          {previewImage && (
+            <img
+              src={previewImage}
+              alt=""
+              className={styles.imagePreviewFull}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
