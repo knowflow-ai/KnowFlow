@@ -97,12 +97,23 @@ class PaddleOCRClient:
             # PaddleOCR 对 PDF 返回多页结果
             all_blocks = []
             all_markdown_parts = []
+            all_images = {}  # 收集所有页面的图片
 
             for page_idx, layout_result in enumerate(layout_results):
                 # 提取 markdown 文本
                 markdown_data = layout_result.get('markdown', {})
                 markdown_text = markdown_data.get('text', '')
                 all_markdown_parts.append(markdown_text)
+
+                # 提取图片
+                page_images = markdown_data.get('images', {})
+                if page_images:
+                    self.logger.info(f"Page {page_idx} has {len(page_images)} images")
+                    for img_name in list(page_images.keys())[:2]:
+                        self.logger.info(f"  - Image: {img_name}")
+                    all_images.update(page_images)
+                else:
+                    self.logger.debug(f"Page {page_idx} has no images")
 
                 # 提取结构化数据
                 pruned_result = layout_result.get('prunedResult', {})
@@ -122,13 +133,14 @@ class PaddleOCRClient:
 
             self.logger.info(
                 f"PaddleOCR recognized {len(layout_results)} pages, "
-                f"{len(all_blocks)} total blocks"
+                f"{len(all_blocks)} total blocks, "
+                f"{len(all_images)} images"
             )
 
             return {
                 'markdown': full_markdown,
                 'blocks': all_blocks,
-                'images': {},  # TODO: 处理图片
+                'images': all_images,  # 返回实际的图片数据
                 'model_settings': model_settings,
                 'page_count': len(layout_results)
             }

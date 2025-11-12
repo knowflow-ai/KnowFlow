@@ -65,12 +65,17 @@ class OCRToMiddleJsonConverter:
         """
         blocks = ocr_result.get('blocks', [])
         page_count = ocr_result.get('page_count', 1)
+        images = ocr_result.get('images', {})  # 获取图片数据
 
         self.logger.debug(
-            f"Converting {page_count} pages with {len(blocks)} total blocks"
+            f"Converting {page_count} pages with {len(blocks)} total blocks "
+            f"and {len(images)} images"
         )
 
-        # 按页码分组块
+        # 保存图片数据供后续匹配使用
+        self.images = images
+
+        # 按页码分组块，保持原始顺序
         pages_blocks = {}
         for block in blocks:
             page_idx = block.get('page_idx', 0)
@@ -149,6 +154,36 @@ class OCRToMiddleJsonConverter:
         block_id = block.get('block_id', 0)
         block_order = block.get('block_order', 0)
 
+        # 转换 bbox 坐标：144 DPI -> 72 DPI
+        block_bbox = self._convert_bbox_to_pdf_coords(block_bbox_raw)
+
+        # 映射块类型到 middle.json 类型
+        block_type = self._map_block_label_to_type(block_label)
+
+        # 特殊处理图片块
+        if block_type == 'image':
+            # 构建预期的图片键名
+            img_key = f"imgs/img_in_{block_label}_box_{block_bbox_raw[0]}_{block_bbox_raw[1]}_{block_bbox_raw[2]}_{block_bbox_raw[3]}.jpg"
+
+            # 创建图片 para_block
+            para_block = {
+                'type': 'image',
+                'bbox': block_bbox,
+                'image_path': img_key,
+                'lines': [{
+                    'spans': [{
+                        'type': 'text',
+                        'content': block_content or f'[Image: {img_key}]'
+                    }]
+                }]
+            }
+
+            # 如果有图片数据，添加到块中
+            if hasattr(self, 'images') and self.images and img_key in self.images:
+                para_block['_image_data'] = self.images[img_key]
+
+            return para_block
+
         if not block_content:
             self.logger.debug(
                 f"Skipping empty block {block_id} "
@@ -192,7 +227,7 @@ class OCRToMiddleJsonConverter:
         - paragraph_title
         - text
         - table
-        - image
+        - image, header_image, chart, figure
         - list (可能)
 
         middle.json types:
@@ -207,11 +242,24 @@ class OCRToMiddleJsonConverter:
             'text': 'text',
             'table': 'table',
             'image': 'image',
+            'header_image': 'image',  # 头部图片
+            'chart': 'image',          # 图表
+            'figure': 'image',         # 图形
             'list': 'list',
             # 其他可能的类型
             'title': 'title',
             'para': 'text',
             'paragraph': 'text',
+            'doc_title': 'title',      # 文档标题
+            'abstract': 'text',        # 摘要
+            'reference_content': 'text', # 参考文献
+            'figure_title': 'text',    # 图片标题作为文本
+            # 非内容块，映射为 text
+            'header': 'text',
+            'footer': 'text',
+            'aside_text': 'text',
+            'footnote': 'text',
+            'number': 'text',
         }
 
         return label_to_type.get(block_label.lower(), 'text')

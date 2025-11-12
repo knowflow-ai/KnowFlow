@@ -92,9 +92,12 @@ def parse_with_paddleocr():
 
         page_count = ocr_result.get('page_count', 0)
         total_blocks = len(ocr_result.get('blocks', []))
+        images = ocr_result.get('images', {})
+
         logging.info(
             f"PaddleOCR recognized {page_count} pages, "
-            f"{total_blocks} blocks"
+            f"{total_blocks} blocks, "
+            f"{len(images)} images"
         )
 
         # Step 3: 转换为 pseudo-middle.json
@@ -109,10 +112,59 @@ def parse_with_paddleocr():
             f"{stats['total_pages']} pages, {stats['total_blocks']} blocks"
         )
 
-        # Step 4: 使用 SimpleMiddleJsonConverter 生成两种格式
+        # Step 4: 处理图片（如果有）
+        if images and kb_id:
+            try:
+                import base64
+                import shutil
+                from services.knowledgebases.mineru_parse.minio_server import upload_directory_to_minio
+
+                # 创建临时目录保存图片
+                images_dir = tempfile.mkdtemp(prefix='paddleocr_images_')
+                logging.info(f"Saving {len(images)} images to temporary directory: {images_dir}")
+
+                # 保存图片到临时目录
+                saved_count = 0
+                for image_name, image_data in images.items():
+                    try:
+                        # 提取 base64 数据
+                        if image_data.startswith('data:image/'):
+                            base64_data = image_data.split(',', 1)[1]
+                        else:
+                            base64_data = image_data
+
+                        # 解码并保存图片
+                        image_bytes = base64.b64decode(base64_data)
+
+                        # 只保留文件名，去掉路径部分（如 imgs/）
+                        clean_image_name = os.path.basename(image_name)
+                        image_path = os.path.join(images_dir, clean_image_name)
+
+                        with open(image_path, 'wb') as f:
+                            f.write(image_bytes)
+
+                        saved_count += 1
+                    except Exception as e:
+                        logging.warning(f"Failed to save image {image_name}: {e}")
+
+                logging.info(f"Saved {saved_count} images to {images_dir}")
+
+                # 上传到 MinIO
+                if saved_count > 0:
+                    logging.info(f"Uploading {saved_count} images to MinIO bucket {kb_id}")
+                    upload_directory_to_minio(kb_id, images_dir)
+                    logging.info(f"Images uploaded successfully")
+
+                # 清理临时目录
+                shutil.rmtree(images_dir)
+
+            except Exception as e:
+                logging.warning(f"Failed to process images: {e}")
+
+        # Step 5: 使用 SimpleMiddleJsonConverter 生成两种格式
         logging.info("Generating markdown and coordinate_map...")
 
-        # 4.1 语义块级别（merge_text_lines=True，用于 boxes）
+        # 5.1 语义块级别（merge_text_lines=True，用于 boxes）
         converter_semantic = SimpleMiddleJsonConverter(
             kb_id=kb_id,
             merge_text_lines=True
@@ -130,7 +182,7 @@ def parse_with_paddleocr():
                 block_pages_semantic
             )
 
-        # 4.2 逐行级别（merge_text_lines=False，用于 smart chunking）
+        # 5.2 逐行级别（merge_text_lines=False，用于 smart chunking）
         converter_line = SimpleMiddleJsonConverter(
             kb_id=kb_id,
             merge_text_lines=False
@@ -148,21 +200,53 @@ def parse_with_paddleocr():
                 block_pages_line
             )
 
-        # 4.3 生成 boxes（从语义块 markdown 生成）
+        # 5.3 生成 boxes（从语义块 markdown 生成）
         boxes = _build_semantic_boxes_from_markdown(
             markdown_lines_semantic,
             coordinate_map_semantic
         )
 
-        # 4.4 使用逐行 markdown 作为最终输出
+        # 5.4 使用逐行 markdown 作为最终输出
         markdown_text = '\n'.join(markdown_lines_line)
+
+        # Step 6: 替换 Markdown 中的图片路径为 MinIO URL
+        if images and kb_id:
+            import re
+
+            def replace_image_path(match):
+                """替换图片路径为 MinIO URL"""
+                img_path = match.group(1)
+                # 如果已经是完整 URL，不处理
+                if img_path.startswith(('http://', 'https://', '/minio/')):
+                    return match.group(0)
+                # 提取图片文件名
+                img_name = os.path.basename(img_path)
+                # 替换为 MinIO 路径
+                new_path = f"/minio/{kb_id}/{img_name}"
+                return f'![{match.group(2)}]({new_path})'
+
+            # 替换 Markdown 图片语法 ![alt](path)
+            markdown_text = re.sub(
+                r'!\[([^\]]*)\]\(([^)]+)\)',
+                lambda m: f'![{m.group(1)}](/minio/{kb_id}/{os.path.basename(m.group(2))})',
+                markdown_text
+            )
+
+            # 替换 HTML img 标签
+            markdown_text = re.sub(
+                r'<img\s+src="([^"]+)"',
+                lambda m: f'<img src="/minio/{kb_id}/{os.path.basename(m.group(1))}"',
+                markdown_text
+            )
+
+            logging.info(f"Replaced image paths with MinIO URLs")
 
         logging.info(
             f"Generated {len(boxes)} boxes and {len(coordinate_map_line)} "
             f"coordinate entries"
         )
 
-        # Step 5: 返回结果
+        # Step 7: 返回结果
         response = {
             'success': True,
             'boxes': boxes,
