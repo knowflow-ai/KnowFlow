@@ -47,6 +47,17 @@ class DOTSConfig:
     vllm: DOTSVLLMConfig = field(default_factory=DOTSVLLMConfig)
 
 # =======================================================
+# PaddleOCR 配置模型类
+# =======================================================
+
+@dataclass
+class PaddleOCRConfig:
+    """PaddleOCR 客户端配置"""
+    url: str = "http://8.134.177.47:15003"
+    timeout: int = 300
+    max_file_size: int = 50
+
+# =======================================================
 # MinerU 配置模型类
 # =======================================================
 
@@ -97,4 +108,5 @@ class RootConfig(BaseModel):
     chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
     mineru: MinerUConfig = Field(default_factory=MinerUConfig)
     dots: DOTSConfig = Field(default_factory=DOTSConfig)
+    paddleocr: PaddleOCRConfig = Field(default_factory=PaddleOCRConfig)
     default_parser: str = Field("mineru", description="默认解析器: mineru, dots") 

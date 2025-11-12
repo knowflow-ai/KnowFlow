@@ -5,8 +5,9 @@
 # 📋 部署前配置清单:
 #   1. 修改 mineru.fastapi.url 为 MinerU 服务地址
 #   2. 修改 dots.vllm.url 为 DOTS 服务地址
-#   3. 如需启用 VLM 高级 OCR，配置 mineru.vlm.http_client.server_url
-#   4. 生产环境建议设置 app.dev_mode: false
+#   3. 修改 paddleocr.url 为 PaddleOCR 服务地址
+#   4. 如需启用 VLM 高级 OCR，配置 mineru.vlm.http_client.server_url
+#   5. 生产环境建议设置 app.dev_mode: false
 #
 # 🔧 配置示例:
 #   - 同服务器部署: http://localhost:8000
@@ -85,3 +86,20 @@ dots:
     temperature: 0.1
     top_p: 1.0
     max_completion_tokens: 16384
+
+# =======================================================
+# PaddleOCR 文档解析配置
+# =======================================================
+paddleocr:
+  # 🔑 PaddleOCR 服务地址（必须配置）
+  # 示例:
+  #   - 本地部署: http://localhost:15003
+  #   - 远程部署: http://8.134.177.47:15003
+  #   - Docker 网络: http://knowflow-paddleocr-api:15003
+  url: "http://8.134.177.47:15003"
+
+  # 请求超时时间（秒）
+  timeout: 300
+
+  # 单次请求最大文件大小（MB）
+  max_file_size: 50

@@ -221,6 +221,7 @@ APP_CONFIG = CONFIG.app
 EXCEL_CONFIG = CONFIG.excel
 MINERU_CONFIG = CONFIG.mineru
 DOTS_CONFIG = CONFIG.dots
+PADDLEOCR_CONFIG = CONFIG.paddleocr
 
 # 打印加载的配置（在开发模式下）
 if APP_CONFIG.dev_mode:
