@@ -478,6 +478,7 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       delete: '删除',
       parentChunk: '解析父块',
       parentChunkContent: '父块内容',
+      childChunk: '子块',
     },
     chat: {
       messagePlaceholder: '请输入消息...',

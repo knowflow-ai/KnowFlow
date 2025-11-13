@@ -7,7 +7,7 @@ import {
 import { IModalProps } from '@/interfaces/common';
 import { IChunk } from '@/interfaces/database/knowledge';
 import { DeleteOutlined } from '@ant-design/icons';
-import { Button, Divider, Form, Input, Modal, Space, Switch } from 'antd';
+import { Col, Divider, Form, Input, Modal, Row, Space, Switch } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDeleteChunkByIds } from '../../hooks';
@@ -56,15 +56,33 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
     try {
       const values = await form.validateFields();
 
+      // 如果存在父块，同时保存父块
+      if (parentChunkId) {
+        const parentValues = await parentForm.validateFields();
+        await updateParentChunk({
+          doc_id,
+          parent_chunk_id: parentChunkId,
+          content_with_weight: parentValues.content_with_weight,
+        });
+      }
+
       onOk?.({
         ...values,
         tag_feas: transformTagFeaturesArrayToObject(values.tag_feas),
-        available_int: checked ? 1 : 0, // available_int
+        available_int: checked ? 1 : 0,
       });
     } catch (errorInfo) {
       console.log('Failed:', errorInfo);
     }
-  }, [checked, form, onOk]);
+  }, [
+    checked,
+    form,
+    parentForm,
+    parentChunkId,
+    updateParentChunk,
+    doc_id,
+    onOk,
+  ]);
 
   const handleRemove = useCallback(() => {
     if (chunkId) {
@@ -98,19 +116,7 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
     }
   }, [parentData, parentForm]);
 
-  const handleSaveParentChunk = useCallback(async () => {
-    if (!parentChunkId) return;
-    try {
-      const values = await parentForm.validateFields();
-      await updateParentChunk({
-        doc_id,
-        parent_chunk_id: parentChunkId,
-        content_with_weight: values.content_with_weight,
-      });
-    } catch (errorInfo) {
-      console.log('Failed to update parent chunk:', errorInfo);
-    }
-  }, [parentChunkId, parentForm, updateParentChunk, doc_id]);
+  const hasParentChunk = !!(chunkId && parentChunkId);
 
   return (
     <Modal
@@ -118,39 +124,70 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
       open={true}
       onOk={handleOk}
       onCancel={hideModal}
-      okButtonProps={{ loading }}
+      okButtonProps={{ loading: loading || parentUpdateLoading }}
       destroyOnClose
+      width={hasParentChunk ? 1000 : 600}
     >
-      <Form form={form} autoComplete="off" layout={'vertical'}>
-        <Form.Item<FieldType>
-          label={t('chunk.chunk')}
-          name="content_with_weight"
-          rules={[{ required: true, message: t('chunk.chunkMessage') }]}
-        >
-          <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
-        </Form.Item>
+      <Row gutter={24}>
+        {/* 子块编辑区域 */}
+        <Col span={hasParentChunk ? 12 : 24}>
+          {hasParentChunk && (
+            <div style={{ marginBottom: 16, fontWeight: 500, fontSize: 14 }}>
+              {t('chunk.childChunk')}
+            </div>
+          )}
+          <Form form={form} autoComplete="off" layout={'vertical'}>
+            <Form.Item<FieldType>
+              label={t('chunk.chunk')}
+              name="content_with_weight"
+              rules={[{ required: true, message: t('chunk.chunkMessage') }]}
+            >
+              <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
+            </Form.Item>
 
-        <Form.Item<FieldType> label={t('chunk.keyword')} name="important_kwd">
-          <EditTag></EditTag>
-        </Form.Item>
-        <Form.Item<FieldType>
-          label={t('chunk.question')}
-          name="question_kwd"
-          tooltip={t('chunk.questionTip')}
-        >
-          <EditTag></EditTag>
-        </Form.Item>
-        {isTagParser && (
-          <Form.Item<FieldType>
-            label={t('knowledgeConfiguration.tagName')}
-            name="tag_kwd"
-          >
-            <EditTag></EditTag>
-          </Form.Item>
+            <Form.Item<FieldType>
+              label={t('chunk.keyword')}
+              name="important_kwd"
+            >
+              <EditTag></EditTag>
+            </Form.Item>
+            <Form.Item<FieldType>
+              label={t('chunk.question')}
+              name="question_kwd"
+              tooltip={t('chunk.questionTip')}
+            >
+              <EditTag></EditTag>
+            </Form.Item>
+            {isTagParser && (
+              <Form.Item<FieldType>
+                label={t('knowledgeConfiguration.tagName')}
+                name="tag_kwd"
+              >
+                <EditTag></EditTag>
+              </Form.Item>
+            )}
+
+            {!isTagParser && <TagFeatureItem></TagFeatureItem>}
+          </Form>
+        </Col>
+
+        {/* 父块编辑区域 */}
+        {hasParentChunk && (
+          <Col span={12}>
+            <div style={{ marginBottom: 16, fontWeight: 500, fontSize: 14 }}>
+              {t('chunk.parentChunk')}
+            </div>
+            <Form form={parentForm} layout="vertical">
+              <Form.Item
+                label={t('chunk.parentChunkContent')}
+                name="content_with_weight"
+              >
+                <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
+              </Form.Item>
+            </Form>
+          </Col>
         )}
-
-        {!isTagParser && <TagFeatureItem></TagFeatureItem>}
-      </Form>
+      </Row>
 
       {chunkId && (
         <section>
@@ -167,31 +204,6 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
               <DeleteOutlined /> {t('common.delete')}
             </span>
           </Space>
-        </section>
-      )}
-
-      {chunkId && parentChunkId && (
-        <section style={{ marginTop: 16 }}>
-          <Divider orientation="left" style={{ margin: '16px 0' }}>
-            {t('chunk.parentChunk')}
-          </Divider>
-          <Form form={parentForm} layout="vertical">
-            <Form.Item
-              label={t('chunk.parentChunkContent')}
-              name="content_with_weight"
-            >
-              <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
-            </Form.Item>
-            <Form.Item>
-              <Button
-                type="primary"
-                onClick={handleSaveParentChunk}
-                loading={parentUpdateLoading}
-              >
-                {t('common.save')}
-              </Button>
-            </Form.Item>
-          </Form>
         </section>
       )}
     </Modal>
