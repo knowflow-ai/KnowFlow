@@ -656,6 +656,8 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
       avatar: 'Avatar',
       avatarTip: 'This will be displayed on your profile.',
       profileDescription: 'Update your photo and personal details here.',
+      systemVersion: 'System Version',
+      currentVersion: 'Current Version',
       maxTokens: 'Max Tokens',
       maxTokensMessage: 'Max Tokens is required',
       maxTokensTip: `This sets the maximum length of the model's output, measured in the number of tokens (words or pieces of words). Defaults to 512. If disabled, you lift the maximum token limit, allowing the model to determine the number of tokens in its responses.`,
