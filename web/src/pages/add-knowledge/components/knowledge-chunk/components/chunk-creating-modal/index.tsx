@@ -7,7 +7,18 @@ import {
 import { IModalProps } from '@/interfaces/common';
 import { IChunk } from '@/interfaces/database/knowledge';
 import { DeleteOutlined } from '@ant-design/icons';
-import { Col, Divider, Form, Input, Modal, Row, Space, Switch } from 'antd';
+import {
+  Col,
+  Divider,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Space,
+  Spin,
+  Switch,
+  message,
+} from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDeleteChunkByIds } from '../../hooks';
@@ -54,25 +65,49 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
 
   const handleOk = useCallback(async () => {
     try {
+      // 验证子块表单
       const values = await form.validateFields();
 
-      // 如果存在父块，同时保存父块
+      // 如果存在父块，并发保存父块和子块
       if (parentChunkId) {
-        const parentValues = await parentForm.validateFields();
-        await updateParentChunk({
-          doc_id,
-          parent_chunk_id: parentChunkId,
-          content_with_weight: parentValues.content_with_weight,
-        });
+        try {
+          const parentValues = await parentForm.validateFields();
+
+          // 并发执行父块更新（静默模式，不显示成功提示）
+          const [parentResult] = await Promise.all([
+            updateParentChunk({
+              doc_id,
+              parent_chunk_id: parentChunkId,
+              content_with_weight: parentValues.content_with_weight,
+              silent: true, // 静默更新，避免重复提示
+            }),
+            // 子块保存放在 Promise.all 后面的 onOk 中执行
+            Promise.resolve(),
+          ]);
+
+          // 检查父块保存结果
+          if (parentResult !== 0) {
+            message.error(t('chunk.parentChunkSaveFailed'));
+            return;
+          }
+        } catch (parentError) {
+          message.error(
+            t('chunk.parentChunkSaveFailed') +
+              ': ' +
+              (parentError as Error).message,
+          );
+          return;
+        }
       }
 
+      // 保存子块
       onOk?.({
         ...values,
         tag_feas: transformTagFeaturesArrayToObject(values.tag_feas),
         available_int: checked ? 1 : 0,
       });
     } catch (errorInfo) {
-      console.log('Failed:', errorInfo);
+      message.error(t('message.error') + ': ' + (errorInfo as Error).message);
     }
   }, [
     checked,
@@ -82,6 +117,7 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
     updateParentChunk,
     doc_id,
     onOk,
+    t,
   ]);
 
   const handleRemove = useCallback(() => {
@@ -124,7 +160,9 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
       open={true}
       onOk={handleOk}
       onCancel={hideModal}
-      okButtonProps={{ loading: loading || parentUpdateLoading }}
+      okButtonProps={{
+        loading: loading || parentUpdateLoading || parentLoading,
+      }}
       destroyOnClose
       width={hasParentChunk ? 1000 : 600}
     >
@@ -177,14 +215,16 @@ const ChunkCreatingModal: React.FC<IModalProps<any> & kFProps> = ({
             <div style={{ marginBottom: 16, fontWeight: 500, fontSize: 14 }}>
               {t('chunk.parentChunk')}
             </div>
-            <Form form={parentForm} layout="vertical">
-              <Form.Item
-                label={t('chunk.parentChunkContent')}
-                name="content_with_weight"
-              >
-                <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
-              </Form.Item>
-            </Form>
+            <Spin spinning={parentLoading} tip={t('common.loading')}>
+              <Form form={parentForm} layout="vertical">
+                <Form.Item
+                  label={t('chunk.parentChunkContent')}
+                  name="content_with_weight"
+                >
+                  <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
+                </Form.Item>
+              </Form>
+            </Spin>
           </Col>
         )}
       </Row>

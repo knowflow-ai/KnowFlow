@@ -174,12 +174,13 @@ export const useCreateChunk = () => {
     mutationKey: ['createChunk'],
     mutationFn: async (payload: any) => {
       let service = kbService.create_chunk;
-      if (payload.chunk_id) {
+      const isEdit = !!payload.chunk_id;
+      if (isEdit) {
         service = kbService.set_chunk;
       }
       const { data } = await service(payload);
       if (data.code === 0) {
-        message.success(t('message.created'));
+        message.success(t(isEdit ? 'message.modified' : 'message.created'));
         queryClient.invalidateQueries({ queryKey: ['fetchChunkList'] });
       }
       return data?.code;
@@ -208,11 +209,18 @@ export const useFetchChunk = (chunkId?: string): ResponseType<any> => {
 };
 
 export const useFetchParentChunk = (parentChunkId?: string, docId?: string) => {
-  const { data, isFetching: loading } = useQuery({
+  const { t } = useTranslation();
+
+  const {
+    data,
+    isFetching: loading,
+    error,
+  } = useQuery({
     queryKey: ['fetchParentChunk', parentChunkId, docId],
     enabled: !!parentChunkId && !!docId,
     initialData: null,
     gcTime: 0,
+    retry: 1,
     queryFn: async () => {
       const { data } = await kbService.get_parent({
         parent_chunk_id: parentChunkId,
@@ -221,11 +229,14 @@ export const useFetchParentChunk = (parentChunkId?: string, docId?: string) => {
       if (data.code === 0) {
         return data.data;
       }
-      return null;
+      throw new Error(data.message || t('message.error'));
+    },
+    onError: (error: Error) => {
+      message.error(t('chunk.parentChunkLoadFailed') + ': ' + error.message);
     },
   });
 
-  return { data, loading };
+  return { data, loading, error };
 };
 
 export const useUpdateParentChunk = () => {
@@ -242,10 +253,14 @@ export const useUpdateParentChunk = () => {
       doc_id: string;
       parent_chunk_id: string;
       content_with_weight: string;
+      silent?: boolean; // 是否静默更新（不显示成功提示）
     }) => {
       const { data } = await kbService.set_parent(payload);
       if (data.code === 0) {
-        message.success(t('message.modified'));
+        // 只在非静默模式下显示成功提示
+        if (!payload.silent) {
+          message.success(t('message.modified'));
+        }
         queryClient.invalidateQueries({ queryKey: ['fetchParentChunk'] });
       }
       return data?.code;

@@ -145,10 +145,12 @@ def get_parent():
 
         kb_id = doc.kb_id
 
-        # 获取 tenant_id
-        tenant_id = DocumentService.get_tenant_id(doc_id)
-        if not tenant_id:
-            return get_data_error_result(message="Tenant not found!")
+        # 从知识库获取 tenant_id（避免重复查询）
+        ok, kb = KnowledgebaseService.get_by_id(kb_id)
+        if not ok:
+            return get_data_error_result(message="Knowledgebase not found!")
+
+        tenant_id = kb.tenant_id
 
         # 构造父块索引名
         parent_index = f"{search.index_name(tenant_id)}_parent"

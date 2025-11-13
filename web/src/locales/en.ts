@@ -486,6 +486,8 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
       parentChunk: 'Parent Chunk',
       parentChunkContent: 'Parent Chunk Content',
       childChunk: 'Child Chunk',
+      parentChunkLoadFailed: 'Failed to load parent chunk',
+      parentChunkSaveFailed: 'Failed to save parent chunk',
     },
     chat: {
       messagePlaceholder: 'Type your message here...',

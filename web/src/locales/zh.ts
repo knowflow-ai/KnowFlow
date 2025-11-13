@@ -479,6 +479,8 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       parentChunk: '解析父块',
       parentChunkContent: '父块内容',
       childChunk: '子块',
+      parentChunkLoadFailed: '父块加载失败',
+      parentChunkSaveFailed: '父块保存失败',
     },
     chat: {
       messagePlaceholder: '请输入消息...',
