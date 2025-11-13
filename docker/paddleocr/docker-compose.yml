@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # PaddleOCR-VL API 服务
+  paddleocr-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PADDLEOCR_VERSION: ">=3.3.1,<3.4"
+        BUILD_FOR_OFFLINE: "false"
+    image: knowflow/paddleocr-api:latest
+    container_name: paddleocr-api
+    ports:
+      - "${PADDLEOCR_API_PORT:-8888}:8080"
+    volumes:
+      - ./pipeline_config.yaml:/home/paddleocr/pipeline_config.yaml:ro
+      - paddleocr-models:/home/paddleocr/.paddlex
+    environment:
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    depends_on:
+      paddleocr-vllm:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${GPU_DEVICE_ID:-0}"]
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - paddleocr-network
+
+  # PaddleOCR GenAI vLLM 后端服务
+  paddleocr-vllm:
+    image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/paddlepaddle/paddleocr-genai-vllm-server:latest-offline
+    container_name: paddleocr-vllm
+    volumes:
+      - paddleocr-vllm-models:/root/.cache
+    environment:
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${GPU_DEVICE_ID:-0}"]
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    networks:
+      - paddleocr-network
+
+volumes:
+  paddleocr-models:
+    name: paddleocr-models
+  paddleocr-vllm-models:
+    name: paddleocr-vllm-models
+
+networks:
+  paddleocr-network:
+    name: paddleocr-network
+    driver: bridge
