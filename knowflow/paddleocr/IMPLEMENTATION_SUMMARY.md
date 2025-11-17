@@ -294,7 +294,7 @@ print(f"Markdown: {result['markdown'][:100]}...")
 - **TODO**: 处理 markdown.images 并上传到 MinIO
 
 ### 4. API 稳定性
-- **依赖**: 外部 PaddleOCR 服务 (`http://8.134.177.47:15003`)
+- **依赖**: 外部 PaddleOCR 服务 (`http://localhost:8888`)
 - **风险**: 网络问题、服务不可用
 - **缓解**: 添加重试机制、超时控制
 

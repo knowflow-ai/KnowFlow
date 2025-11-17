@@ -13,7 +13,7 @@ from typing import Optional
 class PaddleOCRClient:
     """PaddleOCR API 客户端"""
     
-    def __init__(self, api_url: str = "http://8.134.177.47:15003"):
+    def __init__(self, api_url: str = "http://localhost:8888"):
         self.api_url = api_url
         self.endpoint = f"{api_url}/layout-parsing"
     

@@ -4,7 +4,7 @@
 2025-11-11
 
 ## API 信息
-- **地址**: `http://8.134.177.47:15003/layout-parsing`
+- **地址**: `http://localhost:8888/layout-parsing`
 - **方法**: POST
 - **内容类型**: application/json
 
@@ -54,7 +54,7 @@ base64_data = base64.b64encode(image_binary).decode('utf-8')
 
 # 调用 API
 response = requests.post(
-    'http://8.134.177.47:15003/layout-parsing',
+    'http://localhost:8888/layout-parsing',
     json={
         'file': base64_data,
         'fileType': 1  # 1 = 图像

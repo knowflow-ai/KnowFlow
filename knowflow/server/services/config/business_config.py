@@ -35,7 +35,7 @@ class ChunkingConfig(BaseModel):
 @dataclass
 class DOTSVLLMConfig:
     """DOTS VLLM 服务配置"""
-    url: str = "http://8.134.177.47:30001"
+    url: str = "http://localhost:30001"
     model_name: str = "dotsocr-model"
     temperature: float = 0.1
     top_p: float = 1.0
@@ -53,7 +53,7 @@ class DOTSConfig:
 @dataclass
 class PaddleOCRConfig:
     """PaddleOCR 客户端配置"""
-    url: str = "http://8.134.177.47:15003"
+    url: str = "http://localhost:15003"
     timeout: int = 300
     max_file_size: int = 50
 

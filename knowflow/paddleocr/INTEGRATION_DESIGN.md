@@ -12,7 +12,7 @@
 ### 2.1 API 端点
 
 ```
-POST http://8.134.177.47:15003/layout-parsing
+POST http://localhost:8888/layout-parsing
 ```
 
 ### 2.2 请求格式
@@ -301,7 +301,7 @@ deepdoc/parser/
 class PaddleOCRClient:
     """PaddleOCR API 客户端"""
 
-    def __init__(self, api_url: str = "http://8.134.177.47:15003"):
+    def __init__(self, api_url: str = "http://localhost:8888"):
         self.api_url = api_url
         self.endpoint = f"{api_url}/layout-parsing"
 

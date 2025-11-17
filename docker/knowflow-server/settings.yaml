@@ -92,14 +92,35 @@ dots:
 # =======================================================
 paddleocr:
   # 🔑 PaddleOCR 服务地址（必须配置）
+  # API 端点: /layout-parsing
+  # 默认端口: 8888
   # 示例:
-  #   - 本地部署: http://localhost:15003
-  #   - 远程部署: http://8.134.177.47:15003
-  #   - Docker 网络: http://knowflow-paddleocr-api:15003
-  url: "http://8.134.177.47:15003"
+  #   - 本地部署: http://localhost:8888
+  #   - 远程部署: http://your-server-ip:8888
+  #   - Docker 网络: http://knowflow-paddleocr:8888
+  url: "http://localhost:8888"
 
-  # 请求超时时间（秒）
+  # 请求超时时间（毫秒）
   timeout: 30000
 
   # 单次请求最大文件大小（MB）
   max_file_size: 5000
+
+  # PaddleOCR 特点:
+  # ✅ 块级布局识别 (block_label):
+  #    - doc_title: 文档主标题 → H1
+  #    - paragraph_title: 章节标题 → H2
+  #    - section_title: 节标题 → H2
+  #    - subsection_title: 小节标题 → H3
+  #    - title: 通用标题 → H3
+  #    - text: 正文
+  #    - table: 表格
+  #    - image/chart_box: 图片/图表
+  #    - list: 列表
+  # ✅ 自动标题层级推断: 基于 block_label 映射
+  # ⚠️ 块级坐标精度: 返回块级坐标（非行级）
+  #
+  # 适用场景:
+  #   - Title/Regex 分块方法
+  #   - 需要标题层级区分的文档
+  #   - 快速部署（配置简单）
