@@ -229,21 +229,21 @@ docker compose logs -f
 
 详细说明：[docker/dots/README.md](docker/dots/README.md)
 
-##### 选项 C：配置 PaddleOCR 服务
-
-PaddleOCR 是一个轻量级的 OCR 服务，支持块级布局识别和标题层级自动推断。
+##### 选项 C：部署 PaddleOCR 服务
 
 ```bash
-# PaddleOCR 可使用外部服务或自行部署
-# 在 settings.yaml 中配置 PaddleOCR 服务地址
-vim knowflow-server/settings.yaml
+# 进入 PaddleOCR 目录
+cd paddleocr/
+
+# 启动 PaddleOCR 服务
+docker compose up -d
+
+# 查看服务状态
+docker compose ps
 ```
 
-```yaml
-paddleocr:
-  url: "http://your-paddleocr-server:8888"  # 配置 PaddleOCR 服务地址
-  timeout: 30000
-```
+**服务端口**：
+- PaddleOCR API: 8888
 
 **PaddleOCR 特点**：
 - ✅ 块级布局识别：支持 7+ 种 `block_label` 类型（doc_title、paragraph_title 等）
@@ -251,7 +251,7 @@ paddleocr:
 - ⚠️ 块级坐标精度：返回块级坐标（非行级）
 - 🎯 适用场景：Title/Regex 分块方法、需要标题层级区分的文档
 
-详细说明：[knowflow/paddleocr/INTEGRATION_DESIGN.md](knowflow/paddleocr/INTEGRATION_DESIGN.md)
+详细说明：[docker/paddleocr/README.md](docker/paddleocr/README.md)
 
 > 💡 **提示**：三种 OCR 服务可以同时配置，系统会根据用户选择的布局解析器调用对应服务。建议端口配置：MinerU (8000)、DOTS (8001)、PaddleOCR (8888)。
 
