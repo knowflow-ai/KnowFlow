@@ -47,12 +47,14 @@ graph TB
         
         subgraph "KnowFlow 扩展服务"
             direction TB
-            KF_Backend[KnowFlow 后端<br/>端口: 5000<br/>• 用户管理<br/>• 团队协作<br/>• MinerU集成<br/>• API Token管理]
+            KF_Backend[KnowFlow 后端<br/>端口: 5000<br/>• 用户管理<br/>• 团队协作<br/>• OCR引擎集成<br/>• API Token管理]
             KF_Gotenberg[Gotenberg 文档转换<br/>端口: 3000<br/>• PPT/Word/Excel转PDF<br/>• 文档格式标准化]
-            
-            subgraph "MinerU 解析引擎"
-                MinerU_API[MinerU API 服务<br/>端口: 8888<br/>• OCR 文字识别<br/>• 图像提取<br/>• 文档结构分析]
+
+            subgraph "OCR 解析引擎（可选配置）"
+                MinerU_API[MinerU API 服务<br/>端口: 8000<br/>• 行级精度 OCR<br/>• 图像提取<br/>• 文档结构分析]
                 MinerU_VLM[VLM 视觉模型<br/>端口: 30000<br/>• 图像理解<br/>• 多模态分析]
+                DOTS_API[DOTS OCR 服务<br/>端口: 8001<br/>• 行级精度 OCR<br/>• 快速解析]
+                PaddleOCR_API[PaddleOCR 服务<br/>端口: 8888<br/>• 块级布局识别<br/>• 标题层级推断]
             end
         end
     end
@@ -73,8 +75,10 @@ graph TB
     
     %% KnowFlow 内部服务通信
     KF_Backend --> KF_Gotenberg
-    KF_Backend --> MinerU_API
-    MinerU_API --> MinerU_VLM
+    KF_Backend -.-> MinerU_API
+    KF_Backend -.-> DOTS_API
+    KF_Backend -.-> PaddleOCR_API
+    MinerU_API -.-> MinerU_VLM
     
     %% KnowFlow 与 RAGFlow 数据层集成
     KF_Backend --> RF_DB
@@ -87,7 +91,7 @@ graph TB
 - **🔌 独立服务**：KnowFlow 作为独立微服务运行，不修改 RAGFlow 核心代码
 - **🔗 API 集成**：通过 RESTful API 与 RAGFlow 前端无缝集成
 - **💾 共享数据层**：复用 RAGFlow 的数据库、存储等基础设施
-- **⚡ 高性能解析**：集成 MinerU 2.x 引擎，支持 GPU 加速
+- **⚡ 多引擎支持**：集成 MinerU、DOTS、PaddleOCR 三种 OCR 引擎，灵活选择
 - **📄 格式转换**：内置 Gotenberg 服务，支持多种文档格式转换
 
 ### 💡 核心功能
@@ -96,7 +100,7 @@ graph TB
 
 | 📚 **智能文档解析** | 🧠 **增强检索问答** | 👥 **企业级管理** | 🔌 **开放集成** |
 |-------------------|-------------------|------------------|----------------|
-| • MinerU2.x OCR引擎<br>• 图文混排输出<br>• 多种分块策略<br>• 20+文档格式支持 | • 精准语义检索<br>• 上下文感知问答<br>• 多模态内容理解<br>• 实时知识更新 | • RBAC权限管理<br>• 团队协作空间<br>• 纯离线部署<br>• 企业微信集成<br>• LDAP/SSO支持 | • 插件化架构<br>• API开放接口<br>• 自定义扩展<br>• 第三方系统集成 |
+| • 三种OCR引擎可选<br>• MinerU/DOTS/PaddleOCR<br>• 多种分块策略<br>• 20+文档格式支持 | • 精准语义检索<br>• 上下文感知问答<br>• 多模态内容理解<br>• 实时知识更新 | • RBAC权限管理<br>• 团队协作空间<br>• 纯离线部署<br>• 企业微信集成<br>• LDAP/SSO支持 | • 插件化架构<br>• API开放接口<br>• 自定义扩展<br>• 第三方系统集成 |
 
 </div>
 
@@ -110,7 +114,7 @@ graph TB
 | 🔌 | **插件化架构**：无缝兼容 RAGFlow 任意版本，所有增强均可热插拔，升级无忧 |
 | 🏗️ | **微服务设计**：通过独立服务方式增强 RAGFlow，不修改核心代码 |
 | 🧩 | **分块策略丰富**：支持多种分块算法，检索更精准，适配多场景文档 |
-| 🏢 | **企业级特性**：MinerU2.x OCR 引擎、RBAC权限管理、纯离线部署、企业微信、LDAP/SSO |
+| 🏢 | **企业级特性**：三种OCR引擎（MinerU/DOTS/PaddleOCR）、RBAC权限管理、纯离线部署、企业微信、LDAP/SSO |
 | 📈 | **最佳实践集成**：持续吸收社区优质方案，助力企业高效落地 |
 | 🔧 | **简化部署**：一键安装脚本，Docker Compose 开箱即用 |
 
@@ -164,6 +168,11 @@ dots:
     url: "http://localhost:8000"  # 👈 修改为 DOTS 服务地址
     model_name: "dotsocr-model"
     timeout: 60000
+
+# PaddleOCR 服务配置（可选）
+paddleocr:
+  url: "http://localhost:8888"  # 👈 修改为 PaddleOCR 服务地址
+  timeout: 30000
 ```
 
 **部署场景配置**：
@@ -175,7 +184,7 @@ dots:
 
 #### 3. 部署 OCR 解析服务（可选）
 
-KnowFlow 支持 MinerU 和 DOTS 两种 OCR 服务，可根据需求选择部署。
+KnowFlow 支持 MinerU、DOTS 和 PaddleOCR 三种 OCR 服务，可根据需求选择部署。
 
 ##### 选项 A：部署 MinerU 服务
 
@@ -220,7 +229,31 @@ docker compose logs -f
 
 详细说明：[docker/dots/README.md](docker/dots/README.md)
 
-> 💡 **提示**：MinerU 和 DOTS 可以同时部署，但需要修改端口避免冲突。建议 MinerU 使用 8000，DOTS 使用 8001。
+##### 选项 C：配置 PaddleOCR 服务
+
+PaddleOCR 是一个轻量级的 OCR 服务，支持块级布局识别和标题层级自动推断。
+
+```bash
+# PaddleOCR 可使用外部服务或自行部署
+# 在 settings.yaml 中配置 PaddleOCR 服务地址
+vim knowflow-server/settings.yaml
+```
+
+```yaml
+paddleocr:
+  url: "http://your-paddleocr-server:8888"  # 配置 PaddleOCR 服务地址
+  timeout: 30000
+```
+
+**PaddleOCR 特点**：
+- ✅ 块级布局识别：支持 7+ 种 `block_label` 类型（doc_title、paragraph_title 等）
+- ✅ 自动标题层级推断：基于 `block_label` 自动映射到 H1-H6
+- ⚠️ 块级坐标精度：返回块级坐标（非行级）
+- 🎯 适用场景：Title/Regex 分块方法、需要标题层级区分的文档
+
+详细说明：[knowflow/paddleocr/INTEGRATION_DESIGN.md](knowflow/paddleocr/INTEGRATION_DESIGN.md)
+
+> 💡 **提示**：三种 OCR 服务可以同时配置，系统会根据用户选择的布局解析器调用对应服务。建议端口配置：MinerU (8000)、DOTS (8001)、PaddleOCR (8888)。
 
 #### 4. 启动 KnowFlow 主服务
 
