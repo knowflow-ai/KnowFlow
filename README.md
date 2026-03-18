@@ -73,8 +73,9 @@
 
 | 功能 | RAGFlow 开源版 | KnowFlow 社区版 | KnowFlow 商业版 |
 |------|---------------|----------------|----------------|
+| 向量数据库 | Elasticsearch | Elasticsearch | ✅ Milvus |
 | 向量检索 | ✅ | ✅ | ✅ |
-| 混合检索 | ✅ ES BM25 | ✅ 统一分词优化 Milvus BM25 | ✅ |
+| 混合检索 | ✅ ES BM25 | ✅ ES BM25 | ✅ 统一分词优化 Milvus BM25 |
 | 多模态内容理解 | 基础支持 | ✅ | ✅ VLM 图片描述增强 |
 | Agentic RAG 深度阅读 | ❌ | ❌ | ✅ locate-then-read |
 | ColPali 多模态检索 | ❌ | ❌ | ✅ |
