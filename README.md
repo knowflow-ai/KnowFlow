@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="knowflow/assets/logo.png" alt="KnowFlow" width="25%">
+  <img src="knowflow/assets/readme-logo.png" alt="KnowFlow" width="25%">
 
   <h1>KnowFlow</h1>
   <p><strong>基于 RAGFlow 的企业级 RAG 知识库平台</strong></p>
