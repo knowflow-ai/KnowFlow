@@ -4,23 +4,91 @@
 
 # KnowFlow - 企业级智能知识库解决方案
 
-[![Star History Chart](https://api.star-history.com/svg?repos=weizxfree/KnowFlow&type=Date)](https://star-history.com/#weizxfree/KnowFlow&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=knowflow-ai/KnowFlow&type=Date)](https://star-history.com/#knowflow-ai/KnowFlow&Date)
 
 🌐 **官方网站**: [https://www.knowflowchat.cn/](https://www.knowflowchat.cn/)
 
 📺 **B站视频**: [https://www.bilibili.com/video/BV1Vfg8zDEUf/](https://www.bilibili.com/video/BV1Vfg8zDEUf/)
 
+🌐 **微信公众号**：KnowFlow 企业知识库
+
 ---
 
 ## 🚀 什么是 KnowFlow
 
-**KnowFlow** 是一个基于 RAGFlow 的企业级开源知识库解决方案，专注于为企业提供真正落地的最后一公里服务。我们持续兼容 RAGFlow 官方版本（当前适配 RAGFlow v0.20.1），同时将社区最佳实践整合进来，为企业知识管理提供更加完善的解决方案。
+**KnowFlow** 是一个基于 [RAGFlow](https://github.com/infiniflow/ragflow) 的企业级开源知识库解决方案，专注于为企业提供 RAG 落地的**最后一公里**服务。
 
-### 🎯 产品定位
+我们持续兼容 RAGFlow 官方版本（当前适配 RAGFlow v0.20.1），在其基础上提供：
 
-- **RAGFlow 企业落地的最后一公里**：解决从开源到生产的关键差距
-- **插件化增强平台**：通过独立服务方式扩展 RAGFlow 功能
-- **企业级知识管理系统**：提供完整的用户权限、团队协作、数据安全保障
+- **更强的文档解析**：集成 MinerU/DOTS/PaddleOCR 三种 OCR 引擎，行级坐标精度，图文混排输出
+- **更灵活的分块策略**：智能分块、标题分块、正则分块、父子分块，适配多种文档场景
+- **企业级管理**：RBAC 权限管理、团队协作、纯离线部署
+- **开箱即用**：Docker Compose 一键部署，预配置管理员账户，简化配置流程
+
+---
+
+## 📦 版本对比
+
+### RAGFlow vs KnowFlow 社区版 vs KnowFlow 商业版
+
+| 功能特性 | RAGFlow 开源版 | KnowFlow 社区版（本项目） | KnowFlow 商业版 |
+|---------|---------------|------------------------|----------------|
+| **基础 RAG 功能** | ✅ | ✅ | ✅ |
+| **RAGFlow 版本** | 最新 | 适配 v0.20.1 | 适配 v0.20.5 |
+| | | | |
+| **--- 文档解析 ---** | | | |
+| DeepDOC 解析 | ✅ | ✅ | ✅ |
+| MinerU 解析 | ❌ 需自行集成 | ✅ 支持 MinerU v2.x | ✅ 最新版本 + 优化 |
+| DOTS 解析 | ❌ | ❌ | ✅ |
+| PaddleOCR-VL 解析 | ❌ | ❌ | ✅ |
+| 坐标溯源 | 基于 OCR 匹配（~97%） | ✅ 基于 block 映射（100%） | ✅ 100% |
+| 图文混排输出 | ❌ 纯文本为主 | ✅ 图片、表格、公式完整保留 | ✅ |
+| 20+ 文档格式支持 | ✅ | ✅（含 Gotenberg 转换） | ✅ |
+| | | | |
+| **--- 分块方法 ---** | | | |
+| RAGFlow 原生分块 | ✅ naive/paper/book/qa 等 | ✅ 全部继承 | ✅ |
+| 智能分块（Smart） | ❌ | ✅ 基于 AST 语义分析 | ✅ |
+| 标题分块（Title） | ❌ | ✅ 按标题层级划分 | ✅ 支持层级筛选 + 标题自动补充 |
+| 正则分块（Regex） | ❌ | ✅ 自定义正则表达式 | ✅ 支持层级筛选 |
+| 父子分块（Parent-Child） | ❌ | ✅ 双层嵌套，精确检索+丰富上下文 | ✅ 支持预览和编辑 |
+| 分块内容预览 | 纯文本 | ✅ Markdown 渲染（标题/公式/列表） | ✅ |
+| | | | |
+| **--- 检索与问答 ---** | | | |
+| 向量检索 | ✅ | ✅ | ✅ |
+| 混合检索 | ✅ ES BM25 | ✅ 统一分词优化 Milvus BM25 | ✅ |
+| 多模态内容理解 | ❌ | ❌ | ✅ VLM 图片描述增强 |
+| Agent 工作流 | ✅ | ✅ | ✅ |
+| | | | |
+| **--- 企业管理 ---** | | | |
+| 用户管理 | ❌ 自由注册 | ✅ 管理员统一管理 | ✅ |
+| RBAC 权限管理 | ❌ | ✅ 知识库级权限 | ✅ 精细化到 Agent/聊天助手/文件 |
+| 团队协作 | ❌ | ✅ 团队管理、模型配置继承 | ✅ |
+| 纯离线部署 | ✅ | ✅ | ✅ |
+| 企业微信集成 | ❌ | ✅ | ✅ |
+| Dify 深度集成 | ❌ | ❌ | ✅ |
+| 使用统计分析 | ❌ | ❌ | ✅ |
+| RAG 评估系统 | ❌ | ❌ | ✅ |
+| | | | |
+| **--- 其他 ---** | | | |
+| 前端 UI | 官方 UI | ✅ 企业级 UI 重设计 | ✅ |
+| API 开放接口 | ✅ | ✅ 含 RBAC + MinerU API | ✅ |
+| 技术支持 | 社区 | 社区 | 专业技术支持 |
+| 商业授权 | Apache-2.0 | AGPL-3.0 | 商业许可 |
+
+### KnowFlow 相比 RAGFlow 的核心优势
+
+| 优势 | 说明 |
+|------|------|
+| **三种 OCR 引擎** | MinerU（行级精度，学术论文）、DOTS（高速解析）、PaddleOCR（块级识别），灵活搭配 |
+| **四种现代分块方法** | 智能/标题/正则/父子分块，基于 AST 语义分析，保证表格和代码块完整性 |
+| **100% 坐标溯源** | 基于 block 数据按行映射，告别 OCR 相似度匹配的 3% 误差 |
+| **图文混排** | 图片、表格、公式完整保留在分块和回答中，而非丢弃 |
+| **企业级管理** | RBAC 权限 + 团队协作 + 管理员统一管控，开箱即用 |
+| **插件化架构** | 独立微服务增强 RAGFlow，不修改核心代码，版本升级无忧 |
+
+> 💡 **获取商业版**：微信联系 `skycode007`（备注"商业版咨询"）
+
+---
 
 ### 🏗️ 系统架构
 
@@ -44,7 +112,7 @@ graph TB
             RF_Minio[(MinIO 存储<br/>端口: 9000)]
             RF_Redis[(Redis 缓存<br/>端口: 6379)]
         end
-        
+
         subgraph "KnowFlow 扩展服务"
             direction TB
             KF_Backend[KnowFlow 后端<br/>端口: 5000<br/>• 用户管理<br/>• 团队协作<br/>• OCR引擎集成<br/>• API Token管理]
@@ -61,25 +129,25 @@ graph TB
 
     %% 用户访问流程
     Browser --> RF_Frontend
-    
+
     %% RAGFlow 内部服务通信
     RF_Frontend --> RF_Backend
     RF_Backend --> RF_DB
     RF_Backend --> RF_ES
     RF_Backend --> RF_Minio
     RF_Backend --> RF_Redis
-    
+
     %% RAGFlow 与 KnowFlow 集成
     RF_Frontend -.->|API 调用| KF_Backend
     RF_Backend -.->|共享数据库| RF_DB
-    
+
     %% KnowFlow 内部服务通信
     KF_Backend --> KF_Gotenberg
     KF_Backend -.-> MinerU_API
     KF_Backend -.-> DOTS_API
     KF_Backend -.-> PaddleOCR_API
     MinerU_API -.-> MinerU_VLM
-    
+
     %% KnowFlow 与 RAGFlow 数据层集成
     KF_Backend --> RF_DB
     KF_Backend --> RF_ES
@@ -93,33 +161,6 @@ graph TB
 - **💾 共享数据层**：复用 RAGFlow 的数据库、存储等基础设施
 - **⚡ 多引擎支持**：集成 MinerU、DOTS、PaddleOCR 三种 OCR 引擎，灵活选择
 - **📄 格式转换**：内置 Gotenberg 服务，支持多种文档格式转换
-
-### 💡 核心功能
-
-<div align="center">
-
-| 📚 **智能文档解析** | 🧠 **增强检索问答** | 👥 **企业级管理** | 🔌 **开放集成** |
-|-------------------|-------------------|------------------|----------------|
-| • 三种OCR引擎可选<br>• MinerU/DOTS/PaddleOCR<br>• 多种分块策略<br>• 20+文档格式支持 | • 精准语义检索<br>• 上下文感知问答<br>• 多模态内容理解<br>• 实时知识更新 | • RBAC权限管理<br>• 团队协作空间<br>• 纯离线部署<br>• 企业微信集成<br>• LDAP/SSO支持 | • 插件化架构<br>• API开放接口<br>• 自定义扩展<br>• 第三方系统集成 |
-
-</div>
-
-
-### 🌟 核心优势
-
-<div align="center">
-
-| 🌟 | **KnowFlow 优势** |
-|----|-------------------|
-| 🔌 | **插件化架构**：无缝兼容 RAGFlow 任意版本，所有增强均可热插拔，升级无忧 |
-| 🏗️ | **微服务设计**：通过独立服务方式增强 RAGFlow，不修改核心代码 |
-| 🧩 | **分块策略丰富**：支持多种分块算法，检索更精准，适配多场景文档 |
-| 🏢 | **企业级特性**：三种OCR引擎（MinerU/DOTS/PaddleOCR）、RBAC权限管理、纯离线部署、企业微信、LDAP/SSO |
-| 📈 | **最佳实践集成**：持续吸收社区优质方案，助力企业高效落地 |
-| 🔧 | **简化部署**：一键安装脚本，Docker Compose 开箱即用 |
-
-</div>
-
 
 ---
 
@@ -136,7 +177,7 @@ graph TB
 #### 1. 克隆项目代码
 
 ```bash
-git clone https://github.com/weizxfree/KnowFlow.git
+git clone https://github.com/knowflow-ai/KnowFlow.git
 cd KnowFlow/docker
 ```
 
@@ -297,7 +338,7 @@ docker compose logs -f
 
 #### 前置要求
 - Python 3.9+
-- Node.js 16+ 
+- Node.js 16+
 - pnpm
 - MinerU 服务（参考上述步骤）
 
@@ -429,11 +470,11 @@ pnpm dev
 **支持格式：** PPT、PNG、Word、DOC、Excel 等 20+ 种常见文件格式
 
 **分块策略：**
-1. **文档结构分块**：基于文档原生结构进行智能分块
-2. **按标题分块**：根据标题层级自动划分内容块
-3. **RAGFlow 原分块**：保持与官方完全一致的分块规则
-4. **父子分块**：父块较大用于补充上下文，子块用于向量检索
-5. **DOTS 解析**：先进的文档智能解析引擎，支持复杂版式和多模态内容
+1. **智能分块（Smart）**：基于 AST 语义分析，保证表格和代码块完整性
+2. **标题分块（Title）**：根据标题层级自动划分内容块
+3. **正则分块（Regex）**：支持自定义正则表达式分割
+4. **父子分块（Parent-Child）**：父块较大用于补充上下文，子块用于向量检索
+5. **RAGFlow 原生分块**：保持与官方完全一致的分块规则（naive/paper/book/qa 等）
 
 <div align="center">
   <img src="knowflow/assets/mulcontent.png" alt="图文混排示例">
@@ -448,57 +489,6 @@ pnpm dev
 </div>
 
 详细配置方式参照 `server/services/knowflow/README.md`
-
----
-
-## 🔧 编译 Docker（开发者）
-
-
-### 编译 KnowFlow-Server 镜像
-
-```bash
-# 后端镜像
-docker buildx build --platform linux/amd64 --target backend -t zxwei/knowflow-server:v0.3.0 --push .
-
-# 前端镜像
-docker buildx build --platform linux/amd64 --target frontend -t zxwei/knowflow-web:v0.3.0 --push .
-```
-
-### 编译 KnowFlow 全镜像
-
-```bash
-# 安装 uv
-sudo snap install astral-uv --classic
-
-# 安装 libicu
-sudo apt-get update
-sudo apt-get install -y python3.12-dev build-essential pkg-config libicu-dev
-
-uv run download_deps.py
-docker build -f Dockerfile.deps -t infiniflow/ragflow_deps .
-docker build --build-arg LIGHTEN=1 -f Dockerfile -t infiniflow/ragflow:nightly-slim .
-
-
-docker tag infiniflow/ragflow:nightly-slim zxwei/knowflow:v2.0.2
-docker push zxwei/knowflow:v2.0.2
-
-vim docker/.env 
-RAGFLOW_IMAGE=infiniflow/ragflow:nightly-slim
-
-```
-
----
-
-## 📋 TODO 清单
-
-- [x] 支持更多文档格式的 MinerU 解析
-- [x] 增强 MarkDown 文件的分块规则
-- [x] 优化 Excel 文件分块
-- [x] MinerU 2.0 接入
-- [x] RAGFlow 前端 UI 源码开源
-- [x] API Token 自动生成机制
-- [x] MinerU 支持自动问题，自动关键词，Raptor，知识图谱 
-- [ ] 文档审批工作流
 
 ---
 
@@ -523,8 +513,27 @@ sudo systemctl restart docker
 
 ```
 
+### 2. 性能优化建议
+
+1. **使用 GPU**: 启用 GPU 加速可显著提升处理速度
+2. **内存配置**: 为容器分配足够内存（推荐 8GB+）
+3. **存储优化**: 使用 SSD 存储可提升 I/O 性能
+4. **网络配置**: 如需外网访问，配置适当的防火墙规则
+
 ---
 
+## 📋 TODO 清单
+
+- [x] 支持更多文档格式的 MinerU 解析
+- [x] 增强 MarkDown 文件的分块规则
+- [x] 优化 Excel 文件分块
+- [x] MinerU 2.0 接入
+- [x] RAGFlow 前端 UI 源码开源
+- [x] API Token 自动生成机制
+- [x] MinerU 支持自动问题，自动关键词，Raptor，知识图谱
+- [ ] 文档审批工作流
+
+---
 
 ## 📄 许可证
 
@@ -532,7 +541,7 @@ sudo systemctl restart docker
 
 ### ✅ 您可以自由地：
 - **使用**：个人学习、研究、开发和部署
-- **修改**：根据需要修改源代码  
+- **修改**：根据需要修改源代码
 - **分发**：分享给他人使用
 - **贡献**：提交 PR 和 Issue，参与开源协作
 
@@ -570,7 +579,7 @@ AGPL-3.0 允许商业使用，但有重要约束：
 
 本项目基于以下开源项目开发：
 
-- [ragflow](https://github.com/infiniflow/ragflow) - 核心 RAG 框架
+- [RAGFlow](https://github.com/infiniflow/ragflow) - 核心 RAG 框架
 
 ---
 
