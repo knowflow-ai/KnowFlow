@@ -1,7 +1,9 @@
 <div align="center">
-  <h1>
-    <img src="knowflow/assets/readme-logo.png" alt="" height="42">&nbsp;KnowFlow
-  </h1>
+  <table><tr><td valign="middle">
+    <img src="knowflow/assets/readme-logo.png" alt="" height="48">
+  </td><td valign="middle">
+    <h1 style="border-bottom:none;margin:0;padding:0;">KnowFlow</h1>
+  </td></tr></table>
   <p><strong>基于 RAGFlow 的企业级 RAG 知识库平台</strong></p>
 
   <p>
@@ -65,7 +67,7 @@
 | 智能分块（Smart） | ❌ | ✅ AST 语义分析 | ✅ 全面优化 |
 | 标题分块（Title） | ❌ | ✅ 按标题层级划分 | ✅ 层级筛选 + 标题自动补充 |
 | 正则分块（Regex） | ❌ | ✅ 自定义正则 | ✅ 层级筛选优化 |
-| 父子分块（Parent-Child） | ❌ | ✅ 双层嵌套检索 | ✅ 支持预览和编辑 |
+| 父子分块（Parent-Child） | ✅ | ✅ 双层嵌套检索 | ✅ 支持预览和编辑 |
 | Markdown 预览与编辑 | ❌ | ❌ | ✅ OCR 后可预览编辑 |
 | 分块 Markdown 渲染 | 纯文本 | ✅ 标题/公式/列表 | ✅ |
 
