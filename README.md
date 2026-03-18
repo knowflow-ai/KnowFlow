@@ -1,9 +1,7 @@
 <div align="center">
-  <table><tr><td valign="middle">
-    <img src="knowflow/assets/readme-logo.png" alt="" height="48">
-  </td><td valign="middle">
-    <h1 style="border-bottom:none;margin:0;padding:0;">KnowFlow</h1>
-  </td></tr></table>
+  <img src="knowflow/assets/readme-logo.png" alt="" height="48" align="middle"><br>
+
+  # KnowFlow
   <p><strong>基于 RAGFlow 的企业级 RAG 知识库平台</strong></p>
 
   <p>
