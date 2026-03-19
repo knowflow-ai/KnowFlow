@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # MinerU API 服务（包含预下载的模型）
+  mineru-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zxwei/mineru-api-full:v2.5.4
+    container_name: knowflow-mineru-api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      MINERU_MODEL_SOURCE: local
+      MINERU_MODELS_PRELOADED: true
+    volumes:
+      # 持久化处理结果
+      - mineru-output:/opt/mineru/output
+      # 可选：挂载额外的模型目录
+      # - ./models:/root/.mineru/models:ro
+    command:
+      - mineru-api
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+
+  # 可选：MinerU VLM 服务器（用于高级 OCR）
+  mineru-vllm-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zxwei/mineru-api-full:v2.5.4
+    container_name: knowflow-mineru-vllm
+    restart: always
+    profiles: ["vllm"]  # 需要显式启用
+    ports:
+      - "30000:30000"
+    environment:
+      MINERU_MODEL_SOURCE: local
+      MINERU_MODELS_PRELOADED: true
+    command:
+      - mineru-vllm-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "30000"
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+
+volumes:
+  mineru-output:
+    name: knowflow-mineru-output
+
+

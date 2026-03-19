@@ -12,21 +12,23 @@ import {
 } from '../hooks';
 import { AudioConfiguration } from './audio';
 import { BookConfiguration } from './book';
-import { DOTSConfiguration } from './dots';
 import { EmailConfiguration } from './email';
 import { KnowledgeGraphConfiguration } from './knowledge-graph';
 import { LawsConfiguration } from './laws';
 import { ManualConfiguration } from './manual';
-import { MinerUConfiguration } from './mineru';
 import { NaiveConfiguration } from './naive';
 import { OneConfiguration } from './one';
 import { PaperConfiguration } from './paper';
+import { ParentChildConfiguration } from './parent_child';
 import { PictureConfiguration } from './picture';
 import { PresentationConfiguration } from './presentation';
 import { QAConfiguration } from './qa';
+import { RegexConfiguration } from './regex';
 import { ResumeConfiguration } from './resume';
+import { SmartConfiguration } from './smart';
 import { TableConfiguration } from './table';
 import { TagConfiguration } from './tag';
+import { TitleConfiguration } from './title';
 
 import styles from '../index.less';
 
@@ -48,8 +50,10 @@ const ConfigurationComponentMap = {
   [DocumentParserType.Email]: EmailConfiguration,
   [DocumentParserType.Tag]: TagConfiguration,
   [DocumentParserType.KnowledgeGraph]: KnowledgeGraphConfiguration,
-  [DocumentParserType.MinerU]: MinerUConfiguration,
-  [DocumentParserType.DOTS]: DOTSConfiguration,
+  [DocumentParserType.Smart]: SmartConfiguration,
+  [DocumentParserType.Regex]: RegexConfiguration,
+  [DocumentParserType.ParentChild]: ParentChildConfiguration,
+  [DocumentParserType.Title]: TitleConfiguration,
 };
 
 function EmptyComponent() {

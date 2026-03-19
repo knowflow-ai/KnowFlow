@@ -4,8 +4,11 @@ import os
 import tempfile
 import json
 import base64
+import shutil
+from datetime import datetime
 from .ragflow_build import create_ragflow_resources
 from .fastapi_adapter import get_global_adapter
+from ...config import APP_CONFIG
 
 # 聊天助手 Prompt 模板:
 #   请参考{knowledge}内容回答用户问题。
@@ -49,7 +52,35 @@ def _save_images_from_result(result, images_dir):
     return saved_count
 
 
-def _process_pdf_with_fastapi(pdf_path, update_progress):
+def _export_debug_outputs(doc_id, md_file_path, json_path):
+    """将解析结果保存到本地调试目录"""
+    if not getattr(APP_CONFIG, "dev_mode", False):
+        return
+
+    output_root = os.getenv("MINERU_DEBUG_OUTPUT_DIR", "tmp/mineru_debug") or "tmp/mineru_debug"
+    output_root = os.path.abspath(output_root)
+
+    os.makedirs(output_root, exist_ok=True)
+
+    raw_doc_id = doc_id or "unknown_doc"
+    safe_doc_id = ''.join(c if c.isalnum() or c in ('-', '_') else '_' for c in raw_doc_id)
+    if not safe_doc_id:
+        safe_doc_id = "unknown_doc"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    target_dir = os.path.join(output_root, f"{safe_doc_id}_{timestamp}")
+    os.makedirs(target_dir, exist_ok=True)
+
+    # 保存 Markdown
+    shutil.copy2(md_file_path, os.path.join(target_dir, os.path.basename(md_file_path)))
+
+    # 保存 middle.json（如果存在）
+    if json_path and os.path.exists(json_path):
+        shutil.copy2(json_path, os.path.join(target_dir, os.path.basename(json_path)))
+
+    print(f"[MinerU-DEBUG] 中间文件已保存到: {target_dir}")
+
+
+def _process_pdf_with_fastapi(pdf_path, update_progress, doc_id=None):
     """
     使用 FastAPI 处理 PDF 文件
     
@@ -66,61 +97,45 @@ def _process_pdf_with_fastapi(pdf_path, update_progress):
     adapter = get_global_adapter()
     result = adapter.process_file(
         file_path=pdf_path,
-        update_progress=update_progress,
-        return_middle_json=True,   # 确保返回 middle_json 信息
-        return_images=True         # 获取原始图片数据
+        return_middle_json=True,  
+        return_images=True,
+        update_progress=update_progress
     )
     
-    # 调试信息
-    print(f"[DEBUG] FastAPI 响应结构: {type(result)}")
-    print(f"[DEBUG] FastAPI 响应字段: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
-    
-    # 处理 FastAPI 的响应结构
-    # 根据curl请求，可能直接返回结果，也可能嵌套在 results 数组中
-    if 'results' in result and len(result['results']) > 0:
-        # 从 results 数组中获取第一个结果（兼容旧格式）
-        first_result = result['results'][0]
-        print(f"[DEBUG] 使用 results 数组格式")
-    elif 'md_content' in result or 'middle_json' in result:
-        # 直接使用结果（新格式）
-        first_result = result
-        print(f"[DEBUG] 使用直接结果格式")
-    else:
-        raise ValueError("FastAPI 返回的数据格式不符合预期，既没有 results 数组也没有直接的 md_content")
-    
-    # 调试信息
-    print(f"[DEBUG] 处理结果字段: {list(first_result.keys())}")
-    print(f"[DEBUG] md_content 存在: {'md_content' in first_result}")
-    print(f"[DEBUG] middle_json 存在: {'middle_json' in first_result}")
-    if 'middle_json' in first_result:
-        print(f"[DEBUG] middle_json 类型: {type(first_result['middle_json'])}")
-        print(f"[DEBUG] middle_json 是否为空: {not first_result['middle_json']}")
-    
-    # 检查是否有 md_content
-    if 'md_content' in first_result and first_result['md_content']:
-        temp_dir = tempfile.mkdtemp()
-        
-        # 保存 Markdown 文件
-        md_file_path = os.path.join(temp_dir, "result.md")
-        with open(md_file_path, 'w', encoding='utf-8') as f:
-            f.write(first_result['md_content'])
-        
-        # 保存 middle_json 数据到对应位置，供 get_bbox_for_chunk 使用
-        if 'middle_json' in first_result and first_result['middle_json']:
-            middle_json_path = os.path.join(temp_dir, "result_middle.json")
-            with open(middle_json_path, 'w', encoding='utf-8') as f:
-                json.dump(first_result['middle_json'], f, ensure_ascii=False, indent=2)
-            print(f"[INFO] 已保存位置信息文件: {middle_json_path}")
-        else:
-            print(f"[WARNING] FastAPI 未返回位置信息数据 (middle_json 字段为空或不存在)")
-        
-        # 创建并保存图片到临时目录
-        images_dir = os.path.join(temp_dir, 'images')
-        _save_images_from_result(first_result, images_dir)
-            
-        return md_file_path
-    else:
-        raise ValueError("FastAPI 返回的结果中未包含 md_content 或 md_content 为空")
+    # 获取文档解析结果
+    result_doc_id = list(result['results'].keys())[0]
+    doc_result = result['results'][result_doc_id]
+    effective_doc_id = doc_id or result_doc_id
+
+    # 提取内容
+    md_content = doc_result['md_content']
+
+    temp_dir = tempfile.mkdtemp()
+
+    # 保存 Markdown 文件
+    md_file_path = os.path.join(temp_dir, "result.md")
+    with open(md_file_path, 'w', encoding='utf-8') as f:
+        f.write(md_content)
+
+    # 保存 middle_json 数据（兼容字符串或对象）
+    json_path = None
+    if 'middle_json' in doc_result:
+        json_path = os.path.join(temp_dir, "result_middle.json")
+        middle_json_data = doc_result['middle_json']
+        if isinstance(middle_json_data, str):
+            middle_json_data = json.loads(middle_json_data)
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(middle_json_data, f, ensure_ascii=False, indent=2)
+
+    # 保存图片
+    images_dir = os.path.join(temp_dir, 'images')
+    _save_images_from_result(doc_result, images_dir)
+
+    # 调试导出
+    _export_debug_outputs(effective_doc_id, md_file_path, json_path)
+
+    return md_file_path
+
 
 
 def _safe_create_ragflow(doc_id, kb_id, md_file_path, image_dir, update_progress):
@@ -145,7 +160,7 @@ def process_pdf_entry(doc_id, pdf_path, kb_id, update_progress):
             update_progress(0.01, "PDF 处理模式: FastAPI")
             
         # 使用 FastAPI 处理
-        md_file_path = _process_pdf_with_fastapi(pdf_path, update_progress)
+        md_file_path = _process_pdf_with_fastapi(pdf_path, update_progress, doc_id=doc_id)
         
         # 处理图片目录（已在 _process_pdf_with_fastapi 中创建）
         images_dir = os.path.join(os.path.dirname(md_file_path), 'images')

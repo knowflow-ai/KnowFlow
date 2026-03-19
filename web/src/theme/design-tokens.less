@@ -1,0 +1,239 @@
+/**
+ * KnowFlow 设计系统 - Design Tokens
+ * 基于 2B 软件标准，符合 Logo 蓝白基调
+ */
+
+/* ============================================
+   品牌色系 - Brand Colors (基于 Logo)
+   ============================================ */
+@brand-primary-50: #eff6ff;
+@brand-primary-100: #dbeafe;
+@brand-primary-200: #bfdbfe;
+@brand-primary-300: #93c5fd;
+@brand-primary-400: #60a5fa;
+@brand-primary-500: #3b82f6; /* 主色 */
+@brand-primary-600: #2563eb; /* Logo 起始色 */
+@brand-primary-700: #1d4ed8;
+@brand-primary-800: #1e40af;
+@brand-primary-900: #1e3a8a;
+
+/* Logo 渐变 */
+@brand-gradient-start: #2563eb;
+@brand-gradient-end: #0ea5e9;
+@brand-gradient: linear-gradient(
+  135deg,
+  @brand-gradient-start 0%,
+  @brand-gradient-end 100%
+);
+
+/* ============================================
+   中性色系 - Neutral Colors
+   ============================================ */
+@neutral-50: #f8fafc;
+@neutral-100: #f1f5f9;
+@neutral-200: #e2e8f0;
+@neutral-300: #cbd5e1;
+@neutral-400: #94a3b8;
+@neutral-500: #64748b;
+@neutral-600: #475569;
+@neutral-700: #334155;
+@neutral-800: #1e293b;
+@neutral-900: #0f172a;
+
+/* 语义化中性色 */
+@color-text-primary: @neutral-900;
+@color-text-secondary: @neutral-600;
+@color-text-tertiary: @neutral-500;
+@color-text-disabled: @neutral-400;
+@color-text-inverse: #ffffff;
+
+@color-bg-primary: #ffffff;
+@color-bg-secondary: @neutral-50;
+@color-bg-tertiary: @neutral-100;
+@color-bg-hover: @neutral-100;
+@color-bg-active: @neutral-200;
+@color-bg-disabled: @neutral-100;
+
+@color-border-default: @neutral-200;
+@color-border-strong: @neutral-300;
+@color-border-subtle: @neutral-100;
+
+/* ============================================
+   功能色系 - Functional Colors
+   ============================================ */
+@color-success: #10b981;
+@color-success-light: #d1fae5;
+@color-success-bg: #ecfdf5;
+
+@color-warning: #f59e0b;
+@color-warning-light: #fef3c7;
+@color-warning-bg: #fffbeb;
+
+@color-error: #ef4444;
+@color-error-light: #fecaca;
+@color-error-bg: #fef2f2;
+
+@color-info: #0ea5e9;
+@color-info-light: #bae6fd;
+@color-info-bg: #f0f9ff;
+
+/* ============================================
+   间距系统 - Spacing (8px 基准)
+   ============================================ */
+@space-xs: 4px;
+@space-sm: 8px;
+@space-md: 16px;
+@space-lg: 24px;
+@space-xl: 32px;
+@space-2xl: 48px;
+@space-3xl: 64px;
+
+/* 组件内边距 */
+@padding-xs: 8px 12px;
+@padding-sm: 10px 16px;
+@padding-md: 12px 20px;
+@padding-lg: 16px 24px;
+
+/* ============================================
+   圆角系统 - Border Radius
+   ============================================ */
+@radius-sm: 6px;
+@radius-md: 8px;
+@radius-lg: 12px;
+@radius-xl: 16px;
+@radius-full: 9999px;
+
+/* ============================================
+   阴影系统 - Shadows (轻量化)
+   ============================================ */
+@shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+@shadow-sm:
+  0 1px 3px 0 rgba(0, 0, 0, 0.1),
+  0 1px 2px -1px rgba(0, 0, 0, 0.1);
+@shadow-md:
+  0 4px 6px -1px rgba(0, 0, 0, 0.1),
+  0 2px 4px -2px rgba(0, 0, 0, 0.1);
+@shadow-lg:
+  0 10px 15px -3px rgba(0, 0, 0, 0.1),
+  0 4px 6px -4px rgba(0, 0, 0, 0.1);
+@shadow-xl:
+  0 20px 25px -5px rgba(0, 0, 0, 0.1),
+  0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+/* 卡片阴影 */
+@shadow-card: @shadow-sm;
+@shadow-card-hover: @shadow-md;
+
+/* ============================================
+   字体系统 - Typography
+   ============================================ */
+@font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+  'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial,
+  sans-serif;
+@font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+  'Courier New', monospace;
+
+/* 字重 */
+@font-weight-regular: 400;
+@font-weight-medium: 500;
+@font-weight-semibold: 600;
+@font-weight-bold: 700;
+
+/* 字号 */
+@font-size-xs: 12px;
+@font-size-sm: 13px;
+@font-size-md: 14px;
+@font-size-lg: 16px;
+@font-size-xl: 18px;
+@font-size-2xl: 20px;
+@font-size-3xl: 24px;
+@font-size-4xl: 32px;
+
+/* 行高 */
+@line-height-tight: 1.25;
+@line-height-normal: 1.5;
+@line-height-relaxed: 1.75;
+
+/* ============================================
+   布局尺寸 - Layout Dimensions
+   ============================================ */
+/* 侧边栏 */
+@sidebar-width: 150px;
+@sidebar-collapsed-width: 80px;
+@sidebar-bg: #ffffff;
+@sidebar-border: @color-border-default;
+
+/* 顶部栏 */
+@header-height: 64px;
+@header-bg: #ffffff;
+@header-border: @color-border-default;
+
+/* 内容区 */
+@content-bg: @neutral-50;
+@content-padding: @space-lg;
+
+/* ============================================
+   过渡动画 - Transitions
+   ============================================ */
+@transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+@transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+@transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+/* ============================================
+   Z-Index 层级
+   ============================================ */
+@z-index-dropdown: 1000;
+@z-index-sticky: 1020;
+@z-index-fixed: 1030;
+@z-index-modal-backdrop: 1040;
+@z-index-modal: 1050;
+@z-index-popover: 1060;
+@z-index-tooltip: 1070;
+
+/* ============================================
+   组件特定 Tokens
+   ============================================ */
+/* 按钮 */
+@button-height-sm: 32px;
+@button-height-md: 40px;
+@button-height-lg: 48px;
+@button-border-radius: @radius-md;
+@button-font-weight: @font-weight-medium;
+
+/* 输入框 */
+@input-height-sm: 32px;
+@input-height-md: 40px;
+@input-height-lg: 48px;
+@input-border-color: @color-border-default;
+@input-border-color-hover: @brand-primary-400;
+@input-border-color-focus: @brand-primary-500;
+@input-bg: @color-bg-primary;
+
+/* 卡片 */
+@card-bg: @color-bg-primary;
+@card-border: @color-border-default;
+@card-border-radius: @radius-lg;
+@card-padding: @space-lg;
+@card-shadow: @shadow-card;
+@card-shadow-hover: @shadow-card-hover;
+
+/* 表格 */
+@table-header-bg: @neutral-50;
+@table-row-hover-bg: @neutral-50;
+@table-border-color: @color-border-default;
+
+/* 侧边栏菜单 */
+@menu-item-height: 48px;
+@menu-item-padding: 12px 16px;
+@menu-item-border-radius: @radius-md;
+@menu-item-bg-hover: @neutral-100;
+@menu-item-bg-active: @brand-primary-50;
+@menu-item-color: @color-text-secondary;
+@menu-item-color-hover: @color-text-primary;
+@menu-item-color-active: @brand-primary-600;
+@menu-icon-size: 20px;
+
+/* ============================================
+   深色模式 - Dark Mode (预留)
+   ============================================ */
+/* 深色模式变量可在这里定义 */

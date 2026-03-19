@@ -16,12 +16,13 @@
 import mysql.connector
 import os
 import tiktoken
-import tempfile
 import json
 import re
 from markdown import markdown as md_to_html
 import time
 import difflib
+import xxhash
+import logging
 try:
     from markdown_it import MarkdownIt
     from markdown_it.tree import SyntaxTreeNode
@@ -48,78 +49,93 @@ def is_dev_mode():
 
 
 def should_cleanup_temp_files():
-    """检查是否应该清理临时文件"""
-    # 在dev模式下，默认不清理临时文件，但环境变量仍可覆盖
-    if is_dev_mode():
-        return APP_CONFIG.cleanup_temp_files
-    # 在非dev模式下，默认清理，但环境变量仍可覆盖
-    return APP_CONFIG.cleanup_temp_files
+    """
+    检查是否应该清理临时文件
+
+    清理策略：
+    - dev_mode=True:  不清理临时文件（保留用于调试）
+    - dev_mode=False: 清理临时文件（节省磁盘空间）
+    """
+    return not is_dev_mode()
 
 
-def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_tokens=10, **kwargs):
+def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_tokens=10, coordinate_map=None, **kwargs):
     """
     根据配置选择合适的分块方法的统一接口
-    
+
     支持的分块方法：
     - 'parent_child': 父子分块模式，基于Smart分块的双层结构
     - 'strict_regex': 严格按正则表达式分块（当配置启用时）
     - 'advanced': split_markdown_to_chunks_advanced (高级分块，混合策略)
     - 'smart': split_markdown_to_chunks_smart (智能分块，基于AST，默认)
     - 'basic': split_markdown_to_chunks (基础分块)
-    
+
+    Args:
+        txt: markdown文本
+        chunk_token_num: 分块token数
+        min_chunk_tokens: 最小分块token数
+        coordinate_map: 坐标映射 {line_number: [page, x1, x2, y1, y2]}，如果提供则返回带坐标的分块
+        **kwargs: 其他参数
+
+    Returns:
+        如果 coordinate_map=None: 返回字符串列表
+        如果提供 coordinate_map: 返回字典列表 [{"content": str, "coordinates": [[page, x1, x2, y1, y2], ...]}]
+
     可通过环境变量 CHUNK_METHOD 配置，支持的值：parent_child, advanced, smart, basic
     也可通过kwargs传入自定义配置：
     - chunking_config: 分块配置字典，包含strategy等字段
     """
-    # 添加调试打印
-    print("=" * 80)
-    print("🔍 [DEBUG] split_markdown_to_chunks_configured 调用参数:")
-    print(f"📝 文本长度: {len(txt) if txt else 0} 字符")
-    print(f"🔢 chunk_token_num: {chunk_token_num}")
-    print(f"🔢 min_chunk_tokens: {min_chunk_tokens}")
-    print(f"📋 kwargs 键值对:")
-    for key, value in kwargs.items():
-        if key == 'chunking_config' and isinstance(value, dict):
-            print(f"  📌 {key}:")
-            for sub_key, sub_value in value.items():
-                print(f"    🔸 {sub_key}: {sub_value}")
-        else:
-            print(f"  📌 {key}: {value}")
-    print("=" * 80)
     
     # 检查是否有自定义的分块配置（从文档配置传入）
     custom_chunking_config = kwargs.get('chunking_config', None)
     
     if custom_chunking_config:
-        print(f"🎯 [DEBUG] 使用自定义分块配置: {custom_chunking_config}")
         # 使用文档级别的分块配置
         strategy = custom_chunking_config.get('strategy', 'smart')
         chunk_token_num = custom_chunking_config.get('chunk_token_num', chunk_token_num)
         min_chunk_tokens = custom_chunking_config.get('min_chunk_tokens', min_chunk_tokens)
-        
-        print(f"🚀 [DEBUG] 最终分块参数:")
-        print(f"  📋 策略: {strategy}")
-        print(f"  🔢 分块大小: {chunk_token_num}")
-        print(f"  🔢 最小分块: {min_chunk_tokens}")
-        
-        # 其他策略的处理
+
         if strategy == 'parent_child':
-            print(f"  🎯 使用父子分块策略")
-            return split_markdown_to_chunks_parent_child(
+            chunks = split_markdown_to_chunks_parent_child(
                 txt,
                 chunk_token_num=chunk_token_num,
                 min_chunk_tokens=min_chunk_tokens,
                 parent_config=custom_chunking_config.get('parent_config', {}),
                 doc_id=kwargs.get('doc_id', 'unknown'),
-                kb_id=kwargs.get('kb_id', 'unknown')
+                kb_id=kwargs.get('kb_id', 'unknown'),
+                tenant_id=kwargs.get('tenant_id', 'unknown'),
+                enable_heading_in_content=custom_chunking_config.get('enable_heading_in_content', False)
             )
+            # 父子分块也支持坐标附加
+            if coordinate_map is not None:
+                chunks = _attach_coordinates_to_parent_child_chunks(chunks, txt, coordinate_map)
+
+                # 更新 _last_parent_child_result，添加坐标信息
+                global _last_parent_child_result
+                if _last_parent_child_result and isinstance(chunks, list):
+                    if len(chunks) == len(_last_parent_child_result.get('child_chunks', [])):
+                        for i, chunk_with_coord in enumerate(chunks):
+                            if isinstance(chunk_with_coord, dict) and 'coordinates' in chunk_with_coord:
+                                _last_parent_child_result['child_chunks'][i]['coordinates'] = chunk_with_coord['coordinates']
+            return chunks
+        elif strategy == 'title':
+            include_metadata = kwargs.pop('include_metadata', False)
+            split_level = custom_chunking_config.get('split_level', 3)
+            chunks = split_markdown_to_chunks_title(
+                txt,
+                chunk_token_num=chunk_token_num,
+                min_chunk_tokens=min_chunk_tokens,
+                split_level=split_level,
+                include_metadata=include_metadata,
+                enable_heading_in_content=custom_chunking_config.get('enable_heading_in_content', False)
+            )
+
         elif strategy == 'advanced':
             include_metadata = kwargs.pop('include_metadata', False)
             overlap_ratio = kwargs.pop('overlap_ratio', 0.0)
-            print(f"  🎯 使用高级分块策略")
-            return split_markdown_to_chunks_advanced(
-                txt, 
-                chunk_token_num=chunk_token_num, 
+            chunks = split_markdown_to_chunks_advanced(
+                txt,
+                chunk_token_num=chunk_token_num,
                 min_chunk_tokens=min_chunk_tokens,
                 overlap_ratio=overlap_ratio,
                 include_metadata=include_metadata
@@ -127,59 +143,256 @@ def split_markdown_to_chunks_configured(txt, chunk_token_num=256, min_chunk_toke
 
         elif strategy == 'strict_regex':
             regex_pattern = custom_chunking_config.get('regex_pattern', '')
-            print(f"  🎯 使用正则分块策略, 模式: {regex_pattern}")
             if regex_pattern:
-                return split_markdown_to_chunks_strict_regex(
-                    txt, 
-                    chunk_token_num=chunk_token_num, 
-                    min_chunk_tokens=min_chunk_tokens, 
+                chunks = split_markdown_to_chunks_strict_regex(
+                    txt,
+                    chunk_token_num=chunk_token_num,
+                    min_chunk_tokens=min_chunk_tokens,
                     regex_pattern=regex_pattern
                 )
             else:
-                print(f"  ⚠️ 正则表达式为空，回退到智能分块")
-                # 如果没有正则表达式，回退到智能分块
-                return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
+                chunks = split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
 
         elif strategy == 'smart':
-            print(f"  🎯 使用智能分块策略")
-            return split_markdown_to_chunks_smart(
-                txt, 
-                chunk_token_num=chunk_token_num, 
-                min_chunk_tokens=min_chunk_tokens
+            enable_heading = custom_chunking_config.get('enable_heading_in_content', False)
+            logging.info(f"Smart分块配置: enable_heading_in_content={enable_heading}, custom_chunking_config={custom_chunking_config}")
+            chunks = split_markdown_to_chunks_smart(
+                txt,
+                chunk_token_num=chunk_token_num,
+                min_chunk_tokens=min_chunk_tokens,
+                enable_heading_in_content=enable_heading
             )
         elif strategy == 'basic':
             delimiter = custom_chunking_config.get('delimiter', "\n!?。；！？")
-            print(f"  🎯 使用基础分块策略, 分隔符: {delimiter}")
-            return split_markdown_to_chunks(
-                txt, 
+            chunks = split_markdown_to_chunks(
+                txt,
                 chunk_token_num=chunk_token_num,
                 delimiter=delimiter
             )
+        else:
+            chunks = []
     else:
-        print(f"🔄 [DEBUG] 使用默认配置 - 环境变量或回退到智能分块")
-        # 原有的环境变量配置逻辑...
+        # 使用环境变量配置
         method = get_configured_chunk_method()
-        print(f"  📊 环境配置方法: {method}")
-        
+
         if method == 'advanced':
             include_metadata = kwargs.pop('include_metadata', False)
             overlap_ratio = kwargs.pop('overlap_ratio', 0.0)
-            return split_markdown_to_chunks_advanced(
-                txt, 
-                chunk_token_num=chunk_token_num, 
+            chunks = split_markdown_to_chunks_advanced(
+                txt,
+                chunk_token_num=chunk_token_num,
                 min_chunk_tokens=min_chunk_tokens,
                 overlap_ratio=overlap_ratio,
                 include_metadata=include_metadata
             )
         elif method == 'basic':
             delimiter = kwargs.pop('delimiter', "\n!?。；！？")
-            return split_markdown_to_chunks(
-                txt, 
+            chunks = split_markdown_to_chunks(
+                txt,
                 chunk_token_num=chunk_token_num,
                 delimiter=delimiter
             )
         else:  # 默认使用智能分块
-            return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
+            chunks = split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
+
+    # 统一处理坐标映射
+    if coordinate_map is not None:
+        return _attach_coordinates_to_chunks(chunks, txt, coordinate_map)
+    else:
+        return chunks
+
+
+def _attach_coordinates_to_parent_child_chunks(parent_child_data, markdown_text, coordinate_map):
+    """
+    为父子分块附加坐标信息
+
+    Args:
+        parent_child_data: 父子分块数据，可能是：
+            - 字典格式: {"parent_chunks": [...], "child_chunks": [...], "relationships": [...]}
+            - 列表格式: [chunk1, chunk2, ...] (简化版，只包含子分块)
+        markdown_text: 完整的markdown文本
+        coordinate_map: 坐标映射
+
+    Returns:
+        附加了坐标的父子分块数据（保持输入格式）
+    """
+    from typing import Dict, List
+
+    # 处理简化的列表格式（只有子分块）
+    if isinstance(parent_child_data, list):
+        # 提取内容（可能是字符串或字典）
+        contents = []
+        for item in parent_child_data:
+            if isinstance(item, dict):
+                contents.append(item.get('content', ''))
+            else:
+                contents.append(str(item))
+
+        # 附加坐标
+        chunks_with_coords = _attach_coordinates_to_chunks(contents, markdown_text, coordinate_map)
+
+        # 合并回原始结构
+        result = []
+        for i, item in enumerate(parent_child_data):
+            if isinstance(item, dict):
+                item_copy = item.copy()
+                if i < len(chunks_with_coords):
+                    item_copy['coordinates'] = chunks_with_coords[i].get('coordinates', [])
+                result.append(item_copy)
+            else:
+                # 字符串转为字典
+                if i < len(chunks_with_coords):
+                    result.append(chunks_with_coords[i])
+
+        return result
+
+    # 处理完整的字典格式
+    if isinstance(parent_child_data, dict):
+        # 提取父分块和子分块的内容
+        parent_contents = [p.get('content', '') if isinstance(p, dict) else str(p)
+                          for p in parent_child_data.get('parent_chunks', [])]
+        child_contents = [c.get('content', '') if isinstance(c, dict) else str(c)
+                         for c in parent_child_data.get('child_chunks', [])]
+
+        # 使用通用的坐标附加函数
+        parent_with_coords = _attach_coordinates_to_chunks(parent_contents, markdown_text, coordinate_map)
+        child_with_coords = _attach_coordinates_to_chunks(child_contents, markdown_text, coordinate_map)
+
+        # 将坐标信息合并回原始的父子分块结构
+        result = {
+            'parent_chunks': [],
+            'child_chunks': [],
+            'relationships': parent_child_data.get('relationships', [])
+        }
+
+        # 合并父分块
+        for i, parent in enumerate(parent_child_data.get('parent_chunks', [])):
+            if isinstance(parent, dict):
+                parent_copy = parent.copy()
+                if i < len(parent_with_coords):
+                    parent_copy['coordinates'] = parent_with_coords[i].get('coordinates', [])
+                result['parent_chunks'].append(parent_copy)
+
+        # 合并子分块
+        for i, child in enumerate(parent_child_data.get('child_chunks', [])):
+            if isinstance(child, dict):
+                child_copy = child.copy()
+                if i < len(child_with_coords):
+                    child_copy['coordinates'] = child_with_coords[i].get('coordinates', [])
+                result['child_chunks'].append(child_copy)
+
+        return result
+
+    # 未知格式，原样返回
+    return parent_child_data
+
+
+def _attach_coordinates_to_chunks(chunks, markdown_text, coordinate_map):
+    """
+    为分块附加坐标信息（方案A：基于行号的直接映射）
+
+    Args:
+        chunks: 字符串分块列表
+        markdown_text: 完整的markdown文本
+        coordinate_map: 坐标映射 {line_number: [page, x1, x2, y1, y2]}
+
+    Returns:
+        带坐标的分块列表 [{"content": str, "coordinates": [[page, x1, x2, y1, y2], ...]}]
+    """
+    from typing import Dict, List
+
+    # 标准化 coordinate_map 的键为整数
+    normalized_coord_map: Dict[int, List] = {}
+    for key, value in coordinate_map.items():
+        try:
+            idx = int(key)
+            normalized_coord_map[idx] = value
+        except (TypeError, ValueError):
+            continue
+
+    # 将markdown按行分割
+    md_lines = markdown_text.split('\n')
+
+    # 构建行文本到行号的映射（支持重复文本）
+    line_lookup: Dict[str, List[int]] = {}
+    for idx, line in enumerate(md_lines):
+        stripped = line.strip()
+        if stripped:
+            line_lookup.setdefault(stripped, []).append(idx)
+
+    # 为每个分块附加坐标
+    chunks_with_coords = []
+    used_indices = set()  # 记录已使用的行号
+
+    for chunk_idx, chunk in enumerate(chunks):
+        # 处理字典或字符串类型的 chunk
+        if isinstance(chunk, dict):
+            chunk_text = chunk.get('content', '')
+            if not chunk_text or not chunk_text.strip():
+                continue
+        else:
+            chunk_text = chunk
+            if not chunk_text or not chunk_text.strip():
+                continue
+
+        chunk_lines = chunk_text.split('\n')
+        chunk_coordinates = []
+
+        # 遍历分块中的每一行
+        for chunk_line in chunk_lines:
+            stripped_line = chunk_line.strip()
+            if not stripped_line:
+                continue
+
+            # 1. 精确匹配：查找所有候选行号，选择第一个未使用的
+            candidate_indices = line_lookup.get(stripped_line, [])
+            selected_idx = None
+
+            for line_idx in candidate_indices:
+                if line_idx not in used_indices:
+                    selected_idx = line_idx
+                    break
+
+            # 2. 如果精确匹配失败，尝试部分匹配（处理列表项或轻微差异）
+            if selected_idx is None:
+                for line_idx, md_line in enumerate(md_lines):
+                    if line_idx in used_indices:
+                        continue
+
+                    md_line_stripped = md_line.strip()
+                    if not md_line_stripped:
+                        continue
+
+                    # 去除列表前缀后再比较
+                    md_line_core = md_line_stripped
+                    if md_line_core.startswith(('- ', '* ', '• ', '· ')):
+                        md_line_core = md_line_core[2:].strip()
+
+                    chunk_core = stripped_line
+                    if chunk_core.startswith(('- ', '* ', '• ', '· ')):
+                        chunk_core = chunk_core[2:].strip()
+
+                    if (chunk_core and md_line_core and
+                            (chunk_core == md_line_core or
+                             chunk_core in md_line_core or
+                             md_line_core in chunk_core)):
+                        selected_idx = line_idx
+                        break
+
+            # 3. 记录坐标
+            if selected_idx is not None:
+                used_indices.add(selected_idx)
+                coord = normalized_coord_map.get(selected_idx)
+                if coord and coord not in chunk_coordinates:
+                    chunk_coordinates.append(coord)
+
+        # 添加带坐标的分块
+        chunks_with_coords.append({
+            'content': chunk_text,
+            'coordinates': chunk_coordinates
+        })
+
+    return chunks_with_coords
 
 
 def singleton(cls, *args, **kw):
@@ -395,242 +608,6 @@ def split_markdown_to_chunks(txt, chunk_token_num=128, delimiter="\n!?。；！�
 
 
 _blocks_cache = {}
-def get_blocks_from_md(md_file_path):
-    if md_file_path in _blocks_cache:
-        return _blocks_cache[md_file_path]
-    
-    json_path = md_file_path.replace('.md', '_middle.json')
-    try:
-        with open(json_path, 'r') as f:
-            data = json.load(f)
-            block_list = []
-            
-            # 检查数据结构类型
-            if 'pdf_info' not in data:
-                print(f"[WARNING] 无效的数据结构: 缺少 pdf_info 字段")
-                _blocks_cache[md_file_path] = []
-                return []
-            
-            for page_idx, page in enumerate(data['pdf_info']):
-                # Pipeline模式：有preproc_blocks字段
-                if 'preproc_blocks' in page:
-                    print(f"[INFO] 检测到Pipeline模式数据结构")
-                    for block in page['preproc_blocks']:
-                        bbox = block.get('bbox')
-                        if not bbox:
-                            continue
-                        
-                        # 提取文本内容
-                        text_content = ''
-                        
-                        # 对于表格类型，需要从嵌套的blocks中提取HTML
-                        if block.get('type') == 'table' and 'blocks' in block:
-                            for sub_block in block['blocks']:
-                                if 'lines' in sub_block:
-                                    for line in sub_block['lines']:
-                                        if 'spans' in line:
-                                            for span in line['spans']:
-                                                if span.get('type') == 'table' and 'html' in span:
-                                                    text_content += span['html']
-                                                elif 'content' in span:
-                                                    text_content += span['content']
-                        
-                        # 对于非表格类型，使用原来的逻辑
-                        if not text_content and 'lines' in block:
-                            for line in block['lines']:
-                                if 'spans' in line:
-                                    for span in line['spans']:
-                                        if 'content' in span:
-                                            text_content += span['content']
-                        
-                        block_data = {
-                            'bbox': bbox,
-                            'type': block.get('type', 'unknown'),
-                            'text': text_content.strip(),
-                            'page_idx': page_idx,
-                            'index': block.get('index', 0),
-                            'source_mode': 'pipeline'
-                        }
-                        block_list.append(block_data)
-                
-                # VLM模式：使用para_blocks字段（数组格式）
-                elif 'para_blocks' in page:
-                    print(f"[INFO] 检测到VLM模式数据结构")
-                    para_blocks = page['para_blocks']
-                    if isinstance(para_blocks, list):
-                        # VLM模式: para_blocks是数组
-                        for block in para_blocks:
-                            bbox = block.get('bbox')
-                            if not bbox:
-                                continue
-                            
-                            # 提取文本内容
-                            text_content = ''
-                            
-                            # 对于表格类型的block，需要从嵌套的blocks中提取HTML
-                            if block.get('type') == 'table' and 'blocks' in block:
-                                for sub_block in block['blocks']:
-                                    if 'lines' in sub_block:
-                                        for line in sub_block['lines']:
-                                            if 'spans' in line:
-                                                for span in line['spans']:
-                                                    if span.get('type') == 'table' and 'html' in span:
-                                                        text_content += span['html']
-                                                    elif 'content' in span:
-                                                        text_content += span['content']
-                            
-                            # 对于非表格类型，使用原来的逻辑
-                            if not text_content and 'lines' in block:
-                                for line in block['lines']:
-                                    if 'spans' in line:
-                                        for span in line['spans']:
-                                            if 'content' in span:
-                                                text_content += span['content']
-                            
-                            block_data = {
-                                'bbox': bbox,
-                                'type': block.get('type', 'unknown'),
-                                'text': text_content.strip(),
-                                'page_idx': page_idx,
-                                'index': block.get('index', 0),
-                                'source_mode': 'vlm'
-                            }
-                            block_list.append(block_data)
-                    else:
-                        print(f"[WARNING] VLM模式para_blocks格式异常，期望数组但得到: {type(para_blocks)}")
-                
-                else:
-                    print(f"[WARNING] 第{page_idx}页缺少preproc_blocks和para_blocks字段")
-                    # 尝试其他可能的字段名
-                    possible_fields = ['blocks', 'text_blocks', 'content_blocks']
-                    found = False
-                    for field_name in possible_fields:
-                        if field_name in page:
-                            print(f"[INFO] 尝试使用字段: {field_name}")
-                            found = True
-                            break
-                    
-                    if not found:
-                        print(f"[WARNING] 无法识别页面数据结构，跳过第{page_idx}页")
-            
-            print(f"[INFO] 从{json_path}提取了{len(block_list)}个块")
-            _blocks_cache[md_file_path] = block_list
-            return block_list
-            
-    except FileNotFoundError:
-        print(f"[WARNING] JSON文件不存在: {json_path}")
-        _blocks_cache[md_file_path] = []
-        return []
-    except json.JSONDecodeError as e:
-        print(f"[ERROR] JSON解析失败: {e}")
-        _blocks_cache[md_file_path] = []
-        return []
-    except Exception as e:
-        print(f"[ERROR] 获取块列表失败: {e}")
-        _blocks_cache[md_file_path] = []
-        return []
-
-# 全局或外部传入
-matched_global_indices = set()
-
-def get_bbox_for_chunk(md_file_path, chunk_content, block_list=None, matched_global_indices=None):
-    """
-    根据 md 文件路径和 chunk 内容，返回构成该 chunk 的连续 block 的 bbox 列表。
-    采用 difflib.SequenceMatcher 找出最相似的 block（相似度最高），
-    然后从该锚点向前后扩展，寻找同样存在于 chunk 中的连续 block。
-    支持外部传入 block_list，避免重复解析。
-    支持Pipeline模式和VLM模式的数据结构。
-    匹配到的块会通过 matched_global_indices 记录，避免后续 chunk 重复匹配。
-    """
-    try:
-        if block_list is None:
-            block_list = get_blocks_from_md(md_file_path)
-        if matched_global_indices is None:
-            matched_global_indices = set()
-        if not block_list:
-            print(f"[WARNING] 无法获取块列表，跳过位置信息获取")
-            return None
-
-        chunk_content_clean = chunk_content.strip()
-        if not chunk_content_clean:
-            return None
-
-        # 检查chunk是否为HTML表格
-        is_chunk_table = '<table>' in chunk_content_clean and '</table>' in chunk_content_clean
-        
-        # 用 difflib.SequenceMatcher 找最相似的 block
-        best_idx = -1
-        best_ratio = 0.0
-        for i, block in enumerate(block_list):
-            if i in matched_global_indices:
-                continue
-            block_text = block.get('text', '').strip()
-            if not block_text:
-                continue
-                
-            if is_chunk_table:
-                # 对于表格chunk，提取block中的HTML部分进行比较
-                if '<table>' in block_text and '</table>' in block_text:
-                    import re
-                    table_match = re.search(r'<table>.*?</table>', block_text, re.DOTALL)
-                    if table_match:
-                        block_html = table_match.group(0)
-                        ratio = difflib.SequenceMatcher(None, chunk_content_clean, block_html).ratio()
-                    else:
-                        ratio = 0.0
-                else:
-                    ratio = 0.0
-            else:
-                # 对于非表格chunk，直接比较
-                ratio = difflib.SequenceMatcher(None, chunk_content_clean, block_text).ratio()
-                
-            if ratio > best_ratio:
-                best_ratio = ratio
-                best_idx = i
-        if best_idx == -1 or best_ratio < 0.1:  # 阈值可调整
-            print(f"[WARNING] 未找到足够相似的块 (最高相似度: {best_ratio:.3f})")
-            return None
-
-        # 从锚点扩展
-        matched_indices = [best_idx]
-        # 向前扩展
-        for i in range(best_idx - 1, -1, -1):
-            if i in matched_global_indices:
-                continue
-            block_text = block_list[i].get('text', '').strip()
-            if block_text and block_text in chunk_content_clean:
-                matched_indices.insert(0, i)
-            else:
-                break
-        # 向后扩展
-        for i in range(best_idx + 1, len(block_list)):
-            if i in matched_global_indices:
-                continue
-            block_text = block_list[i].get('text', '').strip()
-            if block_text and block_text in chunk_content_clean:
-                matched_indices.append(i)
-            else:
-                break
-        # 提取位置信息
-        positions = []
-        for idx in matched_indices:
-            block = block_list[idx]
-            bbox = block.get('bbox')
-            page_number = block.get('page_idx')
-            if bbox and page_number is not None:
-                position = [page_number, bbox[0], bbox[2], bbox[1], bbox[3]]
-                positions.append(position)
-        # 记录已匹配 block 索引
-        matched_global_indices.update(matched_indices)
-        if positions:
-            print(f"[INFO] 为chunk找到{len(positions)}个位置（最高相似度: {best_ratio:.3f}），并已记录 matched_global_indices")
-            return positions
-        else:
-            print(f"[WARNING] 未能提取到有效的位置信息")
-            return None
-    except Exception as e:
-        print(f"[ERROR] 获取chunk位置失败: {e}")
-        return None
 
 
 def update_document_progress(doc_id, progress=None, message=None, status=None, run=None, chunk_count=None, process_duration=None):
@@ -680,7 +657,7 @@ def update_document_progress(doc_id, progress=None, message=None, status=None, r
             conn.close()
 
 
-def split_markdown_to_chunks_smart(txt, chunk_token_num=256, min_chunk_tokens=10):
+def split_markdown_to_chunks_smart(txt, chunk_token_num=256, min_chunk_tokens=10, enable_heading_in_content=False):
     """
     基于 markdown-it-py AST 的智能分块方法，解决 RAG Markdown 文件分块问题：
     1. 基于语义切分（使用 AST）
@@ -710,67 +687,88 @@ def split_markdown_to_chunks_smart(txt, chunk_token_num=256, min_chunk_tokens=10
         context_stack = []  # 维护标题层级栈
         
         for node in tree.children:
-            chunk_data, should_break = _process_ast_node(
-                node, context_stack, chunk_token_num, min_chunk_tokens
-            )
-            
-            if should_break and current_chunk and current_tokens >= min_chunk_tokens:
-                # 完成当前块
-                chunk_content = _finalize_ast_chunk(current_chunk, context_stack)
-                if chunk_content.strip():
-                    chunks.append(chunk_content)
-                current_chunk = []
-                current_tokens = 0
-            
-            if chunk_data:
-                chunk_tokens = num_tokens_from_string(chunk_data)
-                
-                # 检查是否需要分块
-                if (current_tokens + chunk_tokens > chunk_token_num and 
-                    current_chunk and current_tokens >= min_chunk_tokens):
-                    
-                    chunk_content = _finalize_ast_chunk(current_chunk, context_stack)
-                    if chunk_content.strip():
+            node_type = node.type
+
+            # 如果是标题节点，先完成前一个分块，再处理标题
+            if node_type == "heading":
+                # 1. 先完成前一个分块（使用旧的 context_stack）
+                if current_chunk and current_tokens >= min_chunk_tokens:
+                    chunk_content = _finalize_ast_chunk(current_chunk, context_stack, enable_heading_in_content)
+                    if isinstance(chunk_content, dict) and chunk_content.get('content', '').strip():
+                        chunks.append(chunk_content)
+                    elif isinstance(chunk_content, str) and chunk_content.strip():
                         chunks.append(chunk_content)
                     current_chunk = []
                     current_tokens = 0
-                
+
+                # 2. 处理标题节点
+                level = int(node.tag[1])
+                title_text = _extract_text_from_node(node)
+
+                # 3. 更新 context_stack（标题节点之后的内容都属于新的上下文）
+                _update_context_stack(context_stack, level, title_text)
+
+                # 4. 标题作为新分块的第一行
+                chunk_data = node.markup + " " + title_text
                 current_chunk.append(chunk_data)
-                current_tokens += chunk_tokens
-        
+                current_tokens = num_tokens_from_string(chunk_data)
+            else:
+                # 处理非标题节点
+                chunk_data, _ = _process_non_heading_node(node, chunk_token_num)
+
+                if chunk_data:
+                    chunk_tokens = num_tokens_from_string(chunk_data)
+
+                    # 检查是否需要分块（基于大小）
+                    if (current_tokens + chunk_tokens > chunk_token_num and
+                        current_chunk and current_tokens >= min_chunk_tokens):
+
+                        chunk_content = _finalize_ast_chunk(current_chunk, context_stack, enable_heading_in_content)
+                        if isinstance(chunk_content, dict) and chunk_content.get('content', '').strip():
+                            chunks.append(chunk_content)
+                        elif isinstance(chunk_content, str) and chunk_content.strip():
+                            chunks.append(chunk_content)
+                        current_chunk = []
+                        current_tokens = 0
+
+                    current_chunk.append(chunk_data)
+                    current_tokens += chunk_tokens
+
         # 处理最后的块
         if current_chunk:
-            chunk_content = _finalize_ast_chunk(current_chunk, context_stack)
-            if chunk_content.strip():
+            chunk_content = _finalize_ast_chunk(current_chunk, context_stack, enable_heading_in_content)
+            if isinstance(chunk_content, dict) and chunk_content.get('content', '').strip():
                 chunks.append(chunk_content)
-        
-        return [chunk for chunk in chunks if chunk.strip()]
+            elif isinstance(chunk_content, str) and chunk_content.strip():
+                chunks.append(chunk_content)
+
+        # 过滤空块并返回
+        result = []
+        for chunk in chunks:
+            if isinstance(chunk, dict):
+                if chunk.get('content', '').strip():
+                    result.append(chunk)
+            elif isinstance(chunk, str) and chunk.strip():
+                result.append(chunk)
+        return result
     
     except Exception as e:
         print(f"AST parsing failed: {e}, falling back to simple chunking")
         return split_markdown_to_chunks(txt, chunk_token_num)
 
 
-def _process_ast_node(node, context_stack, chunk_token_num, min_chunk_tokens):
+def _process_non_heading_node(node, chunk_token_num):
     """
-    处理 AST 节点，返回 (内容, 是否应该分块)
+    处理非标题的 AST 节点
+
+    Returns:
+        tuple: (content, should_break)
     """
     node_type = node.type
     should_break = False
     content = ""
-    
-    if node_type == "heading":
-        # 标题处理
-        level = int(node.tag[1])  # h1 -> 1, h2 -> 2, etc.
-        title_text = _extract_text_from_node(node)
-        
-        # 更新上下文栈
-        _update_context_stack(context_stack, level, title_text)
-        
-        content = node.markup + " " + title_text
-        should_break = True  # 标题通常作为分块边界
-        
-    elif node_type == "table":
+
+    if node_type == "table":
         # 表格处理 - 保持完整性
         content = _render_table_from_ast(node)
         table_tokens = num_tokens_from_string(content)
@@ -787,7 +785,7 @@ def _process_ast_node(node, context_stack, chunk_token_num, min_chunk_tokens):
         # 引用块处理
         content = _render_blockquote_from_ast(node)
         
-    elif node_type == "list":
+    elif node_type in ("list", "bullet_list", "ordered_list"):
         # 列表处理
         content = _render_list_from_ast(node)
         
@@ -803,7 +801,7 @@ def _process_ast_node(node, context_stack, chunk_token_num, min_chunk_tokens):
     else:
         # 其他类型节点
         content = _extract_text_from_node(node)
-    
+
     return content, should_break
 
 
@@ -899,6 +897,56 @@ def _render_list_from_ast(list_node):
     return "\n".join(list_items)
 
 
+def _add_missing_parent_headings(chunk_content, headers):
+    """
+    给分块内容添加缺失的父级标题
+
+    Args:
+        chunk_content: 分块内容（markdown 文本）
+        headers: 父级标题字典 {level: title}
+
+    Returns:
+        str: 添加了父级标题的内容
+
+    逻辑：
+        1. 提取分块中已存在的标题（避免重复）
+        2. 只添加 headers 中不存在的标题
+        3. 添加到内容最前面
+    """
+    if not headers:
+        return chunk_content
+
+    # 提取分块内容中已存在的标题文本（用于去重）
+    existing_headings = set()  # 存储格式: "level:title"
+
+    for line in chunk_content.split('\n'):
+        line = line.strip()
+        if line.startswith('#'):
+            # 计算标题层级 (# = 1, ## = 2, ### = 3, ...)
+            level = len(line) - len(line.lstrip('#'))
+            if level > 0 and level <= 6:
+                # 提取标题文本（去除 # 和空格）
+                heading_text = line.lstrip('#').strip()
+                existing_headings.add(f"{level}:{heading_text}")
+
+    # 添加 headers 中缺失的父级标题
+    missing_heading_lines = []
+    for level in sorted(headers.keys()):
+        heading_key = f"{level}:{headers[level]}"
+        # 如果这个标题不在分块内容中，才添加
+        if heading_key not in existing_headings:
+            heading_prefix = '#' * level
+            missing_heading_lines.append(f"{heading_prefix} {headers[level]}")
+
+    # 如果有缺失的父级标题，添加到内容前面
+    if missing_heading_lines:
+        missing_heading_text = '\n'.join(missing_heading_lines)
+        chunk_content = f"{missing_heading_text}\n\n{chunk_content}"
+        logging.debug(f"添加缺失的父级标题: {missing_heading_text}, 分块中已有标题: {existing_headings}")
+
+    return chunk_content
+
+
 def _render_blockquote_from_ast(blockquote_node):
     """从 AST 渲染引用块"""
     content = _extract_text_from_node(blockquote_node)
@@ -906,17 +954,112 @@ def _render_blockquote_from_ast(blockquote_node):
     return '\n'.join(f"> {line}" for line in lines)
 
 
-def _finalize_ast_chunk(chunk_parts, context_stack):
+def _finalize_ast_chunk(chunk_parts, context_stack, enable_heading_in_content=False):
     """完成基于 AST 的 chunk 格式化"""
     chunk_content = "\n\n".join(chunk_parts).strip()
-    
-    # 可以根据需要添加上下文信息
-    # 例如，如果chunk没有标题，可以考虑添加父级标题作为上下文
-    
-    return chunk_content
+
+    # 提取标题元数据
+    headers = {item['level']: item['title'] for item in context_stack}
+
+    # 调试日志
+    logging.debug(f"_finalize_ast_chunk: enable_heading_in_content={enable_heading_in_content}, headers={headers}")
+
+    # 如果启用了标题添加到内容，且有标题层级
+    if enable_heading_in_content and headers:
+        chunk_content = _add_missing_parent_headings(chunk_content, headers)
+
+    # 返回字典格式，包含标题元数据
+    return {
+        'content': chunk_content,
+        'heading_metadata': {
+            'headers': headers,
+            'level': max(headers.keys()) if headers else 0
+        }
+    }
 
 
-def split_markdown_to_chunks_advanced(txt, chunk_token_num=256, min_chunk_tokens=10, 
+def split_markdown_to_chunks_title(txt, chunk_token_num=256, min_chunk_tokens=10,
+                                   split_level=2, include_metadata=False, enable_heading_in_content=False):
+    """
+    基于标题层级的严格分块方法（带自动适配）
+
+    特点：
+    1. 按照指定的标题级别分割（如 H2）
+    2. 自动适配文档结构：如果指定级别只产生1个块，自动使用更高级别
+    3. 不进行大小控制（不合并小块，不分割大块）
+    4. 保持标题层级上下文
+    5. 适合结构清晰、标题规范的文档
+
+    Args:
+        txt: markdown 文本
+        chunk_token_num: 目标分块 token 数（仅用于参考）
+        min_chunk_tokens: 最小分块 token 数（仅用于参考）
+        split_level: 分割的标题级别 (1-6), 默认2表示优先在H2处分割
+        include_metadata: 是否包含元数据
+        enable_heading_in_content: 是否在内容中包含父标题
+
+    Returns:
+        分块列表（字典格式）
+    """
+    if not MARKDOWN_IT_AVAILABLE:
+        return split_markdown_to_chunks(txt, chunk_token_num)
+
+    if not txt or not txt.strip():
+        return []
+
+    # 初始化 markdown-it 解析器
+    md = MarkdownIt("commonmark", {"breaks": True, "html": True})
+    md.enable(['table'])
+
+    try:
+        # 解析为 AST
+        tokens = md.parse(txt)
+        tree = SyntaxTreeNode(tokens)
+
+        # 智能回退逻辑：从指定级别开始，如果只有1个块则回退到上一级
+        chunks = None
+        current_level = split_level
+
+        while current_level >= 1:
+            headers_to_split_on = [current_level]
+            nodes_with_headers = _extract_nodes_with_header_info(tree, headers_to_split_on)
+            chunks = _split_by_header_levels(nodes_with_headers, headers_to_split_on)
+
+            # 如果产生了多个块，或者已经到 H1 级别，使用该结果
+            if len(chunks) > 1 or current_level == 1:
+                break
+
+            current_level -= 1
+
+        # 生成最终分块内容（统一返回字典格式）
+        final_chunks = []
+        for chunk_info in chunks:
+            content = _render_header_chunk(chunk_info)
+            if content.strip():
+                headers = chunk_info.get('headers', {})
+
+                # 如果启用了标题添加到内容，且有标题层级
+                if enable_heading_in_content and headers:
+                    content = _add_missing_parent_headings(content, headers)
+
+                # 统一返回字典格式
+                chunk_data = {
+                    'content': content,
+                    'heading_metadata': {
+                        'headers': headers,
+                        'level': max(headers.keys()) if headers else 0
+                    }
+                }
+                final_chunks.append(chunk_data)
+
+        return final_chunks
+
+    except Exception as e:
+        logging.error(f"Title-based chunking failed: {e}, falling back to smart chunking")
+        return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
+
+
+def split_markdown_to_chunks_advanced(txt, chunk_token_num=256, min_chunk_tokens=10,
                                      overlap_ratio=0.0, include_metadata=False):
     """
     基于标题层级的高级 Markdown 分块方法 (混合分块策略 + 动态阈值调整)
@@ -1319,60 +1462,34 @@ def _split_by_header_levels(nodes_with_headers, headers_to_split_on):
         
         # 检查是否为分块边界标题
         if node_info['is_split_boundary']:
-            # 先检查是否为连续短标题的情况
+            # 处理连续标题的情况
             if node_info['type'] == 'heading':
-                current_title = node_info.get('title', '').strip()
-                
-                # 检查当前标题是否很短（可能只是编号）
-                is_short_title = (
-                    len(current_title) <= 12 and 
-                    (
-                        # 纯数字编号如 "3.7", "4.1"
-                        (current_title.replace('.', '').replace(' ', '').isdigit()) or
-                        # 短编号如 "3.7", "4", "A.1"  
-                        (len(current_title.split()) <= 2 and 
-                         any(char.isdigit() for char in current_title))
-                    )
-                )
-                
-                # 如果是短标题，向前查找看是否有紧跟的内容标题
-                if is_short_title:
-                    # 查找接下来的几个节点，看是否有实质性内容标题
-                    found_content_header = False
-                    j = i + 1
-                    
-                    # 向前查看最多3个节点
-                    while j < len(nodes_with_headers) and j < i + 4:
-                        next_node = nodes_with_headers[j]
-                        
-                        # 如果找到另一个标题
-                        if next_node.get('type') == 'heading':
-                            next_title = next_node.get('title', '').strip()
-                            
-                            # 检查是否为更有实质内容的标题
-                            is_content_header = (
-                                len(next_title) > 12 or  # 较长的标题
-                                (len(next_title.split()) > 2) or  # 多个词
-                                any(word for word in next_title.split() 
-                                    if len(word) > 3 and not word.replace('.', '').isdigit())  # 有非数字词汇
-                            )
-                            
-                            if is_content_header:
-                                found_content_header = True
-                                break
-                        
-                        # 如果遇到其他内容，停止查找
-                        elif next_node.get('content', '').strip():
-                            break
-                        
+                # 查看后续是否还有连续标题或者是否直到内容出现
+                has_following_content = False
+
+                # 检查后续节点
+                j = i + 1
+                while j < len(nodes_with_headers):
+                    next_node = nodes_with_headers[j]
+                    # 如果是标题，继续查找
+                    if next_node.get('type') == 'heading':
                         j += 1
-                    
-                    # 如果找到了内容标题，跳过当前标题的分块处理
-                    if found_content_header:
-                        # 直接添加到当前块，不作为分块边界
-                        current_chunk['nodes'].append(node_info)
-                        i += 1
                         continue
+                    # 如果找到非标题内容
+                    if next_node.get('content', '').strip():
+                        has_following_content = True
+                        break
+                    j += 1
+
+                # 如果后续没有内容（只有连续标题），不作为分块边界
+                if not has_following_content:
+                    # 直接添加到当前块
+                    current_chunk['nodes'].append(node_info)
+                    # 更新当前块的标题信息
+                    if node_info['headers']:
+                        current_chunk['headers'] = node_info['headers'].copy()
+                    i += 1
+                    continue
             
             # 正常的分块边界处理
             # 完成当前块（如果有内容）
@@ -1447,11 +1564,10 @@ def split_markdown_to_chunks_strict_regex(txt, chunk_token_num=256, min_chunk_to
         return []
     
     if not regex_pattern or not regex_pattern.strip():
-        print(f"⚠️ [WARNING] 正则表达式为空，回退到智能分块")
+        logger.warning("正则表达式为空，回退到智能分块")
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
-    
+
     try:
-        print(f"🎯 [DEBUG] 使用自定义正则表达式进行分块: {regex_pattern}")
         
         # 使用更精确的方法：逐行处理，确保每个匹配都开始新分块
         # 优化正则表达式，只匹配行开头或前面只有空格的条文
@@ -1483,27 +1599,286 @@ def split_markdown_to_chunks_strict_regex(txt, chunk_token_num=256, min_chunk_to
         
         # 过滤和统计
         final_chunks = [chunk for chunk in chunks if chunk.strip()]
-        
-        print(f"📊 [DEBUG] 正则分块结果: {len(final_chunks)} 个分块")
-        if final_chunks:
-            token_counts = [num_tokens_from_string(chunk) for chunk in final_chunks]
-            print(f"📈 [DEBUG] Token分布: {min(token_counts)}-{max(token_counts)} (平均: {sum(token_counts)/len(token_counts):.1f})")
-        
         return final_chunks
-        
+
     except re.error as e:
-        print(f"❌ [ERROR] 自定义正则分块失败，正则表达式错误: {e}，回退到智能分块")
+        logger.error(f"正则分块失败，正则表达式错误: {e}，回退到智能分块")
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
     except Exception as e:
-        print(f"❌ [ERROR] 自定义正则分块发生异常: {e}，回退到智能分块")
+        logger.error(f"正则分块发生异常: {e}，回退到智能分块")
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
 
 
-def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10, 
-                                         parent_config=None, doc_id='unknown', kb_id='unknown'):
+def _get_es_connection():
+    """获取 Elasticsearch 连接"""
+    from elasticsearch import Elasticsearch
+
+    es_host = os.getenv('ES_HOST', 'es01')
+    es_port = int(os.getenv('ES_PORT', 1200))
+    es_password = os.getenv('ELASTIC_PASSWORD', 'infini_rag_flow')
+
+    return Elasticsearch(
+        [f"http://{es_host}:{es_port}"],
+        basic_auth=("elastic", es_password),
+        request_timeout=30
+    )
+
+
+def _get_mysql_connection():
+    """获取 MySQL 连接"""
+    mysql_host = os.getenv('MYSQL_HOST', 'mysql')
+    mysql_port = int(os.getenv('MYSQL_PORT', 3306))
+    mysql_user = os.getenv('MYSQL_USER', 'root')
+    mysql_password = os.getenv('MYSQL_PASSWORD', 'infini_rag_flow')
+    mysql_db = os.getenv('MYSQL_DBNAME', 'rag_flow')
+
+    return mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_db
+    )
+
+
+def _save_parent_chunks_to_es(parent_chunks, kb_id, doc_id, tenant_id):
     """
-    优化后的父子分块方法 - 本地完成所有处理，避免HTTP调用
-    
+    批量保存父块到 RAGFlow ES ragflow_{tenant_id}_parent 索引
+
+    Args:
+        parent_chunks: 父块列表 [ASTChunkInfo, ...]
+        kb_id: 知识库ID
+        doc_id: 文档ID
+        tenant_id: 租户ID
+    """
+    if not parent_chunks:
+        return
+
+    try:
+        from datetime import datetime
+        from elasticsearch.helpers import bulk
+
+        es = _get_es_connection()
+        parent_index = f"ragflow_{tenant_id}_parent"
+        now = datetime.now()
+        create_time = now.strftime("%Y-%m-%d %H:%M:%S")
+        create_timestamp = now.timestamp()
+
+        # 批量准备文档
+        actions = []
+        for parent_chunk in parent_chunks:
+            if not parent_chunk.id or not parent_chunk.content:
+                continue
+
+            actions.append({
+                "_index": parent_index,
+                "_id": parent_chunk.id,
+                "_source": {
+                    "id": parent_chunk.id,
+                    "doc_id": doc_id,
+                    "kb_id": kb_id,
+                    "content_with_weight": parent_chunk.content,
+                    "create_time": create_time,
+                    "create_timestamp_flt": create_timestamp,
+                }
+            })
+
+        # 批量索引
+        if actions:
+            success, failed = bulk(es, actions, refresh=False, raise_on_error=False)
+            logging.info(f"Saved {success}/{len(actions)} parent chunks to ES index {parent_index}")
+            if failed:
+                logging.warning(f"Failed to save {len(failed)} parent chunks")
+
+    except Exception as e:
+        logging.exception(f"Failed to save parent chunks to ES: {e}")
+        raise
+
+
+def _save_parent_child_mappings(relationships, kb_id, doc_id):
+    """
+    批量保存父子映射关系到 RAGFlow MySQL parent_child_mapping 表
+
+    Args:
+        relationships: 映射关系列表 [{"parent_id": ..., "child_id": ...}, ...]
+        kb_id: 知识库ID
+        doc_id: 文档ID
+    """
+    if not relationships:
+        return
+
+    try:
+        from datetime import datetime
+
+        conn = _get_mysql_connection()
+        cursor = conn.cursor()
+
+        # 批量准备数据
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        values = []
+        for relationship in relationships:
+            parent_id = relationship.get('parent_id', '')
+            child_id = relationship.get('child_id', '')
+
+            if not parent_id or not child_id:
+                continue
+
+            values.append((parent_id, child_id, doc_id, kb_id, 100, now, now))
+
+        # 批量插入
+        if values:
+            sql = """
+                INSERT IGNORE INTO parent_child_mapping
+                (parent_chunk_id, child_chunk_id, doc_id, kb_id, relevance_score, create_time, update_time)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.executemany(sql, values)
+            conn.commit()
+            logging.info(f"Saved {len(values)} parent-child relationships to MySQL")
+
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        logging.exception(f"Failed to save parent-child mappings to MySQL: {e}")
+        raise
+
+
+def _write_parent_child_debug_file(parent_chunks, child_chunks, relationships, doc_id, kb_id, tenant_id):
+    """
+    在 dev_mode 下输出父子分块调试日志
+
+    Args:
+        parent_chunks: 父块列表
+        child_chunks: 子块列表
+        relationships: 父子关系列表
+        doc_id: 文档ID
+        kb_id: 知识库ID
+        tenant_id: 租户ID
+    """
+    try:
+        # 创建调试日志目录
+        log_dir = "/tmp/knowflow_chunk_logs"
+        os.makedirs(log_dir, exist_ok=True)
+
+        # 生成日志文件名（包含时间戳和doc_id）
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        log_file = os.path.join(log_dir, f"parent_child_debug_{doc_id}_{timestamp}.txt")
+
+        with open(log_file, 'w', encoding='utf-8') as f:
+            # 1. 基本信息
+            f.write("=" * 80 + "\n")
+            f.write("父子分块调试日志\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(f"文档ID: {doc_id}\n")
+            f.write(f"知识库ID: {kb_id}\n")
+            f.write(f"租户ID: {tenant_id}\n")
+            f.write(f"生成时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"父块数量: {len(parent_chunks)}\n")
+            f.write(f"子块数量: {len(child_chunks)}\n")
+            f.write(f"映射关系数量: {len(relationships)}\n")
+            f.write("\n")
+
+            # 2. 父块详情
+            f.write("=" * 80 + "\n")
+            f.write("父块详情\n")
+            f.write("=" * 80 + "\n\n")
+            for idx, parent in enumerate(parent_chunks):
+                f.write(f"[父块 #{idx + 1}]\n")
+                f.write(f"  ID: {parent.id}\n")
+                f.write(f"  顺序: {parent.order}\n")
+                f.write(f"  行号范围: {parent.start_line} - {parent.end_line}\n")
+                f.write(f"  Token数: {num_tokens_from_string(parent.content)}\n")
+                f.write(f"  元数据: {parent.metadata}\n")
+                f.write(f"  内容:\n")
+                f.write("-" * 60 + "\n")
+                f.write(parent.content[:500] + ("..." if len(parent.content) > 500 else "") + "\n")
+                f.write("-" * 60 + "\n\n")
+
+            # 3. 子块详情
+            f.write("=" * 80 + "\n")
+            f.write("子块详情\n")
+            f.write("=" * 80 + "\n\n")
+            for idx, child in enumerate(child_chunks):
+                f.write(f"[子块 #{idx + 1}]\n")
+                f.write(f"  ID: {child.id}\n")
+                f.write(f"  顺序: {child.order}\n")
+                f.write(f"  行号范围: {child.start_line} - {child.end_line}\n")
+                f.write(f"  Token数: {num_tokens_from_string(child.content)}\n")
+                f.write(f"  元数据: {child.metadata}\n")
+                f.write(f"  内容:\n")
+                f.write("-" * 60 + "\n")
+                f.write(child.content[:500] + ("..." if len(child.content) > 500 else "") + "\n")
+                f.write("-" * 60 + "\n\n")
+
+            # 4. 父子关系映射
+            f.write("=" * 80 + "\n")
+            f.write("父子关系映射\n")
+            f.write("=" * 80 + "\n\n")
+
+            # 创建映射字典便于查找
+            child_to_parent = {rel.get('child_id', ''): rel.get('parent_id', '')
+                              for rel in relationships}
+
+            # 按子块顺序显示映射
+            for idx, child in enumerate(child_chunks):
+                parent_id = child_to_parent.get(child.id, '未找到映射')
+
+                # 查找父块顺序
+                parent_order = "N/A"
+                for p_idx, parent in enumerate(parent_chunks):
+                    if parent.id == parent_id:
+                        parent_order = p_idx + 1
+                        break
+
+                f.write(f"[映射 #{idx + 1}]\n")
+                f.write(f"  子块ID: {child.id}\n")
+                f.write(f"  子块顺序: {idx + 1}\n")
+                f.write(f"  子块行范围: {child.start_line} - {child.end_line}\n")
+                f.write(f"  ↓\n")
+                f.write(f"  父块ID: {parent_id}\n")
+                f.write(f"  父块顺序: {parent_order}\n")
+
+                if parent_id != '未找到映射':
+                    # 查找父块行范围
+                    for parent in parent_chunks:
+                        if parent.id == parent_id:
+                            f.write(f"  父块行范围: {parent.start_line} - {parent.end_line}\n")
+                            break
+
+                f.write("\n")
+
+            # 5. 统计信息
+            f.write("=" * 80 + "\n")
+            f.write("统计信息\n")
+            f.write("=" * 80 + "\n\n")
+
+            mapped_count = len([c for c in child_chunks if c.id in child_to_parent])
+            unmapped_count = len(child_chunks) - mapped_count
+
+            f.write(f"成功映射的子块数: {mapped_count}/{len(child_chunks)}\n")
+            f.write(f"未映射的子块数: {unmapped_count}\n")
+
+            if unmapped_count > 0:
+                f.write("\n未映射的子块:\n")
+                for child in child_chunks:
+                    if child.id not in child_to_parent:
+                        f.write(f"  - {child.id} (行 {child.start_line}-{child.end_line})\n")
+
+            f.write("\n")
+
+        logging.info(f"[DEV_MODE] 父子分块调试日志已保存: {log_file}")
+
+    except Exception as e:
+        logging.warning(f"[DEV_MODE] 写入父子分块调试日志失败: {e}")
+
+
+def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10,
+                                         parent_config=None, doc_id='unknown', kb_id='unknown', tenant_id='unknown',
+                                         enable_heading_in_content=False):
+    """
+    端到端的父子分块方法 - 生成真实ID、保存父块和映射关系
+
     Args:
         txt: 要分块的文本
         chunk_token_num: 子分块大小（tokens）
@@ -1511,80 +1886,117 @@ def split_markdown_to_chunks_parent_child(txt, chunk_token_num=256, min_chunk_to
         parent_config: 父分块配置
         doc_id: 文档ID
         kb_id: 知识库ID
-        
+        tenant_id: 租户ID
+
     Returns:
-        list: 子分块列表（用于向量存储和前端显示）
-        
+        list: 子分块字典列表 [{"content": str, "id": str}, ...]
+
     Note:
-        现在直接在KnowFlow本地完成所有父子分块处理，避免跨容器HTTP调用
+        在 KnowFlow Server 端完成所有父子分块处理：
+        1. AST 创建父块和子块
+        2. 使用 RAGFlow 的 ID 生成规则（xxhash）
+        3. 保存父块到 ES ragflow_{tenant_id}_parent
+        4. 保存映射关系到 MySQL
+        5. 返回带真实 ID 的子块
     """
     if not txt or not txt.strip():
         return []
-    
+
     parent_config = parent_config or {}
-    
+
     try:
-        print(f"🚀 [DEBUG] 本地处理父子分块（优化后无HTTP调用）")
-        print(f"  📝 文本长度: {len(txt)} 字符")
-        print(f"  📋 doc_id: {doc_id}, kb_id: {kb_id}")
-        print(f"  🔢 子分块大小: {chunk_token_num}")
-        print(f"  📊 父分块配置: {parent_config}")
-        
-        # 直接调用本地AST父子分块函数
+        # 1. 调用本地AST父子分块函数（生成临时ID）
         parent_chunks, child_chunks, relationships = split_markdown_to_chunks_ast_parent_child(
             txt=txt,
             chunk_token_num=chunk_token_num,
             min_chunk_tokens=min_chunk_tokens,
             parent_config=parent_config,
             doc_id=doc_id,
-            kb_id=kb_id
+            kb_id=kb_id,
+            enable_heading_in_content=enable_heading_in_content
         )
-        
-        print(f"📊 [DEBUG] 本地父子分块完成:")
-        print(f"  👨 父分块: {len(parent_chunks)} 个")
-        print(f"  👶 子分块: {len(child_chunks)} 个")
-        print(f"  🔗 关联关系: {len(relationships)} 个")
-        
-        # 构建详细结果供后续使用
-        detailed_result = {
-            'parent_chunks': [
-                {
-                    'id': chunk.id,
-                    'content': chunk.content,
-                    'order': chunk.order,
-                    'metadata': chunk.metadata
+
+        logging.info(f"AST 父子分块完成: {len(parent_chunks)} 父块, {len(child_chunks)} 子块")
+
+        # 2. 为子块和父块生成真实 ID（使用 RAGFlow 的 xxhash 规则）
+        temp_to_real_id = {}  # 临时ID → 真实ID 映射
+
+        # 子块 ID: xxhash(content + doc_id)
+        for child in child_chunks:
+            real_id = xxhash.xxh64((child.content + doc_id).encode("utf-8", "surrogatepass")).hexdigest()
+            temp_to_real_id[child.id] = real_id
+            child.id = real_id
+
+        # 父块 ID: {doc_id}_parent_{序号}_{hash[:8]}
+        for i, parent in enumerate(parent_chunks):
+            real_id = f"{doc_id}_parent_{i:04d}_{xxhash.xxh64(parent.content.encode('utf-8')).hexdigest()[:8]}"
+            temp_to_real_id[parent.id] = real_id
+            parent.id = real_id
+
+        logging.info(f"ID 生成完成: {len(child_chunks)} 子块, {len(parent_chunks)} 父块")
+
+        # 3. 更新映射关系使用真实 ID
+        updated_relationships = [
+            {
+                'parent_id': temp_to_real_id.get(rel.get('parent_chunk_id', rel.get('parent_id', '')), ''),
+                'child_id': temp_to_real_id.get(rel.get('child_chunk_id', rel.get('child_id', '')), '')
+            }
+            for rel in relationships
+        ]
+
+        # 4. 保存父块到 ES 和映射关系到 MySQL
+        _save_parent_chunks_to_es(parent_chunks, kb_id, doc_id, tenant_id)
+        _save_parent_child_mappings(updated_relationships, kb_id, doc_id)
+
+        # 5. 【DEV_MODE】输出调试日志
+        if is_dev_mode():
+            _write_parent_child_debug_file(
+                parent_chunks, child_chunks, updated_relationships,
+                doc_id, kb_id, tenant_id
+            )
+
+        # 6. 创建子块ID到父块ID的映射
+        child_to_parent_map = {}
+        for rel in updated_relationships:
+            child_id = rel.get('child_id', '')
+            parent_id = rel.get('parent_id', '')
+            if child_id and parent_id:
+                child_to_parent_map[child_id] = parent_id
+
+        # 7. 返回子块（带真实 ID、parent_chunk_id，并处理标题添加到内容）
+        result = []
+        for chunk in child_chunks:
+            # 提取标题元数据
+            context_stack = chunk.metadata.get('context_stack', [])
+            headers = {item['level']: item['title'] for item in context_stack}
+
+            chunk_content = chunk.content
+
+            # 如果启用了标题添加到内容，且有标题层级
+            if enable_heading_in_content and headers:
+                chunk_content = _add_missing_parent_headings(chunk_content, headers)
+
+            parent_id = child_to_parent_map.get(chunk.id, "")
+            chunk_dict = {
+                "content": chunk_content,
+                "id": chunk.id,
+                "parent_chunk_id": parent_id,  # 添加父块ID
+                "heading_metadata": {
+                    'headers': headers,
+                    'level': max(headers.keys()) if headers else 0
                 }
-                for chunk in parent_chunks
-            ],
-            'child_chunks': [
-                {
-                    'id': chunk.id,
-                    'content': chunk.content,
-                    'order': chunk.order,
-                    'metadata': chunk.metadata
-                }
-                for chunk in child_chunks
-            ],
-            'relationships': relationships,
-            'total_parents': len(parent_chunks),
-            'total_children': len(child_chunks)
-        }
-        
-        # 保存详细结果到全局变量（供ragflow_build.py使用）
-        global _last_parent_child_result
-        _last_parent_child_result = detailed_result
-        
-        # 返回子分块内容列表（用于向量存储和前端显示）
-        child_chunks_content = [chunk.content for chunk in child_chunks]
-        
-        print(f"✅ [DEBUG] 本地父子分块优化完成，返回 {len(child_chunks_content)} 个子分块内容")
-        
-        return child_chunks_content
-        
+            }
+
+            # 调试日志
+            logging.info(f"[DEBUG] 子块 {chunk.id[:16]}... 的 parent_chunk_id: {parent_id}")
+
+            result.append(chunk_dict)
+
+        logging.info(f"父子分块完成: 返回 {len(result)} 个子块")
+        return result
+
     except Exception as e:
-        print(f"❌ [ERROR] 本地父子分块失败: {e}，回退到智能分块")
-        import traceback
-        traceback.print_exc()
+        logging.exception(f"父子分块失败: {e}，回退到智能分块")
         return split_markdown_to_chunks_smart(txt, chunk_token_num, min_chunk_tokens)
 
 
@@ -1621,11 +2033,11 @@ class ASTChunkInfo:
         self.semantic_elements = metadata.get('semantic_elements', {})
 
 
-def split_markdown_to_chunks_ast_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10, 
-                                             parent_config=None, doc_id='unknown', kb_id='unknown'):
+def split_markdown_to_chunks_ast_parent_child(txt, chunk_token_num=256, min_chunk_tokens=10,
+                                             parent_config=None, doc_id='unknown', kb_id='unknown', enable_heading_in_content=False):
     """
     基于AST的父子分块方法
-    
+
     Args:
         txt: 要分块的文本
         chunk_token_num: 子分块大小（tokens）
@@ -1633,7 +2045,8 @@ def split_markdown_to_chunks_ast_parent_child(txt, chunk_token_num=256, min_chun
         parent_config: 父分块配置
         doc_id: 文档ID
         kb_id: 知识库ID
-        
+        enable_heading_in_content: 是否在分块内容中添加父级标题
+
     Returns:
         tuple: (parent_chunks, child_chunks, relationships)
     """
@@ -1642,41 +2055,36 @@ def split_markdown_to_chunks_ast_parent_child(txt, chunk_token_num=256, min_chun
         # 回退到现有的父子分块实现
         from api.apps.chunk_app import parent_child_split
         return parent_child_split()
-    
+
     if not txt or not txt.strip():
         return [], [], []
-    
+
     parent_config = parent_config or {}
     parent_split_level = parent_config.get('parent_split_level', 2)  # 默认H2分割
-    
+
     try:
         # 1. 解析AST并创建增强节点
         enhanced_nodes = _create_enhanced_ast_nodes(txt)
-        
+
         # 2. 基于AST创建子分块
         child_chunks = _create_ast_child_chunks(
             enhanced_nodes, chunk_token_num, min_chunk_tokens, doc_id
         )
-        
-        # 3. 基于AST和标题层级创建父分块  
+
+        # 3. 基于AST和标题层级创建父分块
         parent_chunks = _create_ast_parent_chunks(
-            enhanced_nodes, parent_split_level, doc_id
+            enhanced_nodes, parent_split_level, doc_id, enable_heading_in_content
         )
-        
+
         # 4. 建立精确的AST关联关系
         relationships = _create_ast_relationships(
             child_chunks, parent_chunks, enhanced_nodes, doc_id, kb_id
         )
-        
-        print(f"🎯 [AST] 创建父子分块完成:")
-        print(f"  👨 父分块: {len(parent_chunks)} 个")
-        print(f"  👶 子分块: {len(child_chunks)} 个") 
-        print(f"  🔗 关联关系: {len(relationships)} 个")
-        
+
         return parent_chunks, child_chunks, relationships
-        
+
     except Exception as e:
-        print(f"❌ [ERROR] AST父子分块失败: {e}")
+        logger.error(f"AST父子分块失败: {e}")
         import traceback
         traceback.print_exc()
         return [], [], []
@@ -1827,26 +2235,26 @@ def _create_ast_child_chunk_obj(nodes, order, doc_id):
     )
 
 
-def _create_ast_parent_chunks(enhanced_nodes, parent_split_level, doc_id):
+def _create_ast_parent_chunks(enhanced_nodes, parent_split_level, doc_id, enable_heading_in_content=False):
     """基于AST和标题层级创建父分块"""
     parent_chunks = []
     current_section_nodes = []
     current_section_header = None
     parent_order = 0
-    
+
     for node_info in enhanced_nodes:
         # 检查是否是父分块边界标题
-        if (node_info['type'] == 'heading' and 
+        if (node_info['type'] == 'heading' and
             node_info.get('header_level', 99) <= parent_split_level):
-            
+
             # 完成当前父分块
             if current_section_nodes:
                 parent_chunk = _create_ast_parent_chunk_obj(
-                    current_section_nodes, current_section_header, parent_order, doc_id
+                    current_section_nodes, current_section_header, parent_order, doc_id, enable_heading_in_content
                 )
                 parent_chunks.append(parent_chunk)
                 parent_order += 1
-            
+
             # 开始新的父分块
             current_section_nodes = [node_info]
             current_section_header = {
@@ -1856,24 +2264,37 @@ def _create_ast_parent_chunks(enhanced_nodes, parent_split_level, doc_id):
             }
         else:
             current_section_nodes.append(node_info)
-    
+
     # 处理最后一个父分块
     if current_section_nodes:
         parent_chunk = _create_ast_parent_chunk_obj(
-            current_section_nodes, current_section_header, parent_order, doc_id
+            current_section_nodes, current_section_header, parent_order, doc_id, enable_heading_in_content
         )
         parent_chunks.append(parent_chunk)
-    
+
     return parent_chunks
 
 
-def _create_ast_parent_chunk_obj(nodes, header_info, order, doc_id):
+def _create_ast_parent_chunk_obj(nodes, header_info, order, doc_id, enable_heading_in_content=False):
     """创建父分块对象"""
     import hashlib
-    
+
+    # 生成原始内容
     content = "\n\n".join([n['content'] for n in nodes if n['content'].strip()])
+
+    # 如果启用标题添加到内容，且有标题层级
+    context_depth = 0
+    if enable_heading_in_content and header_info and header_info.get('context_stack'):
+        context_stack = header_info['context_stack']
+        # 只添加父级标题（排除当前层级）
+        if len(context_stack) > 1:
+            headers = {item['level']: item['title'] for item in context_stack[:-1]}
+            if headers:
+                content = _add_missing_parent_headings(content, headers)
+                context_depth = len(headers)
+
     chunk_id = f"{doc_id}_parent_ast_{order:04d}_{hashlib.md5(content.encode('utf-8')).hexdigest()[:8]}"
-    
+
     return ASTChunkInfo(
         id=chunk_id,
         content=content,
@@ -1889,7 +2310,9 @@ def _create_ast_parent_chunk_obj(nodes, header_info, order, doc_id):
             'header_level': header_info['level'] if header_info else 0,
             'context_stack': header_info['context_stack'] if header_info else [],
             'semantic_completeness': True,
-            'ast_node_count': len(nodes)
+            'ast_node_count': len(nodes),
+            'has_context_prefix': (context_depth > 0),
+            'context_depth': context_depth
         }
     )
 
@@ -1949,3 +2372,6 @@ def _extract_ast_semantic_info(child_chunk, parent_chunk):
     }
     
     return semantic_info
+
+
+# 以下函数已被简化方案替代，请使用 middle_json_simple.py 和 use_middle_json.py

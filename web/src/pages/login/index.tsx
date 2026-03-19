@@ -85,12 +85,6 @@ const Login = () => {
               <div className={styles.logo}></div>
               <div className={styles.name}>KnowFlow</div>
             </div>
-            <span>
-              {title === 'login' ? '很高兴再次见到您' : '很高兴您加入'}
-              {/* {title === 'login'
-                ? t('loginDescription')
-                : t('registerDescription')} */}
-            </span>
           </div>
 
           <Form

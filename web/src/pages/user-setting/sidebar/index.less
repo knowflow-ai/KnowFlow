@@ -1,6 +1,61 @@
+@import '../../../theme/design-tokens.less';
+
 .sideBarWrapper {
-  padding-top: 32px;
+  background: @color-bg-primary;
+  padding: @space-lg 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  :global {
+    .ant-menu {
+      background: @color-bg-primary;
+      border-right: none;
+      border-inline-end: none !important;
+      flex: 1;
+    }
+
+    .ant-menu-inline .ant-menu-item {
+      border-radius: @radius-md;
+      margin: @space-xs @space-lg @space-xs @space-lg;
+      transition: all @transition-base;
+      display: flex;
+      align-items: center;
+      height: 40px;
+      line-height: 40px;
+      width: calc(100% - @space-lg * 2);
+
+      &:hover,
+      &:active,
+      &.ant-menu-item-active {
+        background: @color-bg-hover !important;
+      }
+
+      &.ant-menu-item-selected {
+        background: @brand-primary-50 !important;
+        color: @brand-primary-600;
+        font-weight: @font-weight-medium;
+
+        &::after {
+          border-right: none;
+        }
+      }
+    }
+  }
+
+  .versionTag {
+    color: @brand-primary-600;
+    font-size: @font-size-xs;
+    font-weight: @font-weight-medium;
+    padding-left: @space-xs;
+  }
+
   .version {
-    color: rgb(17, 206, 17);
+    padding: @space-md;
+    color: @brand-primary-600;
+    font-size: @font-size-xs;
+    font-weight: @font-weight-medium;
+    text-align: center;
+    margin-top: auto;
   }
 }

@@ -21,10 +21,12 @@ import sys
 import threading
 import time
 
-from api.utils.api_utils import timeout, is_strong_enough
+from api.utils import get_uuid
+from api.utils.api_utils import timeout
 from api.utils.log_utils import init_root_logger, get_project_base_directory
 from graphrag.general.index import run_graphrag
 from graphrag.utils import get_llm_cache, set_llm_cache, get_tags_from_cache, set_tags_to_cache
+from rag.flow.pipeline import Pipeline
 from rag.prompts import keyword_extraction, question_proposal, content_tagging
 
 import logging
@@ -56,7 +58,7 @@ from api import settings
 from api.versions import get_ragflow_version
 from api.db.db_models import close_connection
 from rag.app import laws, paper, presentation, manual, qa, table, book, resume, picture, naive, one, audio, \
-    email, tag
+    email, tag, smart, regex, parent_child, title
 from rag.nlp import search, rag_tokenizer
 from rag.raptor import RecursiveAbstractiveProcessing4TreeOrganizedRetrieval as Raptor
 from rag.settings import DOC_MAXIMUM_SIZE, DOC_BULK_SIZE, EMBEDDING_BATCH_SIZE, SVR_CONSUMER_GROUP_NAME, get_svr_queue_name, get_svr_queue_names, print_rag_settings, TAG_FLD, PAGERANK_FLD
@@ -91,7 +93,11 @@ FACTORY = {
     ParserType.AUDIO.value: audio,
     ParserType.EMAIL.value: email,
     ParserType.KG.value: naive,
-    ParserType.TAG.value: tag
+    ParserType.TAG.value: tag,
+    ParserType.SMART.value: smart,
+    ParserType.REGEX.value: regex,
+    ParserType.PARENT_CHILD.value: parent_child,
+    ParserType.TITLE.value: title
 }
 
 UNACKED_ITERATOR = None
@@ -231,7 +237,14 @@ async def collect():
         logging.warning(f"collect task {msg['id']} {state}")
         redis_msg.ack()
         return None, None
-    task["task_type"] = msg.get("task_type", "")
+
+    task_type = msg.get("task_type", "")
+    task["task_type"] = task_type
+    if task_type == "dataflow":
+        task["tenant_id"]=msg.get("tenant_id", "")
+        task["dsl"] = msg.get("dsl", "")
+        task["dataflow_id"] = msg.get("dataflow_id", get_uuid())
+        task["kb_id"] = msg.get("kb_id", "")
     return redis_msg, task
 
 
@@ -269,7 +282,7 @@ async def build_chunks(task, progress_callback):
         async with chunk_limiter:
             cks = await trio.to_thread.run_sync(lambda: chunker.chunk(task["name"], binary=binary, from_page=task["from_page"],
                                 to_page=task["to_page"], lang=task["language"], callback=progress_callback,
-                                kb_id=task["kb_id"], parser_config=task["parser_config"], tenant_id=task["tenant_id"]))
+                                doc_id=task["doc_id"], kb_id=task["kb_id"], parser_config=task["parser_config"], tenant_id=task["tenant_id"]))
         logging.info("Chunking({}) {}/{} done".format(timer() - st, task["location"], task["name"]))
     except TaskCanceledException:
         raise
@@ -292,7 +305,13 @@ async def build_chunks(task, progress_callback):
         try:
             d = copy.deepcopy(document)
             d.update(chunk)
-            d["id"] = xxhash.xxh64((chunk["content_with_weight"] + str(d["doc_id"])).encode("utf-8", "surrogatepass")).hexdigest()
+
+            # 使用预设 ID（父子分块）或生成新 ID
+            if "_id_override" in chunk:
+                d["id"] = chunk["_id_override"]
+            else:
+                d["id"] = xxhash.xxh64((chunk["content_with_weight"] + str(d["doc_id"])).encode("utf-8", "surrogatepass")).hexdigest()
+
             d["create_time"] = str(datetime.now()).replace("T", " ")[:19]
             d["create_timestamp_flt"] = datetime.now().timestamp()
             if not d.get("image"):
@@ -301,8 +320,7 @@ async def build_chunks(task, progress_callback):
                 docs.append(d)
                 return
 
-            output_buffer = BytesIO()
-            try:
+            with BytesIO() as output_buffer:
                 if isinstance(d["image"], bytes):
                     output_buffer.write(d["image"])
                     output_buffer.seek(0)
@@ -310,9 +328,13 @@ async def build_chunks(task, progress_callback):
                     # If the image is in RGBA mode, convert it to RGB mode before saving it in JPEG format.
                     if d["image"].mode in ("RGBA", "P"):
                         converted_image = d["image"].convert("RGB")
-                        d["image"].close()  # Close original image
+                        #d["image"].close()  # Close original image
                         d["image"] = converted_image
-                    d["image"].save(output_buffer, format='JPEG')
+                    try:
+                        d["image"].save(output_buffer, format='JPEG')
+                    except OSError as e:
+                        logging.warning(
+                            "Saving image of chunk {}/{}/{} got exception, ignore: {}".format(task["location"], task["name"], d["id"], str(e)))
 
                 async with minio_limiter:
                     await trio.to_thread.run_sync(lambda: STORAGE_IMPL.put(task["kb_id"], d["id"], output_buffer.getvalue()))
@@ -321,8 +343,6 @@ async def build_chunks(task, progress_callback):
                     d["image"].close()
                 del d["image"]  # Remove image reference
                 docs.append(d)
-            finally:
-                output_buffer.close()  # Ensure BytesIO is always closed
         except Exception:
             logging.exception(
                 "Saving image of chunk {}/{}/{} got exception".format(task["location"], task["name"], d["id"]))
@@ -428,199 +448,6 @@ def init_kb(row, vector_size: int):
     return settings.docStoreConn.createIdx(idxnm, row.get("kb_id", ""), vector_size)
 
 
-def check_parent_child_enabled(parser_config: dict) -> bool:
-    """检查文档解析配置是否启用父子分块"""
-    if not parser_config:
-        return False
-    
-    try:
-        chunking_config = parser_config.get('chunking_config', {})
-        strategy = chunking_config.get('strategy', 'smart')
-        return strategy == 'parent_child'
-    except:
-        return False
-
-
-async def build_parent_child_chunks(task, progress_callback):
-    """构建父子分块"""
-    if task["size"] > DOC_MAXIMUM_SIZE:
-        set_progress(task["id"], prog=-1, msg="File size exceeds( <= %dMb )" %
-                                             (int(DOC_MAXIMUM_SIZE / 1024 / 1024)))
-        return []
-
-    chunker = FACTORY[task["parser_id"].lower()]
-    try:
-        st = timer()
-        bucket, name = File2DocumentService.get_storage_address(doc_id=task["doc_id"])
-        binary = await get_storage_binary(bucket, name)
-        logging.info("From minio({}) {}/{} for parent-child".format(timer() - st, task["location"], task["name"]))
-    except Exception as e:
-        progress_callback(-1, "Get file from minio for parent-child: %s" % str(e).replace("'", ""))
-        logging.exception("Parent-child chunking {}/{} got exception during file fetch".format(task["location"], task["name"]))
-        raise
-
-    try:
-        async with chunk_limiter:
-            # 先进行标准分块
-            standard_chunks = await trio.to_thread.run_sync(
-                lambda: chunker.chunk(
-                    task["name"], binary=binary, from_page=task["from_page"],
-                    to_page=task["to_page"], lang=task["language"], callback=progress_callback,
-                    kb_id=task["kb_id"], parser_config=task["parser_config"], tenant_id=task["tenant_id"]
-                )
-            )
-            
-            # 从任务的解析配置中获取父子分块配置
-            chunking_config = task["parser_config"].get('chunking_config', {})
-            parent_config = chunking_config.get('parent_config', {
-                'parent_chunk_size': 1024,
-                'parent_chunk_overlap': 100, 
-                'retrieval_mode': 'parent',
-            })
-            
-            # 执行父子分块处理
-            parent_child_chunks = await process_parent_child_chunks(
-                standard_chunks, task, parent_config, progress_callback
-            )
-            
-        logging.info("Parent-child chunking({}) {}/{} done".format(timer() - st, task["location"], task["name"]))
-        return parent_child_chunks
-        
-    except Exception as e:
-        progress_callback(-1, "Parent-child chunking error: %s" % str(e).replace("'", ""))
-        logging.exception("Parent-child chunking {}/{} got exception".format(task["location"], task["name"]))
-        raise
-
-
-async def process_parent_child_chunks(standard_chunks, task, parent_config, progress_callback):
-    """处理父子分块逻辑"""
-    try:
-        import hashlib
-        
-        # 合并所有标准分块的文本内容
-        full_text = "\n\n".join([chunk.get("content_with_weight", "") for chunk in standard_chunks])
-        
-        # 使用现有的智能分块作为子分块
-        child_chunks_content = []
-        for chunk in standard_chunks:
-            if chunk.get("content_with_weight", "").strip():
-                child_chunks_content.append(chunk["content_with_weight"])
-        
-        # 构建父分块
-        parent_chunks = []
-        child_chunks = []
-        current_parent_content = []
-        current_parent_tokens = 0
-        current_child_ids = []
-        parent_order = 0
-        
-        parent_chunk_size = parent_config.get('parent_chunk_size', 1024)
-        
-        for i, child_content in enumerate(child_chunks_content):
-            child_id = f"{task['doc_id']}_child_{i:04d}_{hashlib.md5(child_content.encode('utf-8')).hexdigest()[:8]}"
-            child_tokens = num_tokens_from_string(child_content)
-            
-            # 构建子分块数据结构（保持与标准分块兼容）
-            child_chunk_data = {
-                "doc_id": task["doc_id"],
-                "kb_id": str(task["kb_id"]),
-                "id": child_id,
-                "content_with_weight": child_content,
-                "content_ltks": rag_tokenizer.tokenize(child_content),
-                "create_time": str(datetime.now()).replace("T", " ")[:19],
-                "create_timestamp_flt": datetime.now().timestamp(),
-            }
-            child_chunk_data["content_sm_ltks"] = rag_tokenizer.fine_grained_tokenize(child_chunk_data["content_ltks"])
-            child_chunks.append(child_chunk_data)
-            
-            # 检查是否需要创建新的父分块
-            if (current_parent_tokens + child_tokens > parent_chunk_size and current_parent_content):
-                # 创建父分块
-                parent_content = "\n\n".join(current_parent_content).strip()
-                parent_id = f"{task['doc_id']}_parent_{parent_order:04d}_{hashlib.md5(parent_content.encode('utf-8')).hexdigest()[:8]}"
-                
-                parent_chunk_data = {
-                    "doc_id": task["doc_id"],
-                    "kb_id": str(task["kb_id"]),
-                    "id": parent_id,
-                    "content_with_weight": parent_content,
-                    "content_ltks": rag_tokenizer.tokenize(parent_content),
-                    "create_time": str(datetime.now()).replace("T", " ")[:19],
-                    "create_timestamp_flt": datetime.now().timestamp(),
-                    "docnm_kwd": task["name"],
-                    "title_tks": rag_tokenizer.tokenize(task["name"]),
-                }
-                parent_chunk_data["content_sm_ltks"] = rag_tokenizer.fine_grained_tokenize(parent_chunk_data["content_ltks"])
-                parent_chunks.append(parent_chunk_data)
-                
-                # 保存父子关系到数据库
-                await save_parent_child_relationships(parent_id, current_child_ids, task)
-                
-                # 重置状态
-                current_parent_content = []
-                current_parent_tokens = 0
-                current_child_ids = []
-                parent_order += 1
-            
-            # 添加到当前父分块
-            current_parent_content.append(child_content)
-            current_parent_tokens += child_tokens
-            current_child_ids.append(child_id)
-        
-        # 处理最后一个父分块
-        if current_parent_content:
-            parent_content = "\n\n".join(current_parent_content).strip()
-            parent_id = f"{task['doc_id']}_parent_{parent_order:04d}_{hashlib.md5(parent_content.encode('utf-8')).hexdigest()[:8]}"
-            
-            parent_chunk_data = {
-                "doc_id": task["doc_id"],
-                "kb_id": str(task["kb_id"]),
-                "id": parent_id,
-                "content_with_weight": parent_content,
-                "content_ltks": rag_tokenizer.tokenize(parent_content),
-                "create_time": str(datetime.now()).replace("T", " ")[:19],
-                "create_timestamp_flt": datetime.now().timestamp(),
-                "docnm_kwd": task["name"],
-                "title_tks": rag_tokenizer.tokenize(task["name"]),
-            }
-            parent_chunk_data["content_sm_ltks"] = rag_tokenizer.fine_grained_tokenize(parent_chunk_data["content_ltks"])
-            parent_chunks.append(parent_chunk_data)
-            
-            # 保存父子关系到数据库
-            await save_parent_child_relationships(parent_id, current_child_ids, task)
-        
-        # 根据检索模式决定返回什么用于向量存储
-        retrieval_mode = parent_config.get('retrieval_mode', 'parent')
-        if retrieval_mode == 'parent':
-            progress_callback(msg="Generated {} parent chunks for vector storage".format(len(parent_chunks)))
-            return parent_chunks  # 父分块用于向量存储和检索
-        else:
-            progress_callback(msg="Generated {} child chunks for vector storage".format(len(child_chunks)))
-            return child_chunks   # 子分块用于向量存储，但可通过关系获取父分块
-        
-    except Exception as e:
-        logging.exception(f"Process parent-child chunks failed: {e}")
-        raise
-
-
-async def save_parent_child_relationships(parent_id, child_ids, task):
-    """保存父子关系到数据库"""
-    try:
-        # 这里只保存关系映射，实际的父分块和子分块内容通过ES检索
-        for child_id in child_ids:
-            ParentChildMapping.create(
-                parent_chunk_id=parent_id,
-                child_chunk_id=child_id,
-                doc_id=task["doc_id"],
-                kb_id=task["kb_id"],
-                relevance_score=100
-            )
-        
-    except Exception as e:
-        logging.warning(f"Failed to save parent-child relationships: {e}")
-        # 不阻断主流程，继续执行
-
-
 async def embedding(docs, mdl, parser_config=None, callback=None):
     if parser_config is None:
         parser_config = {}
@@ -641,7 +468,7 @@ async def embedding(docs, mdl, parser_config=None, callback=None):
         tts = np.concatenate([vts for _ in range(len(tts))], axis=0)
         tk_count += c
 
-    @timeout(5)
+    @timeout(60)
     def batch_encode(txts):
         nonlocal mdl
         return mdl.encode([truncate(c, mdl.max_length-10) for c in txts])
@@ -673,10 +500,17 @@ async def embedding(docs, mdl, parser_config=None, callback=None):
     return tk_count, vector_size
 
 
+async def run_dataflow(dsl:str, tenant_id:str, doc_id:str, task_id:str, flow_id:str, callback=None):
+    _ = callback
+
+    pipeline = Pipeline(dsl=dsl, tenant_id=tenant_id, doc_id=doc_id, task_id=task_id, flow_id=flow_id)
+    pipeline.reset()
+
+    await pipeline.run()
+
+
 @timeout(3600)
 async def run_raptor(row, chat_mdl, embd_mdl, vector_size, callback=None):
-    # Pressure test for GraphRAG task
-    await is_strong_enough(chat_mdl, embd_mdl)
     chunks = []
     vctr_nm = "q_%d_vec"%vector_size
     for d in settings.retrievaler.chunk_list(row["doc_id"], row["tenant_id"], [str(row["kb_id"])],
@@ -717,7 +551,7 @@ async def run_raptor(row, chat_mdl, embd_mdl, vector_size, callback=None):
     return res, tk_count
 
 
-@timeout(60*60, 1)
+@timeout(60*60*2, 1)
 async def do_handle_task(task):
     task_id = task["id"]
     task_from_page = task["from_page"]
@@ -750,7 +584,6 @@ async def do_handle_task(task):
     try:
         # bind embedding model
         embedding_model = LLMBundle(task_tenant_id, LLMType.EMBEDDING, llm_name=task_embedding_id, lang=task_language)
-        await is_strong_enough(None, embedding_model)
         vts, _ = embedding_model.encode(["ok"])
         vector_size = len(vts[0])
     except Exception as e:
@@ -761,23 +594,26 @@ async def do_handle_task(task):
 
     init_kb(task, vector_size)
 
-    # Either using RAPTOR or Standard chunking methods
-    if task.get("task_type", "") == "raptor":
+    task_type = task.get("task_type", "")
+    if task_type == "dataflow":
+        task_dataflow_dsl = task["dsl"]
+        task_dataflow_id = task["dataflow_id"]
+        await run_dataflow(dsl=task_dataflow_dsl, tenant_id=task_tenant_id, doc_id=task_doc_id, task_id=task_id, flow_id=task_dataflow_id, callback=None)
+        return
+    elif task_type == "raptor":
         # bind LLM for raptor
         chat_model = LLMBundle(task_tenant_id, LLMType.CHAT, llm_name=task_llm_id, lang=task_language)
-        await is_strong_enough(chat_model, None)
         # run RAPTOR
         async with kg_limiter:
             chunks, token_count = await run_raptor(task, chat_model, embedding_model, vector_size, progress_callback)
     # Either using graphrag or Standard chunking methods
-    elif task.get("task_type", "") == "graphrag":
+    elif task_type == "graphrag":
         if not task_parser_config.get("graphrag", {}).get("use_graphrag", False):
             progress_callback(prog=-1.0, msg="Internal configuration error.")
             return
         graphrag_conf = task["kb_parser_config"].get("graphrag", {})
         start_ts = timer()
         chat_model = LLMBundle(task_tenant_id, LLMType.CHAT, llm_name=task_llm_id, lang=task_language)
-        await is_strong_enough(chat_model, None)
         with_resolution = graphrag_conf.get("resolution", False)
         with_community = graphrag_conf.get("community", False)
         async with kg_limiter:
@@ -785,29 +621,15 @@ async def do_handle_task(task):
         progress_callback(prog=1.0, msg="Knowledge Graph done ({:.2f}s)".format(timer() - start_ts))
         return
     else:
-        # Check if parent-child chunking is enabled in document parser config
-        parent_child_enabled = check_parent_child_enabled(task_parser_config)
-        
-        if parent_child_enabled:
-            # Parent-child chunking methods
-            start_ts = timer()
-            chunks = await build_parent_child_chunks(task, progress_callback)
-            logging.info("Build parent-child document {}: {:.2f}s".format(task_document_name, timer() - start_ts))
-            if not chunks:
-                progress_callback(1., msg=f"No parent-child chunk built from {task_document_name}")
-                return
-            progress_callback(msg="Generate {} parent-child chunks".format(len(chunks)))
-        else:
-            # Standard chunking methods
-            start_ts = timer()
-            chunks = await build_chunks(task, progress_callback)
-            logging.info("Build document {}: {:.2f}s".format(task_document_name, timer() - start_ts))
-            if not chunks:
-                progress_callback(1., msg=f"No chunk built from {task_document_name}")
-                return
-            # TODO: exception handler
-            ## set_progress(task["did"], -1, "ERROR: ")
-            progress_callback(msg="Generate {} chunks".format(len(chunks)))
+        # All parsers use the standard build_chunks pathway
+        # Parent-child parser (parent_child.py) handles everything in KnowFlow Server
+        start_ts = timer()
+        chunks = await build_chunks(task, progress_callback)
+        logging.info("Build document {}: {:.2f}s".format(task_document_name, timer() - start_ts))
+        if not chunks:
+            progress_callback(1., msg=f"No chunk built from {task_document_name}")
+            return
+        progress_callback(msg="Generate {} chunks".format(len(chunks)))
         start_ts = timer()
         try:
             token_count, vector_size = await embedding(chunks, embedding_model, task_parser_config, progress_callback)

@@ -17,7 +17,8 @@ import logging
 import json
 from flask import request
 from flask_login import login_required, current_user
-from api.db.services.llm_service import LLMFactoriesService, TenantLLMService, LLMService
+from api.db.services.tenant_llm_service import LLMFactoriesService, TenantLLMService
+from api.db.services.llm_service import LLMService
 from api import settings
 from api.utils.api_utils import server_error_response, get_data_error_result, validate_request
 from api.db import StatusEnum, LLMType
@@ -57,6 +58,7 @@ def set_api_key():
     # test if api key works
     chat_passed, embd_passed, rerank_passed = False, False, False
     factory = req["llm_factory"]
+    extra = {"provider": factory}
     msg = ""
     for llm in LLMService.query(fid=factory):
         if not embd_passed and llm.model_type == LLMType.EMBEDDING.value:
@@ -73,7 +75,7 @@ def set_api_key():
         elif not chat_passed and llm.model_type == LLMType.CHAT.value:
             assert factory in ChatModel, f"Chat model from {factory} is not supported yet."
             mdl = ChatModel[factory](
-                req["api_key"], llm.llm_name, base_url=req.get("base_url"))
+                req["api_key"], llm.llm_name, base_url=req.get("base_url"), **extra)
             try:
                 m, tc = mdl.chat(None, [{"role": "user", "content": "Hello! How are you doing!"}],
                                  {"temperature": 0.9, 'max_tokens': 50})
@@ -204,6 +206,7 @@ def add_llm():
 
     msg = ""
     mdl_nm = llm["llm_name"].split("___")[0]
+    extra = {"provider": factory}
     if llm["model_type"] == LLMType.EMBEDDING.value:
         assert factory in EmbeddingModel, f"Embedding model from {factory} is not supported yet."
         mdl = EmbeddingModel[factory](
@@ -221,7 +224,8 @@ def add_llm():
         mdl = ChatModel[factory](
             key=llm['api_key'],
             model_name=mdl_nm,
-            base_url=llm["api_base"]
+            base_url=llm["api_base"],
+            **extra,
         )
         try:
             m, tc = mdl.chat(None, [{"role": "user", "content": "Hello! How are you doing!"}], {
@@ -239,7 +243,7 @@ def add_llm():
                 model_name=mdl_nm,
                 base_url=llm["api_base"]
             )
-            arr, tc = mdl.similarity("Hello~ Ragflower!", ["Hi, there!", "Ohh, my friend!"])
+            arr, tc = mdl.similarity("Hello~ RAGFlower!", ["Hi, there!", "Ohh, my friend!"])
             if len(arr) == 0:
                 raise Exception("Not known.")
         except KeyError:
@@ -267,7 +271,7 @@ def add_llm():
             key=llm["api_key"], model_name=mdl_nm, base_url=llm["api_base"]
         )
         try:
-            for resp in mdl.tts("Hello~ Ragflower!"):
+            for resp in mdl.tts("Hello~ RAGFlower!"):
                 pass
         except RuntimeError as e:
             msg += f"\nFail to access model({factory}/{mdl_nm})." + str(e)
@@ -312,12 +316,12 @@ def delete_factory():
 def my_llms():
     try:
         include_details = request.args.get('include_details', 'false').lower() == 'true'
-        
+
         if include_details:
             res = {}
             objs = TenantLLMService.query(tenant_id=current_user.id)
             factories = LLMFactoriesService.query(status=StatusEnum.VALID.value)
-            
+
             for o in objs:
                 o_dict = o.to_dict()
                 factory_tags = None
@@ -325,13 +329,13 @@ def my_llms():
                     if f.name == o_dict["llm_factory"]:
                         factory_tags = f.tags
                         break
-                        
+
                 if o_dict["llm_factory"] not in res:
                     res[o_dict["llm_factory"]] = {
                         "tags": factory_tags,
                         "llm": []
                     }
-                
+
                 res[o_dict["llm_factory"]]["llm"].append({
                     "type": o_dict["model_type"],
                     "name": o_dict["llm_name"],
@@ -352,7 +356,7 @@ def my_llms():
                     "name": o["llm_name"],
                     "used_token": o["used_tokens"]
                 })
-        
+
         return get_json_result(data=res)
     except Exception as e:
         return server_error_response(e)
@@ -389,4 +393,139 @@ def list_app():
 
         return get_json_result(data=res)
     except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route('/vision/describe_batch', methods=['POST'])  # noqa: F821
+@validate_request("tenant_id", "images")
+def vision_describe_batch():
+    """
+    批量图片描述 API，供 KnowFlow Server 调用
+
+    Request JSON:
+    {
+        "tenant_id": "租户ID",
+        "images": [
+            {"image_data": "/minio/bucket/file1.jpg", "prompt": "可选"},
+            {"image_data": "/minio/bucket/file2.jpg"}
+        ]
+    }
+
+    Response JSON:
+    {
+        "code": 0,
+        "data": {
+            "descriptions": ["描述1", "描述2", ...],
+            "total_tokens": 456
+        }
+    }
+    """
+    try:
+        req = request.json
+        tenant_id = req["tenant_id"]
+        images = req["images"]  # List of {"image_data": path, "prompt": optional}
+
+        if not isinstance(images, list) or len(images) == 0:
+            return get_data_error_result(message="images must be a non-empty list")
+
+        from api.db.services.llm_service import LLMBundle
+        from api.db import LLMType
+        import base64
+        from rag.utils.storage_factory import STORAGE_IMPL
+
+        # 初始化视觉模型
+        try:
+            vision_model = LLMBundle(tenant_id, LLMType.IMAGE2TEXT)
+        except Exception as e:
+            return get_data_error_result(
+                message=f"Failed to initialize vision model: {str(e)}"
+            )
+
+        descriptions = []
+        total_tokens = 0
+
+        # 批量处理图片
+        for img_item in images:
+            image_data = img_item.get("image_data")
+            custom_prompt = img_item.get("prompt")
+            context = img_item.get("context")  # 新增：获取上下文信息
+
+            if not image_data:
+                descriptions.append(None)
+                continue
+
+            # 加载图片（复用单张逻辑）
+            image_bytes = None
+            if isinstance(image_data, str):
+                if image_data.startswith('/minio/'):
+                    try:
+                        parts = image_data.split('/', 3)
+                        if len(parts) >= 4:
+                            bucket = parts[2]
+                            filename = parts[3]
+                            image_bytes = STORAGE_IMPL.get(bucket, filename)
+                            if not image_bytes:
+                                logging.warning(f"Failed to load image: {image_data}")
+                                descriptions.append(None)
+                                continue
+                        else:
+                            descriptions.append(None)
+                            continue
+                    except Exception as e:
+                        logging.error(f"Failed to load image from MinIO: {e}")
+                        descriptions.append(None)
+                        continue
+                elif image_data.startswith('data:image'):
+                    image_data = image_data.split(',', 1)[1]
+                    image_bytes = base64.b64decode(image_data)
+                else:
+                    try:
+                        image_bytes = base64.b64decode(image_data)
+                    except Exception:
+                        descriptions.append(None)
+                        continue
+            else:
+                image_bytes = image_data
+
+            if not image_bytes:
+                descriptions.append(None)
+                continue
+
+            # 调用视觉模型
+            try:
+                # 根据是否有上下文信息选择合适的提示词
+                if context:
+                    # 有上下文：使用增强的提示词
+                    from rag.prompts.prompts import vision_llm_context_describe_prompt
+                    enhanced_prompt = vision_llm_context_describe_prompt(context=context)
+                    logging.info(f"使用上下文增强提示词，上下文长度: {len(context) if isinstance(context, str) else 'N/A'}")
+                    description = vision_model.describe_with_prompt(image_bytes, enhanced_prompt)
+                elif custom_prompt:
+                    # 有自定义提示词：直接使用
+                    description = vision_model.describe_with_prompt(image_bytes, custom_prompt)
+                else:
+                    # 无上下文和自定义提示词：使用默认方法
+                    description = vision_model.describe(image_bytes)
+
+                if isinstance(description, tuple):
+                    desc_text, tokens_used = description
+                    total_tokens += tokens_used
+                else:
+                    desc_text = description
+
+                descriptions.append(desc_text)
+
+            except Exception as e:
+                logging.exception(f"Vision model describe failed for image: {e}")
+                descriptions.append(None)
+
+        return get_json_result(data={
+            "descriptions": descriptions,
+            "total_tokens": total_tokens
+        })
+
+    except KeyError as e:
+        return get_data_error_result(message=f"Missing required field: {str(e)}")
+    except Exception as e:
+        logging.exception(f"Vision describe batch API error: {e}")
         return server_error_response(e)

@@ -117,7 +117,20 @@ def create_user(user_data, created_by=None):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
-        
+
+        # 获取用户基本信息
+        email = user_data.get("email")
+        if not email:
+            raise ValueError("邮箱地址不能为空")
+
+        # 检查邮箱是否已存在
+        email_check_query = "SELECT COUNT(*) as count FROM user WHERE email = %s"
+        cursor.execute(email_check_query, (email,))
+        if cursor.fetchone()['count'] > 0:
+            cursor.close()
+            conn.close()
+            raise ValueError(f"邮箱 {email} 已被注册")
+
         # 检查用户表是否为空
         check_users_query = "SELECT COUNT(*) as user_count FROM user"
         cursor.execute(check_users_query)
@@ -160,7 +173,6 @@ def create_user(user_data, created_by=None):
         user_id = generate_uuid()
         # 获取基本信息
         username = user_data.get("username")
-        email = user_data.get("email")
         password = user_data.get("password")
         # 加密密码
         encrypted_password = encrypt_password(password)
@@ -299,20 +311,49 @@ def update_user(user_id, user_data):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        
-        query = """
-        UPDATE user SET nickname = %s WHERE id = %s
-        """
-        cursor.execute(query, (
-            user_data.get("username"),
-            user_id
-        ))
+
+        # 构建更新字段
+        update_fields = []
+        params = []
+
+        if user_data.get("username"):
+            update_fields.append("nickname = %s")
+            params.append(user_data.get("username"))
+
+        if user_data.get("email"):
+            update_fields.append("email = %s")
+            params.append(user_data.get("email"))
+
+        if not update_fields:
+            cursor.close()
+            conn.close()
+            return True  # 没有字段需要更新
+
+        # 添加更新时间
+        update_fields.append("update_time = %s")
+        update_fields.append("update_date = %s")
+
+        # 获取当前时间
+        utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        target_tz = pytz.timezone('Asia/Shanghai')
+        local_dt = utc_now.astimezone(target_tz)
+        update_time = int(local_dt.timestamp() * 1000)
+        update_date = local_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        params.extend([update_time, update_date])
+        params.append(user_id)
+
+        query = f"UPDATE user SET {', '.join(update_fields)} WHERE id = %s"
+        cursor.execute(query, params)
+
+        # 检查是否有行被更新
+        rows_affected = cursor.rowcount
+
         conn.commit()
-        
         cursor.close()
         conn.close()
-        
-        return True
+
+        return rows_affected > 0
     except mysql.connector.Error as err:
         print(f"更新用户错误: {err}")
         return False

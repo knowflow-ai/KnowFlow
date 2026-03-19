@@ -76,9 +76,8 @@ class RAGFlowIntegration:
             return self._handle_standard_chunks(processor_result, update_progress)
     
     def _handle_parent_child_chunks(self, processor_result: Dict, update_progress: Callable) -> int:
-        """处理父子分块 - 完全复用MinerU逻辑"""
-        
-        # 构造MinerU格式的parent_child_data
+        """处理父子分块 - 复用MinerU逻辑"""
+
         parent_child_data = {
             'doc_id': self.doc_id,
             'kb_id': self.kb_id,
@@ -86,52 +85,43 @@ class RAGFlowIntegration:
             'child_chunks': processor_result.get('child_chunks', []),
             'relationships': processor_result.get('relationships', [])
         }
-        
-        # 提取子分块内容和坐标信息（用于向量化）
+
+        # 提取子分块内容和坐标信息
         child_chunks_data = parent_child_data['child_chunks']
         chunks_content = []
-        chunks_with_positions = []  # 保存带坐标信息的分块
-        
+        chunks_with_positions = []
+
         for i, chunk_info in enumerate(child_chunks_data):
             if hasattr(chunk_info, 'content'):
-                # 如果是ChunkInfo对象
                 content = chunk_info.content
             elif isinstance(chunk_info, dict):
-                # 如果是字典格式
                 content = chunk_info.get('content', '')
             else:
                 content = str(chunk_info)
-            
+
             chunks_content.append(content)
-            
+
             # 构造带坐标信息的分块数据
             chunk_with_coords = {
                 "content": content,
                 "important_keywords": [],
                 "questions": []
             }
-            
-            # 添加位置信息
-            chunk_with_coords["page_num_int"] = [1]  # 固定为1的排序
-            chunk_with_coords["top_int"] = i  # 使用索引排序
-            
-            # 检查是否有精确坐标信息
+
+            chunk_with_coords["page_num_int"] = [1]
+            chunk_with_coords["top_int"] = i
+
+            # 获取坐标信息
             if isinstance(chunk_info, dict) and chunk_info.get('positions'):
                 chunk_with_coords["positions"] = chunk_info['positions']
-                logger.debug(f"父子分块 {i}: 找到精确坐标 ({len(chunk_info['positions'])} 个位置)")
-            elif isinstance(chunk_info, dict) and chunk_info.get('has_coordinates'):
-                # 如果有has_coordinates标记但没有positions，记录警告
-                logger.warning(f"父子分块 {i}: has_coordinates=True 但找不到positions")
-            
+
             chunks_with_positions.append(chunk_with_coords)
-        
+
         chunk_content_to_index = {chunk: i for i, chunk in enumerate(chunks_content)}
-        
         coords_count = sum(1 for c in chunks_with_positions if 'positions' in c)
-        logger.info(f"DOTS父子分块坐标检查: {coords_count}/{len(chunks_with_positions)} 个子块有精确坐标")
-        
+
         logger.info(f"DOTS父子分块处理: {len(parent_child_data.get('parent_chunks', []))}父块, "
-                   f"{len(child_chunks_data)}子块, {len(parent_child_data.get('relationships', []))}映射关系")
+                   f"{len(child_chunks_data)}子块, {coords_count}个有坐标")
         
         
         # 传递带坐标信息的分块数据给batch API
@@ -141,17 +131,16 @@ class RAGFlowIntegration:
             update_progress
         )
     
-    def _call_enhanced_batch_api_with_coordinates(self, chunks_with_positions: List[Dict], 
-                                                 parent_child_data: Dict, 
+    def _call_enhanced_batch_api_with_coordinates(self, chunks_with_positions: List[Dict],
+                                                 parent_child_data: Dict,
                                                  update_progress: Callable) -> int:
-        """调用增强batch API，确保坐标信息被正确传递"""
+        """调用增强batch API"""
         try:
-            
             # 准备子分块内容和索引映射
             child_chunks_content = []
             chunk_content_to_index = {}
             chunks_with_coords = []
-            
+
             for i, chunk_info in enumerate(chunks_with_positions):
                 content = chunk_info.get('content', '').strip()
                 if content:
@@ -194,39 +183,36 @@ class RAGFlowIntegration:
             raise
     
     def _handle_standard_chunks(self, processor_result: Dict, update_progress: Callable) -> int:
-        """处理标准分块 - 复用MinerU的batch API，包含坐标信息"""
-        
+        """处理标准分块 - 复用MinerU的batch API"""
+
         chunks = processor_result.get('chunks', [])
-        
+
         # 提取分块内容和坐标信息
         chunks_content = []
         chunks_with_coordinates = []
-        
+
         for chunk in chunks:
             content = chunk.get('content', '').strip()
             if content:
                 chunks_content.append(content)
-                
+
                 # 构建包含坐标信息的分块数据
-                chunk_with_coord = {
-                    'content': content
-                }
-                
-                # 检查是否有坐标信息
+                chunk_with_coord = {'content': content}
+
+                # 获取坐标信息
                 if chunk.get('positions'):
                     chunk_with_coord['positions'] = chunk['positions']
-                    logger.debug(f"标准分块包含坐标: {len(chunk['positions'])}个位置")
-                
+
                 chunks_with_coordinates.append(chunk_with_coord)
-        
+
         if not chunks_content:
             logger.warning("没有有效的标准分块内容")
             return 0
-        
+
         chunk_content_to_index = {chunk: i for i, chunk in enumerate(chunks_content)}
         coords_count = sum(1 for c in chunks_with_coordinates if c.get('positions'))
-        
-        logger.info(f"DOTS标准分块处理: {len(chunks_content)}个分块，其中{coords_count}个有坐标信息")
+
+        logger.info(f"DOTS标准分块处理: {len(chunks_content)}个分块，{coords_count}个有坐标")
         
         # 调用MinerU的增强batch API，传递坐标信息
         from ..mineru_parse.ragflow_build import add_chunks_with_enhanced_batch_api

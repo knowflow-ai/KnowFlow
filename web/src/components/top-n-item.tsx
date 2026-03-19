@@ -1,6 +1,7 @@
 import { useTranslate } from '@/hooks/common-hooks';
 import { Form, Slider } from 'antd';
 import { useFormContext } from 'react-hook-form';
+import { z } from 'zod';
 import { SingleFormSlider } from './ui/dual-range-slider';
 import {
   FormControl,
@@ -39,6 +40,10 @@ export default TopNItem;
 interface SimilaritySliderFormFieldProps {
   max?: number;
 }
+
+export const topnSchema = {
+  top_n: z.number().optional(),
+};
 
 export function TopNFormField({ max = 30 }: SimilaritySliderFormFieldProps) {
   const form = useFormContext();

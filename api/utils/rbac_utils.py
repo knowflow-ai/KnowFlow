@@ -88,17 +88,66 @@ def get_user_tenant_info():
         logger.warning(f"获取用户租户信息失败: {e}")
         return None, None
 
+def batch_check_rbac_permissions(user_id, resource_type, resource_ids, permission_type, tenant_id=None):
+    """
+    批量检查用户对多个资源的权限
+
+    Args:
+        user_id: 用户ID
+        resource_type: 资源类型
+        resource_ids: 资源ID列表
+        permission_type: 权限类型
+        tenant_id: 租户ID
+
+    Returns:
+        dict: {resource_id: bool} 权限映射
+    """
+    if not RBAC_ENABLED:
+        logger.info("RBAC未启用，跳过批量权限检查")
+        return {rid: True for rid in resource_ids}
+
+    if not user_id or not resource_ids:
+        logger.warning("用户ID或资源ID列表为空，批量权限检查失败")
+        return {rid: False for rid in resource_ids}
+
+    try:
+        payload = {
+            "user_id": user_id,
+            "resource_type": resource_type,
+            "resource_ids": resource_ids,
+            "permission_type": permission_type
+        }
+
+        response = requests.post(
+            f"{RBAC_SERVICE_URL}/permissions/batch-check",
+            json=payload,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            permissions = result.get('permissions', {})
+            logger.debug(f"批量权限检查完成: user={user_id}, checked {len(permissions)} resources")
+            return permissions
+        else:
+            logger.error(f"批量权限检查失败: {response.status_code} - {response.text}")
+            return {rid: False for rid in resource_ids}
+
+    except Exception as e:
+        logger.error(f"批量权限检查异常: {e}")
+        return {rid: False for rid in resource_ids}
+
 def check_rbac_permission(user_id, resource_type, resource_id, permission_type, tenant_id=None):
     """
     检查用户是否具有特定资源的权限（只检查资源级别权限，不涉及全局角色）
-    
+
     Args:
         user_id: 用户ID
         resource_type: 资源类型
         resource_id: 资源ID
         permission_type: 权限类型
         tenant_id: 租户ID
-        
+
     Returns:
         bool: 是否有权限
     """
@@ -149,9 +198,7 @@ def check_rbac_permission(user_id, resource_type, resource_id, permission_type, 
             from flask_login import current_user
             if hasattr(current_user, 'email') and current_user.email:
                 # 根据邮箱查找真实的用户ID
-                import mysql.connector
                 from database import get_db_connection
-                
                 db = get_db_connection()
                 cursor = db.cursor()
                 cursor.execute("SELECT id FROM user WHERE email = %s", (current_user.email,))
@@ -338,11 +385,11 @@ def check_global_permission(user_id, permission_type, tenant_id=None):
 def check_global_kb_admin_permission(user_id, tenant_id=None):
     """
     检查用户是否具有全局知识库管理员权限（兼容性方法）
-    
+
     Args:
         user_id: 用户ID
         tenant_id: 租户ID
-        
+
     Returns:
         bool: 是否有全局kb_admin权限
     """

@@ -1,3 +1,62 @@
+@import '../theme/design-tokens.less';
+
+/* ============================================
+   主布局
+   ============================================ */
+.layout {
+  height: 100vh;
+  background: @neutral-50;
+}
+
+/* 侧边栏样式 */
+.siderStyle {
+  background: @color-bg-secondary !important; // 改为浅灰色背景,与内容区形成对比
+  border-right: 1px solid @color-border-default;
+  box-shadow: @shadow-sm;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 主内容区域 */
+.mainLayout {
+  background: @neutral-50;
+}
+
+.contentStyle {
+  min-height: 280px;
+  background: @color-bg-primary;
+  margin: @space-md;
+  border-radius: @radius-lg;
+  overflow: auto;
+  display: flex;
+  box-shadow: @shadow-card;
+}
+
+/* ============================================
+   全局覆盖 Ant Design 样式
+   ============================================ */
+/* 侧边栏背景 */
+:global(.ant-layout-sider) {
+  background: @color-bg-secondary !important; // 浅灰色背景
+}
+
+:global(.css-dev-only-do-not-override-1wxecgq.ant-layout .ant-layout-sider) {
+  background: @color-bg-secondary !important;
+}
+
+/* Header 背景 */
+:global(.ant-layout-header) {
+  background: @color-bg-secondary !important; // 浅灰色背景
+  padding: 0 !important;
+}
+
+:global(.css-dev-only-do-not-override-1wxecgq .ant-layout-header) {
+  background: @color-bg-secondary !important;
+}
+
+/* ============================================
+   全局工具类
+   ============================================ */
 .navs {
   ul {
     padding: 0;
@@ -10,38 +69,6 @@
   }
 }
 
-.layout {
-  height: 100vh;
-}
-.siderStyle {
-  text-align: center;
-  line-height: 120px;
-  color: '#fff';
-  background-color: '#001529';
-}
-
-// 强制覆盖 Ant Design 的侧边栏样式
-:global(.css-dev-only-do-not-override-1wxecgq.ant-layout .ant-layout-sider) {
-  background: #f8fafc !important;
-}
-
-:global(.ant-layout-sider) {
-  background: #f8fafc !important;
-}
-
-// 覆盖 Header 组件的背景色
-:global(.ant-layout-header) {
-  background: #f8fafc !important;
-}
-
-:global(.css-dev-only-do-not-override-1wxecgq .ant-layout-header) {
-  background: #f8fafc !important;
-}
-
-body {
-  margin: 0;
-}
-
 .divider {
   margin: 0;
 }
@@ -50,44 +77,43 @@ body {
   cursor: pointer;
 }
 
-/* 滚动条整体宽度 */
+body {
+  margin: 0;
+  font-family: @font-family-base;
+  color: @color-text-primary;
+  background: @neutral-50;
+}
+
+/* ============================================
+   自定义滚动条样式
+   ============================================ */
 ::-webkit-scrollbar {
   width: 8px;
-  /* 对于垂直滚动条 */
-  height: 100%;
-  /* 对于水平滚动条 */
+  height: 8px;
 }
 
-/* 滚动条轨道 */
 ::-webkit-scrollbar-track {
   background: transparent;
-  /* 轨道的颜色 */
-  border-radius: 10px;
-  /* 轨道的圆角 */
+  border-radius: @radius-full;
 }
 
-/* 滚动条滑块 */
 ::-webkit-scrollbar-thumb {
-  // background: #ddecff;
-  background: #1570ef;
-  /* 滑块的颜色 */
-  border-radius: 10px;
-  /* 滑块的圆角 */
+  background: @brand-primary-300;
+  border-radius: @radius-full;
+  transition: background @transition-base;
+
+  &:hover {
+    background: @brand-primary-500;
+    cursor: pointer;
+  }
 }
 
-/* 当鼠标悬停在滑块上时 */
-::-webkit-scrollbar-thumb:hover {
-  // background: #ddecff;
-  background: #1570ef;
-  cursor: pointer;
-  /* 滑块悬停时的颜色 */
-}
-
-/* 滚动条按钮（上下箭头）的样式，不过大部分浏览器不支持直接修改这些按钮的样式 */
-/* ::-webkit-scrollbar-button { ... } */
-
-/* 滚动条两端的小块 */
 ::-webkit-scrollbar-corner {
-  background: #ddecff;
-  /* 角落的颜色 */
+  background: transparent;
+}
+
+/* Firefox 滚动条样式 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: @brand-primary-300 transparent;
 }

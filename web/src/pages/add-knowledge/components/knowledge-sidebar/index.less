@@ -1,53 +1,69 @@
+@import '../../../../theme/design-tokens.less';
+
 .sidebarWrapper {
-  max-width: 288px;
-  padding: 32px 24px 24px 24px;
+  max-width: 280px;
+  padding: @space-xl @space-lg;
   flex-direction: column;
+  background: @color-bg-primary;
+  border-right: 1px solid @color-border-default;
 
   .sidebarTop {
     text-align: center;
+    padding-bottom: @space-lg;
+
     .knowledgeLogo {
     }
+
     .knowledgeTitle {
-      font-size: 16px;
-      line-height: 24px;
-      font-weight: @fontWeight700;
-      margin-bottom: 6px;
+      font-size: @font-size-lg;
+      line-height: @line-height-normal;
+      font-weight: @font-weight-bold;
+      margin-bottom: @space-xs;
+      color: @color-text-primary;
     }
+
     .knowledgeDescription {
-      font-size: 12px;
-      font-weight: @fontWeight600;
-      color: @gray8;
+      font-size: @font-size-xs;
+      font-weight: @font-weight-regular;
+      color: @color-text-tertiary;
       margin: 0;
     }
-    padding-bottom: 20px;
   }
+
   .divider {
-    height: 2px;
-    background-image: linear-gradient(
-      to right,
-      @gray11 0%,
-      @gray11 50%,
-      transparent 50%
-    );
-    background-size: 10px 2px;
-    background-repeat: repeat-x;
+    height: 1px;
+    background: @color-border-default;
   }
 
   .menuWrapper {
-    padding-top: 10px;
+    padding-top: @space-md;
 
     .menu {
       border: none;
-      font-size: @fontSize16;
-      font-weight: @fontWeight600;
+      font-size: @font-size-md;
+      font-weight: @font-weight-medium;
+      background: transparent;
+
       :global(.ant-menu-item) {
         display: flex;
         align-items: center;
+        border-radius: @radius-md;
+        margin-bottom: @space-xs;
+        transition: all @transition-base;
+
+        &:hover {
+          background: @color-bg-hover;
+        }
+
+        &.ant-menu-item-selected {
+          background: @brand-primary-50;
+          color: @brand-primary-600;
+        }
       }
     }
 
     .defaultWidth {
-      width: 240px;
+      width: 100%;
     }
 
     .minWidth {
@@ -55,9 +71,9 @@
     }
 
     .menuText {
-      color: @gray3;
-      font-size: @fontSize14;
-      font-weight: @fontWeight700;
+      color: @color-text-secondary;
+      font-size: @font-size-md;
+      font-weight: @font-weight-medium;
     }
   }
 }

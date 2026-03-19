@@ -11,6 +11,7 @@ import {
 } from '@/hooks/knowledge-hooks';
 import { useGetPaginationWithRouter } from '@/hooks/logic-hooks';
 import { IReference } from '@/interfaces/database/chat';
+import { SearchOutlined } from '@ant-design/icons';
 import {
   Card,
   Divider,
@@ -86,7 +87,21 @@ const SearchPage = () => {
   }, [searchStr, sendQuestion]);
 
   const suffixSearch = (
-    <div className={styles.sufSearch} onClick={handleSearch}></div>
+    <SearchOutlined
+      onClick={handleSearch}
+      style={{
+        fontSize: 20,
+        color: '#3b82f6',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'scale(1.1)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'scale(1)';
+      }}
+    />
   );
 
   const InputSearch = (

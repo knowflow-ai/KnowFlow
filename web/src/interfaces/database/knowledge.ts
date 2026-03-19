@@ -38,7 +38,9 @@ export interface ParserConfig {
   chunk_token_num?: number;
   delimiter?: string;
   html4excel?: boolean;
-  layout_recognize?: boolean;
+  layout_recognize?: string;
+  enable_heading_in_content?: boolean;
+  split_level?: number;
   raptor?: Raptor;
   tag_kb_ids?: string[];
   topn_tags?: number;
@@ -46,7 +48,9 @@ export interface ParserConfig {
 
 export interface IKnowledgeFileParserConfig {
   chunk_token_num: number;
-  layout_recognize: boolean;
+  layout_recognize: string;
+  enable_heading_in_content?: boolean;
+  split_level?: number;
   pages: number[][];
   task_page_size: number;
 }
@@ -102,6 +106,7 @@ export interface IChunk {
   tag_kwd?: string[];
   positions: number[][];
   tag_feas?: Record<string, number>;
+  parent_chunk_id?: string; // 子块所属的父块 ID
 }
 
 export interface ITestingChunk {
@@ -134,6 +139,14 @@ export interface ITestingResult {
   documents: ITestingDocument[];
   total: number;
   labels?: Record<string, number>;
+}
+
+export interface INextTestingResult {
+  chunks: ITestingChunk[];
+  doc_aggs: ITestingDocument[];
+  total: number;
+  labels?: Record<string, number>;
+  isRuned?: boolean;
 }
 
 export type IRenameTag = { fromTag: string; toTag: string };

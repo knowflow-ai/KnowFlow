@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  dots-ocr-server:
+    image: ${DOTS_IMAGE:-rednotehilab/dots.ocr:vllm-openai-v0.9.1}
+    container_name: knowflow-dots-ocr
+    restart: always
+    ports:
+      - "${DOTS_PORT:-8000}:8000"
+    volumes:
+      # 挂载模型目录
+      # 模型下载地址: https://www.modelscope.cn/models/rednote-hilab/dots.ocr
+      - ${DOTS_MODEL_DIR:-./weights/DotsOCR}:/workspace/weights/DotsOCR
+    environment:
+      - PYTHONPATH=/workspace/weights:$PYTHONPATH
+      - TZ=${TIMEZONE:-Asia/Shanghai}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+              device_ids: ["${DOTS_GPU_DEVICE_IDS:-0}"]
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        set -ex
+        echo '--- Starting DOTS OCR Server ---'
+        echo 'Patching vllm entrypoint...'
+        sed -i '/^from vllm\.entrypoints\.cli\.main import main/a from DotsOCR import modeling_dots_ocr_vllm' $(which vllm)
+        echo 'Patch complete. Starting server...'
+        exec vllm serve /workspace/weights/DotsOCR \
+            --tensor-parallel-size ${DOTS_TENSOR_PARALLEL_SIZE:-1} \
+            --gpu-memory-utilization ${DOTS_GPU_MEMORY_UTILIZATION:-0.8} \
+            --chat-template-content-format string \
+            --served-model-name ${DOTS_MODEL_NAME:-dotsocr-model} \
+            --trust-remote-code \
+            --host 0.0.0.0 \
+            --port 8000

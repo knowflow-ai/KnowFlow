@@ -21,216 +21,28 @@ from copy import deepcopy
 from datetime import datetime
 from functools import partial
 from timeit import default_timer as timer
-
+import trio
 from langfuse import Langfuse
 from peewee import fn
-
 from agentic_reasoning import DeepResearcher
 from api import settings
 from api.db import LLMType, ParserType, StatusEnum
 from api.db.db_models import DB, Dialog
 from api.db.services.common_service import CommonService
+from api.db.services.document_service import DocumentService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.langfuse_service import TenantLangfuseService
-from api.db.services.llm_service import LLMBundle, TenantLLMService
-
-# 添加父子分块支持
-try:
-    from api.db.parent_child_models import ParentChildMapping
-    PARENT_CHILD_AVAILABLE = True
-except ImportError:
-    PARENT_CHILD_AVAILABLE = False
+from api.db.services.llm_service import LLMBundle
+from api.db.services.tenant_llm_service import TenantLLMService
 from api.utils import current_timestamp, datetime_format
+from graphrag.general.mind_map_extractor import MindMapExtractor
 from rag.app.resume import forbidden_select_fields4resume
 from rag.app.tag import label_question
 from rag.nlp.search import index_name
 from rag.prompts import chunks_format, citation_prompt, cross_languages, full_question, kb_prompt, keyword_extraction, message_fit_in
+from rag.prompts.prompts import gen_meta_filter, PROMPT_JINJA_ENV, ASK_SUMMARY
 from rag.utils import num_tokens_from_string, rmSpace
 from rag.utils.tavily_conn import Tavily
-
-
-def check_kb_parent_child_enabled(kb_ids):
-    """检查知识库中是否有使用父子分块策略的文档"""
-    if not PARENT_CHILD_AVAILABLE:
-        return False, []
-    
-    enabled_kbs = []
-    try:
-        from api.db.services.document_service import DocumentService
-        
-        for kb_id in kb_ids:
-            # 查询该知识库下是否有使用parent_child策略的文档
-            # 使用原始数据库查询代替DocumentService.get_by_kb_id
-            from api.db.db_models import Document
-            documents = Document.select().where(Document.kb_id == kb_id)
-            
-            for doc in documents:
-                if doc.parser_config:
-                    try:
-                        import json
-                        if isinstance(doc.parser_config, str):
-                            parser_config = json.loads(doc.parser_config)
-                        else:
-                            parser_config = doc.parser_config
-                        
-                        chunking_config = parser_config.get('chunking_config', {})
-                        strategy = chunking_config.get('strategy', 'smart')
-                        
-                        if strategy == 'parent_child':
-                            enabled_kbs.append(kb_id)
-                            break  # 该知识库有父子分块文档，跳出内层循环
-                    except:
-                        continue
-    except:
-        pass
-    
-    return len(enabled_kbs) > 0, enabled_kbs
-
-
-def parent_child_retrieval(query, embd_mdl, tenant_ids, kb_ids, page, top_n, similarity_threshold, vector_similarity_weight, doc_ids=None, top=1024, aggs=False, rerank_mdl=None, rank_feature=None):
-    """父子分块检索逻辑"""
-    try:
-        # 先进行标准检索获取子分块
-        child_results = settings.retrievaler.retrieval(
-            query, embd_mdl, tenant_ids, kb_ids, page, top_n,
-            similarity_threshold, vector_similarity_weight,
-            doc_ids=doc_ids, top=top, aggs=aggs, rerank_mdl=rerank_mdl,
-            rank_feature=rank_feature
-        )
-        
-        # 获取父分块内容
-        parent_chunks = []
-        processed_parents = set()  # 避免重复的父分块
-        
-        for chunk in child_results.get("chunks", []):
-            # retrieval() returns chunks with key 'chunk_id' for the chunk identifier
-            # and 'doc_id' for the document identifier. Fall back to alternative keys if present.
-            child_chunk_id = chunk.get("chunk_id", chunk.get("id"))
-            doc_id = chunk.get("doc_id", chunk.get("document_id"))
-            logging.info("1-------------")
-            if not child_chunk_id or not doc_id:
-                continue
-            
-            # # 检查该文档是否启用了父子分块
-            # try:
-            #     from api.db.services.document_service import DocumentService
-            #     document = DocumentService.get_by_id(doc_id)
-            #     if not document or not document.parser_config:
-            #         continue
-                    
-            #     import json
-            #     if isinstance(document.parser_config, str):
-            #         parser_config = json.loads(document.parser_config)
-            #     else:
-            #         parser_config = document.parser_config
-                
-            #     chunking_config = parser_config.get('chunking_config', {})
-            #     strategy = chunking_config.get('strategy', 'smart')
-                
-            #     # 只对父子分块策略的文档进行父子检索
-            #     if strategy != 'parent_child':
-            #         continue
-                
-            #     # 检查retrieval_mode配置，只有parent模式才进行父子转换
-            #     parent_config = chunking_config.get('parent_config', {})
-            #     retrieval_mode = parent_config.get('retrieval_mode', 'parent')
-                
-            #     logging.info(f"Document {doc_id}: strategy={strategy}, retrieval_mode={retrieval_mode}")
-                
-            #     # 如果配置为child模式，保留子分块，不转换为父分块
-            #     if retrieval_mode != 'parent':
-            #         logging.info(f"Skipping parent-child conversion for doc {doc_id}: retrieval_mode={retrieval_mode}")
-            #         continue
-                    
-            # except Exception as e:
-            #     logging.warning(f"Failed to check document strategy for {doc_id}: {e}")
-            #     continue
-            
-            # 查询父子关系映射
-            try:
-                mappings = ParentChildMapping.select().where(
-                    ParentChildMapping.child_chunk_id == child_chunk_id
-                ).limit(1)
-                logging.info("2-------------")
-                logging.info("child_chunk_id=%s, doc_id=%s", child_chunk_id, doc_id)
-                count = ParentChildMapping.select().where(
-                     ParentChildMapping.child_chunk_id == child_chunk_id
-                ).count()
-                logging.info("mapping_count=%s", count)
-                
-                for mapping in mappings:
-                    parent_id = mapping.parent_chunk_id
-                    if parent_id in processed_parents:
-                        continue
-                    processed_parents.add(parent_id)
-                    logging.info("3-------------")
-                    
-                    # 获取正确的tenant_id
-                    try:
-                        from api.db.services.document_service import DocumentService
-                        tenant_id = DocumentService.get_tenant_id(mapping.doc_id)
-                        if not tenant_id:
-                            logging.warning(f"Failed to get tenant_id for doc {mapping.doc_id}")
-                            continue
-                    except Exception as e:
-                        logging.warning(f"Failed to get tenant_id for doc {mapping.doc_id}: {e}")
-                        continue
-                    
-                    # 从单独的父分块ES索引中获取父分块内容
-                    parent_index = f"{index_name(tenant_id)}_parent"
-                    parent_chunk_data = settings.docStoreConn.get(
-                        parent_id, 
-                        parent_index, 
-                        [mapping.kb_id]
-                    )
-                    
-                    if parent_chunk_data:
-                        logging.info(f"Successfully retrieved parent chunk {parent_id} from separate index {parent_index} for child {child_chunk_id}")
-                        # 构建父分块数据结构，保持与标准检索结果兼容
-                        parent_chunk = {
-                            "id": parent_id,
-                            "content_with_weight": parent_chunk_data.get("content_with_weight", ""),
-                            "content_ltks": parent_chunk_data.get("content_ltks", ""),  # 添加缺失的字段
-                            "doc_id": mapping.doc_id,
-                            "docnm_kwd": parent_chunk_data.get("docnm_kwd", ""),
-                            "kb_id": mapping.kb_id,
-                            "similarity": chunk.get("similarity", 0.5),  # 继承子分块的相似度
-                            "term_similarity": chunk.get("term_similarity", 0.5),
-                            "vector": chunk.get("vector", []),
-                            "positions": parent_chunk_data.get("positions", []),
-                            "img_id": parent_chunk_data.get("img_id", ""),
-                            "important_kwd": parent_chunk_data.get("important_kwd", []),
-                            "question_kwd": parent_chunk_data.get("question_kwd", []),
-                            "chunk_type": "parent"  # 标记为父分块
-                        }
-                        parent_chunks.append(parent_chunk)
-                    else:
-                        logging.warning(f"Failed to retrieve parent chunk data from ES: {parent_id}")
-            
-            except Exception as e:
-                logging.warning(f"Failed to get parent chunk for child {child_chunk_id}: {e}")
-                continue
-        
-        # 如果找到父分块，返回父分块结果；否则返回原始子分块结果
-        if parent_chunks:
-            logging.info(f"Parent-child retrieval: {len(parent_chunks)} parent chunks retrieved")
-            # 保持原有的结果结构
-            result = deepcopy(child_results)
-            result["chunks"] = parent_chunks[:top_n]  # 限制返回数量
-            return result
-        else:
-            logging.info("Parent-child retrieval: no parent chunks found, using child chunks")
-            return child_results
-            
-    except Exception as e:
-        logging.error(f"Parent-child retrieval failed: {e}")
-        # 回退到标准检索
-        return settings.retrievaler.retrieval(
-            query, embd_mdl, tenant_ids, kb_ids, page, top_n,
-            similarity_threshold, vector_similarity_weight,
-            doc_ids=doc_ids, top=top, aggs=aggs, rerank_mdl=rerank_mdl,
-            rank_feature=rank_feature
-        )
 
 
 class DialogService(CommonService):
@@ -287,7 +99,6 @@ class DialogService(CommonService):
 
         return list(chats.dicts())
 
-
     @classmethod
     @DB.connection_context()
     def get_by_tenant_ids(cls, joined_tenant_ids, user_id, page_number, items_per_page, orderby, desc, keywords, parser_id=None):
@@ -310,6 +121,7 @@ class DialogService(CommonService):
             cls.model.do_refer,
             cls.model.rerank_id,
             cls.model.kb_ids,
+            cls.model.icon,
             cls.model.status,
             User.nickname,
             User.avatar.alias("tenant_avatar"),
@@ -404,6 +216,15 @@ def get_models(dialog):
     return kbs, embd_mdl, rerank_mdl, chat_mdl, tts_mdl
 
 
+BAD_CITATION_PATTERNS = [
+    re.compile(r"^ID\s*[: ]+(\d+)$", re.MULTILINE),  # Standalone: ID: 12\n (独立行)
+    re.compile(r"\(\s*ID\s*[: ]*\s*(\d+)\s*\)"),  # (ID: 12)
+    re.compile(r"\[\s*ID\s*[: ]*\s*(\d+)\s*\]"),  # [ID: 12]
+    re.compile(r"【\s*ID\s*[: ]*\s*(\d+)\s*】"),  # 【ID: 12】
+    re.compile(r"ref\s*(\d+)", flags=re.IGNORECASE),  # ref12、REF 12
+]
+
+
 def repair_bad_citation_formats(answer: str, kbinfos: dict, idx: set):
     max_index = len(kbinfos["chunks"])
 
@@ -413,30 +234,90 @@ def repair_bad_citation_formats(answer: str, kbinfos: dict, idx: set):
             return True
         return False
 
-    def find_and_replace(pattern, group_index=1, repl=lambda i: f"##{i}$$", flags=0):
+    def find_and_replace(pattern, group_index=1, repl=lambda i: f"ID:{i}", flags=0):
         nonlocal answer
-        for match in re.finditer(pattern, answer, flags=flags):
+
+        def replacement(match):
             try:
                 i = int(match.group(group_index))
                 if safe_add(i):
-                    answer = answer.replace(match.group(0), repl(i))
+                    return f"[{repl(i)}]"
             except Exception:
-                continue
+                pass
+            return match.group(0)
 
-    find_and_replace(r"\(\s*ID:\s*(\d+)\s*\)")  # (ID: 12)
-    find_and_replace(r"\[\s*ID\s*[: ]*\s*(\d+)\s*\]")  # [ID: 12]
-    find_and_replace(r"ID[: ]+(\d+)")  # ID: 12, ID 12
-    find_and_replace(r"\$\$(\d+)\$\$")  # $$12$$
-    find_and_replace(r"\$\[(\d+)\]\$")  # $[12]$
-    find_and_replace(r"\$\$(\d+)\${2,}")  # $$12$$$$
-    find_and_replace(r"\$(\d+)\$")  # $12$
-    find_and_replace(r"(#{2,})(\d+)(\${2,})", group_index=2)  # 2+ # and 2+ $
-    find_and_replace(r"(#{2,})(\d+)(#{1,})", group_index=2)  # 2+ # and 1+ #
-    find_and_replace(r"##(\d+)#{2,}")  # ##12###
-    find_and_replace(r"【(\d+)】")  # 【12】
-    find_and_replace(r"ref\s*(\d+)", flags=re.IGNORECASE)  # ref12, ref 12, REF 12
+        answer = re.sub(pattern, replacement, answer, flags=flags)
+
+    for pattern in BAD_CITATION_PATTERNS:
+        find_and_replace(pattern)
 
     return answer, idx
+
+
+def convert_conditions(metadata_condition):
+    if metadata_condition is None:
+        metadata_condition = {}
+    op_mapping = {
+        "is": "=",
+        "not is": "≠"
+    }
+    return [
+    {
+        "op": op_mapping.get(cond["comparison_operator"], cond["comparison_operator"]),
+        "key": cond["name"],
+        "value": cond["value"]
+    }
+    for cond in metadata_condition.get("conditions", [])
+]
+
+
+def meta_filter(metas: dict, filters: list[dict]):
+    doc_ids = set([])
+
+    def filter_out(v2docs, operator, value):
+        ids = []
+        for input, docids in v2docs.items():
+            try:
+                input = float(input)
+                value = float(value)
+            except Exception:
+                input = str(input)
+                value = str(value)
+
+            for conds in [
+                    (operator == "contains", str(value).lower() in str(input).lower()),
+                    (operator == "not contains", str(value).lower() not in str(input).lower()),
+                    (operator == "start with", str(input).lower().startswith(str(value).lower())),
+                    (operator == "end with", str(input).lower().endswith(str(value).lower())),
+                    (operator == "empty", not input),
+                    (operator == "not empty", input),
+                    (operator == "=", input == value),
+                    (operator == "≠", input != value),
+                    (operator == ">", input > value),
+                    (operator == "<", input < value),
+                    (operator == "≥", input >= value),
+                    (operator == "≤", input <= value),
+                ]:
+                try:
+                    if all(conds):
+                        ids.extend(docids)
+                        break
+                except Exception:
+                    pass
+        return ids
+
+    for k, v2docs in metas.items():
+        for f in filters:
+            if k != f["key"]:
+                continue
+            ids = filter_out(v2docs, f["op"], f["value"])
+            if not doc_ids:
+                doc_ids = set(ids)
+            else:
+                doc_ids = doc_ids & set(ids)
+            if not doc_ids:
+                return []
+    return list(doc_ids)
 
 
 def chat(dialog, messages, stream=True, **kwargs):
@@ -476,15 +357,16 @@ def chat(dialog, messages, stream=True, **kwargs):
 
     retriever = settings.retrievaler
     questions = [m["content"] for m in messages if m["role"] == "user"][-3:]
-    attachments = kwargs["doc_ids"].split(",") if "doc_ids" in kwargs else None
+    attachments = kwargs["doc_ids"].split(",") if "doc_ids" in kwargs else []
     if "doc_ids" in messages[-1]:
         attachments = messages[-1]["doc_ids"]
+
     prompt_config = dialog.prompt_config
     field_map = KnowledgebaseService.get_field_map(dialog.kb_ids)
     # try to use sql if field mapping is good to go
     if field_map:
         logging.debug("Use SQL to retrieval:{}".format(questions[-1]))
-        ans = use_sql(questions[-1], field_map, dialog.tenant_id, chat_mdl, prompt_config.get("quote", True))
+        ans = use_sql(questions[-1], field_map, dialog.tenant_id, chat_mdl, prompt_config.get("quote", True), dialog.kb_ids)
         if ans:
             yield ans
             return
@@ -505,6 +387,18 @@ def chat(dialog, messages, stream=True, **kwargs):
     if prompt_config.get("cross_languages"):
         questions = [cross_languages(dialog.tenant_id, dialog.llm_id, questions[0], prompt_config["cross_languages"])]
 
+    if dialog.meta_data_filter:
+        metas = DocumentService.get_meta_by_kbs(dialog.kb_ids)
+        if dialog.meta_data_filter.get("method") == "auto":
+            filters = gen_meta_filter(chat_mdl, metas, questions[-1])
+            attachments.extend(meta_filter(metas, filters))
+            if not attachments:
+                attachments = None
+        elif dialog.meta_data_filter.get("method") == "manual":
+            attachments.extend(meta_filter(metas, dialog.meta_data_filter["manual"]))
+            if not attachments:
+                attachments = None
+
     if prompt_config.get("keyword", False):
         questions[-1] += keyword_extraction(chat_mdl, questions[-1])
 
@@ -512,17 +406,26 @@ def chat(dialog, messages, stream=True, **kwargs):
 
     thought = ""
     kbinfos = {"total": 0, "chunks": [], "doc_aggs": []}
+    knowledges = []
 
-    if "knowledge" not in [p["key"] for p in prompt_config["parameters"]]:
-        knowledges = []
-    else:
+    if attachments is not None and "knowledge" in [p["key"] for p in prompt_config["parameters"]]:
         tenant_ids = list(set([kb.tenant_id for kb in kbs]))
         knowledges = []
         if prompt_config.get("reasoning", False):
             reasoner = DeepResearcher(
                 chat_mdl,
                 prompt_config,
-                partial(retriever.retrieval, embd_mdl=embd_mdl, tenant_ids=tenant_ids, kb_ids=dialog.kb_ids, page=1, page_size=dialog.top_n, similarity_threshold=0.2, vector_similarity_weight=0.3),
+                partial(
+                    retriever.retrieval,
+                    embd_mdl=embd_mdl,
+                    tenant_ids=tenant_ids,
+                    kb_ids=dialog.kb_ids,
+                    page=1,
+                    page_size=dialog.top_n,
+                    similarity_threshold=0.2,
+                    vector_similarity_weight=0.3,
+                    doc_ids=attachments,
+                ),
             )
 
             for think in reasoner.thinking(kbinfos, " ".join(questions)):
@@ -533,42 +436,21 @@ def chat(dialog, messages, stream=True, **kwargs):
                     yield think
         else:
             if embd_mdl:
-                # 检查是否启用父子分块检索
-                parent_child_enabled, enabled_kb_ids = check_kb_parent_child_enabled(dialog.kb_ids)
-                
-                if parent_child_enabled:
-                    logging.info(f"Using parent-child retrieval for KBs: {enabled_kb_ids}")
-                    kbinfos = parent_child_retrieval(
-                        " ".join(questions),
-                        embd_mdl,
-                        tenant_ids,
-                        dialog.kb_ids,
-                        1,
-                        dialog.top_n,
-                        dialog.similarity_threshold,
-                        dialog.vector_similarity_weight,
-                        doc_ids=attachments,
-                        top=dialog.top_k,
-                        aggs=False,
-                        rerank_mdl=rerank_mdl,
-                        rank_feature=label_question(" ".join(questions), kbs),
-                    )
-                else:
-                    kbinfos = retriever.retrieval(
-                        " ".join(questions),
-                        embd_mdl,
-                        tenant_ids,
-                        dialog.kb_ids,
-                        1,
-                        dialog.top_n,
-                        dialog.similarity_threshold,
-                        dialog.vector_similarity_weight,
-                        doc_ids=attachments,
-                        top=dialog.top_k,
-                        aggs=False,
-                        rerank_mdl=rerank_mdl,
-                        rank_feature=label_question(" ".join(questions), kbs),
-                    )
+                kbinfos = retriever.retrieval(
+                    " ".join(questions),
+                    embd_mdl,
+                    tenant_ids,
+                    dialog.kb_ids,
+                    1,
+                    dialog.top_n,
+                    dialog.similarity_threshold,
+                    dialog.vector_similarity_weight,
+                    doc_ids=attachments,
+                    top=dialog.top_k,
+                    aggs=False,
+                    rerank_mdl=rerank_mdl,
+                    rank_feature=label_question(" ".join(questions), kbs),
+                )
             if prompt_config.get("tavily_api_key"):
                 tav = Tavily(prompt_config["tavily_api_key"])
                 tav_res = tav.retrieve_chunks(" ".join(questions))
@@ -712,7 +594,7 @@ def chat(dialog, messages, stream=True, **kwargs):
         yield res
 
 
-def use_sql(question, field_map, tenant_id, chat_mdl, quota=True):
+def use_sql(question, field_map, tenant_id, chat_mdl, quota=True, kb_ids=None):
     sys_prompt = "You are a Database Administrator. You need to check the fields of the following tables based on the user's list of questions and write the SQL corresponding to the last question."
     user_prompt = """
 Table name: {};
@@ -748,6 +630,13 @@ Please write the SQL, only SQL, without any other explanations or text.
                         break
                     flds.append(k)
                 sql = "select doc_id,docnm_kwd," + ",".join(flds) + sql[8:]
+
+        if kb_ids:
+            kb_filter = "(" + " OR ".join([f"kb_id = '{kb_id}'" for kb_id in kb_ids]) + ")"
+            if "where" not in sql.lower():
+                sql += f" WHERE {kb_filter}"
+            else:
+                sql += f" AND {kb_filter}"
 
         logging.debug(f"{question} get SQL(refined): {sql}")
         tried_times += 1
@@ -831,7 +720,14 @@ def tts(tts_mdl, text):
     return binascii.hexlify(bin).decode("utf-8")
 
 
-def ask(question, kb_ids, tenant_id, chat_llm_name=None):
+def ask(question, kb_ids, tenant_id, chat_llm_name=None, search_config={}):
+    doc_ids = search_config.get("doc_ids", [])
+    rerank_mdl = None
+    kb_ids = search_config.get("kb_ids", kb_ids)
+    chat_llm_name = search_config.get("chat_id", chat_llm_name)
+    rerank_id = search_config.get("rerank_id", "")
+    meta_data_filter = search_config.get("meta_data_filter")
+
     kbs = KnowledgebaseService.get_by_ids(kb_ids)
     embedding_list = list(set([kb.embd_id for kb in kbs]))
 
@@ -840,30 +736,46 @@ def ask(question, kb_ids, tenant_id, chat_llm_name=None):
 
     embd_mdl = LLMBundle(tenant_id, LLMType.EMBEDDING, embedding_list[0])
     chat_mdl = LLMBundle(tenant_id, LLMType.CHAT, chat_llm_name)
+    if rerank_id:
+        rerank_mdl = LLMBundle(tenant_id, LLMType.RERANK, rerank_id)
     max_tokens = chat_mdl.max_length
     tenant_ids = list(set([kb.tenant_id for kb in kbs]))
-    kbinfos = retriever.retrieval(question, embd_mdl, tenant_ids, kb_ids, 1, 12, 0.1, 0.3, aggs=False, rank_feature=label_question(question, kbs))
+
+    if meta_data_filter:
+        metas = DocumentService.get_meta_by_kbs(kb_ids)
+        if meta_data_filter.get("method") == "auto":
+            filters = gen_meta_filter(chat_mdl, metas, question)
+            doc_ids.extend(meta_filter(metas, filters))
+            if not doc_ids:
+                doc_ids = None
+        elif meta_data_filter.get("method") == "manual":
+            doc_ids.extend(meta_filter(metas, meta_data_filter["manual"]))
+            if not doc_ids:
+                doc_ids = None
+
+    kbinfos = retriever.retrieval(
+        question = question,
+        embd_mdl=embd_mdl,
+        tenant_ids=tenant_ids,
+        kb_ids=kb_ids,
+        page=1,
+        page_size=12,
+        similarity_threshold=search_config.get("similarity_threshold", 0.1),
+        vector_similarity_weight=search_config.get("vector_similarity_weight", 0.3),
+        top=search_config.get("top_k", 1024),
+        doc_ids=doc_ids,
+        aggs=False,
+        rerank_mdl=rerank_mdl,
+        rank_feature=label_question(question, kbs)
+    )
+
     knowledges = kb_prompt(kbinfos, max_tokens)
-    prompt = """
-    Role: You're a smart assistant. Your name is Miss R.
-    Task: Summarize the information from knowledge bases and answer user's question.
-    Requirements and restriction:
-      - DO NOT make things up, especially for numbers.
-      - If the information from knowledge is irrelevant with user's question, JUST SAY: Sorry, no relevant information provided.
-      - Answer with markdown format text.
-      - Answer in language of user's question.
-      - DO NOT make things up, especially for numbers.
+    sys_prompt = PROMPT_JINJA_ENV.from_string(ASK_SUMMARY).render(knowledge="\n".join(knowledges))
 
-    ### Information from knowledge bases
-    %s
-
-    The above is information from knowledge bases.
-
-    """ % "\n".join(knowledges)
     msg = [{"role": "user", "content": question}]
 
     def decorate_answer(answer):
-        nonlocal knowledges, kbinfos, prompt
+        nonlocal knowledges, kbinfos, sys_prompt
         answer, idx = retriever.insert_citations(answer, [ck["content_ltks"] for ck in kbinfos["chunks"]], [ck["vector"] for ck in kbinfos["chunks"]], embd_mdl, tkweight=0.7, vtweight=0.3)
         idx = set([kbinfos["chunks"][int(i)]["doc_id"] for i in idx])
         recall_docs = [d for d in kbinfos["doc_aggs"] if d["doc_id"] in idx]
@@ -881,7 +793,55 @@ def ask(question, kb_ids, tenant_id, chat_llm_name=None):
         return {"answer": answer, "reference": refs}
 
     answer = ""
-    for ans in chat_mdl.chat_streamly(prompt, msg, {"temperature": 0.1}):
+    for ans in chat_mdl.chat_streamly(sys_prompt, msg, {"temperature": 0.1}):
         answer = ans
         yield {"answer": answer, "reference": {}}
     yield decorate_answer(answer)
+
+
+def gen_mindmap(question, kb_ids, tenant_id, search_config={}):
+    meta_data_filter = search_config.get("meta_data_filter", {})
+    doc_ids = search_config.get("doc_ids", [])
+    rerank_id = search_config.get("rerank_id", "")
+    rerank_mdl = None
+    kbs = KnowledgebaseService.get_by_ids(kb_ids)
+    if not kbs:
+        return {"error": "No KB selected"}
+    embedding_list = list(set([kb.embd_id for kb in kbs]))
+    tenant_ids = list(set([kb.tenant_id for kb in kbs]))
+
+    embd_mdl = LLMBundle(tenant_id, LLMType.EMBEDDING, llm_name=embedding_list[0])
+    chat_mdl = LLMBundle(tenant_id, LLMType.CHAT, llm_name=search_config.get("chat_id", ""))
+    if rerank_id:
+        rerank_mdl = LLMBundle(tenant_id, LLMType.RERANK, rerank_id)
+
+    if meta_data_filter:
+        metas = DocumentService.get_meta_by_kbs(kb_ids)
+        if meta_data_filter.get("method") == "auto":
+            filters = gen_meta_filter(chat_mdl, metas, question)
+            doc_ids.extend(meta_filter(metas, filters))
+            if not doc_ids:
+                doc_ids = None
+        elif meta_data_filter.get("method") == "manual":
+            doc_ids.extend(meta_filter(metas, meta_data_filter["manual"]))
+            if not doc_ids:
+                doc_ids = None
+
+    ranks = settings.retrievaler.retrieval(
+        question=question,
+        embd_mdl=embd_mdl,
+        tenant_ids=tenant_ids,
+        kb_ids=kb_ids,
+        page=1,
+        page_size=12,
+        similarity_threshold=search_config.get("similarity_threshold", 0.2),
+        vector_similarity_weight=search_config.get("vector_similarity_weight", 0.3),
+        top=search_config.get("top_k", 1024),
+        doc_ids=doc_ids,
+        aggs=False,
+        rerank_mdl=rerank_mdl,
+        rank_feature=label_question(question, kbs),
+    )
+    mindmap = MindMapExtractor(chat_mdl)
+    mind_map = trio.run(mindmap, [c["content_with_weight"] for c in ranks["chunks"]])
+    return mind_map.output

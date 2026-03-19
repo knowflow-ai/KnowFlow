@@ -1,5 +1,8 @@
 import SvgIcon from '@/components/svg-icon';
-import { useFetchSystemStatus } from '@/hooks/user-setting-hooks';
+import {
+  useFetchSystemStatus,
+  useFetchSystemVersion,
+} from '@/hooks/user-setting-hooks';
 import {
   ISystemStatus,
   TaskExecutorHeartbeatItem,
@@ -9,6 +12,7 @@ import classNames from 'classnames';
 import lowerCase from 'lodash/lowerCase';
 import upperFirst from 'lodash/upperFirst';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { toFixed } from '@/utils/common-util';
 import { isObject } from 'lodash';
@@ -40,20 +44,44 @@ const IconMap = {
 };
 
 const SystemInfo = () => {
+  const { t } = useTranslation();
   const {
     systemStatus,
     fetchSystemStatus,
     loading: statusLoading,
   } = useFetchSystemStatus();
+  const {
+    version,
+    fetchSystemVersion,
+    loading: versionLoading,
+  } = useFetchSystemVersion();
 
   useEffect(() => {
     fetchSystemStatus();
-  }, [fetchSystemStatus]);
+    fetchSystemVersion();
+  }, [fetchSystemStatus, fetchSystemVersion]);
 
   return (
     <section className={styles.systemInfo}>
-      <Spin spinning={statusLoading}>
+      <Spin spinning={statusLoading || versionLoading}>
         <Flex gap={16} vertical>
+          {/* 系统版本信息 */}
+          <Card
+            type="inner"
+            title={
+              <Flex align="center" gap={10}>
+                <img src="/logo.svg" alt="" width={26} />
+                <span className={styles.title}>
+                  {t('setting.systemVersion')}
+                </span>
+              </Flex>
+            }
+          >
+            <Flex align="center" gap={16} className={styles.text}>
+              <b>{t('setting.currentVersion')}:</b>
+              <Text>{version || 'Loading...'}</Text>
+            </Flex>
+          </Card>
           {Object.keys(systemStatus).map((key) => {
             const info = systemStatus[key as keyof ISystemStatus];
 

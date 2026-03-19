@@ -1,8 +1,13 @@
 import { DocumentParserType } from '@/constants/knowledge';
 import { useHandleChunkMethodSelectChange } from '@/hooks/logic-hooks';
 import { useSelectParserList } from '@/hooks/user-setting-hooks';
-import { FormInstance } from 'antd';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ModernLayoutRecognizers,
+  ModernParsers,
+  filterParsersByLayoutRecognize,
+} from '@/utils/parser-filter';
+import { Form, FormInstance } from 'antd';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const ParserListMap = new Map([
   [
@@ -18,8 +23,10 @@ const ParserListMap = new Map([
       DocumentParserType.One,
       DocumentParserType.Qa,
       DocumentParserType.KnowledgeGraph,
-      DocumentParserType.MinerU,
-      DocumentParserType.DOTS,
+      DocumentParserType.Smart,
+      DocumentParserType.Regex,
+      DocumentParserType.ParentChild,
+      DocumentParserType.Title,
     ],
   ],
   [
@@ -33,7 +40,10 @@ const ParserListMap = new Map([
       DocumentParserType.Qa,
       DocumentParserType.Manual,
       DocumentParserType.KnowledgeGraph,
-      DocumentParserType.MinerU,
+      DocumentParserType.Smart,
+      DocumentParserType.Regex,
+      DocumentParserType.ParentChild,
+      DocumentParserType.Title,
     ],
   ],
   [
@@ -46,10 +56,19 @@ const ParserListMap = new Map([
       DocumentParserType.KnowledgeGraph,
     ],
   ],
-  [['ppt', 'pptx'], [DocumentParserType.Presentation]],
+  [
+    ['ppt', 'pptx'],
+    [
+      DocumentParserType.Presentation,
+      DocumentParserType.Smart,
+      DocumentParserType.Regex,
+      DocumentParserType.ParentChild,
+      DocumentParserType.Title,
+    ],
+  ],
   [
     ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tif', 'tiff', 'webp', 'svg', 'ico'],
-    [DocumentParserType.Picture, DocumentParserType.DOTS],
+    [DocumentParserType.Picture],
   ],
   [
     ['txt'],
@@ -83,6 +102,10 @@ const ParserListMap = new Map([
       DocumentParserType.Naive,
       DocumentParserType.Qa,
       DocumentParserType.KnowledgeGraph,
+      DocumentParserType.Smart,
+      DocumentParserType.Regex,
+      DocumentParserType.ParentChild,
+      DocumentParserType.Title,
     ],
   ],
   [['json'], [DocumentParserType.Naive, DocumentParserType.KnowledgeGraph]],
@@ -95,8 +118,17 @@ const getParserList = (
     value: string;
     label: string;
   }>,
+  layoutRecognize?: string,
 ) => {
-  return parserList.filter((x) => values?.some((y) => y === x.value));
+  return parserList.filter((x) => {
+    // Must be in the values list
+    if (!values?.some((y) => y === x.value)) {
+      return false;
+    }
+
+    // Filter by layout_recognize
+    return filterParsersByLayoutRecognize(x.value as string, layoutRecognize);
+  });
 };
 
 export const useFetchParserListOnMount = (
@@ -109,13 +141,19 @@ export const useFetchParserListOnMount = (
   const parserList = useSelectParserList();
   const handleChunkMethodSelectChange = useHandleChunkMethodSelectChange(form);
 
+  // Watch layout_recognize value from parser_config
+  const layoutRecognize = Form.useWatch(
+    ['parser_config', 'layout_recognize'],
+    form,
+  );
+
   const nextParserList = useMemo(() => {
     const key = [...ParserListMap.keys()].find((x) =>
       x.some((y) => y === documentExtension),
     );
     if (key) {
       const values = ParserListMap.get(key);
-      return getParserList(values ?? [], parserList);
+      return getParserList(values ?? [], parserList, layoutRecognize);
     }
 
     return getParserList(
@@ -127,12 +165,48 @@ export const useFetchParserListOnMount = (
         DocumentParserType.One,
         DocumentParserType.Qa,
         DocumentParserType.Table,
-        DocumentParserType.MinerU,
-        DocumentParserType.DOTS,
       ],
       parserList,
+      layoutRecognize,
     );
-  }, [parserList, documentExtension]);
+  }, [parserList, documentExtension, layoutRecognize]);
+
+  // Use ref to track previous value and avoid triggering on initial mount
+  const prevLayoutRecognizeRef = useRef<string | undefined>();
+  const isInitialMount = useRef(true);
+
+  // Auto-switch parser when layout_recognize changes
+  useEffect(() => {
+    // Skip on initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevLayoutRecognizeRef.current = layoutRecognize;
+      return;
+    }
+
+    // Skip if values not ready or layout_recognize hasn't changed
+    if (!layoutRecognize || !selectedTag) return;
+    if (prevLayoutRecognizeRef.current === layoutRecognize) return;
+
+    prevLayoutRecognizeRef.current = layoutRecognize;
+
+    const isModernLayoutRecognizer =
+      ModernLayoutRecognizers.includes(layoutRecognize);
+    const isCurrentParserModern = ModernParsers.includes(selectedTag);
+
+    // If layout_recognize is MinerU/DOTS/PaddleOCR but current parser is not modern, switch to smart
+    if (isModernLayoutRecognizer && !isCurrentParserModern) {
+      const smartParser = DocumentParserType.Smart;
+      setSelectedTag(smartParser);
+      handleChunkMethodSelectChange(smartParser);
+    }
+    // If layout_recognize is not MinerU/DOTS/PaddleOCR but current parser is modern, switch to naive
+    else if (!isModernLayoutRecognizer && isCurrentParserModern) {
+      const naiveParser = DocumentParserType.Naive;
+      setSelectedTag(naiveParser);
+      handleChunkMethodSelectChange(naiveParser);
+    }
+  }, [layoutRecognize, selectedTag, handleChunkMethodSelectChange]);
 
   useEffect(() => {
     setSelectedTag(parserId);

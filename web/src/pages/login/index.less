@@ -1,147 +1,248 @@
-@import '../../theme/vars';
+@import '../../theme/design-tokens.less';
 
 .loginPage {
   display: flex;
-  // background-color: rgba(255, 255, 255, 0.1);
-  background-image: url('@/assets/image/login-bg.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 100% 100%;
-  justify-content: right;
+  background: linear-gradient(
+    135deg,
+    #eff6ff 0%,
+    #dbeafe 25%,
+    #bfdbfe 50%,
+    #93c5fd 75%,
+    #60a5fa 100%
+  );
+  justify-content: center;
   align-items: center;
   height: 100vh;
   position: relative;
+  overflow: hidden;
+
+  // 装饰性渐变圆形
+  &::before {
+    content: '';
+    position: absolute;
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(
+      circle,
+      rgba(59, 130, 246, 0.15) 0%,
+      transparent 70%
+    );
+    border-radius: 50%;
+    top: -400px;
+    right: -200px;
+    z-index: 0;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(
+      circle,
+      rgba(147, 197, 253, 0.2) 0%,
+      transparent 70%
+    );
+    border-radius: 50%;
+    bottom: -300px;
+    left: -100px;
+    z-index: 0;
+  }
 
   .loginLeft {
-    width: 344px;
-    height: 435px;
+    width: 420px;
     background: #ffffff;
-    box-shadow: 0px 0 15px 0px rgba(0, 32, 65, 0.04);
-    border-radius: 15px 15px 15px 15px;
-    margin-right: 170px;
+    box-shadow: 0 20px 60px rgba(59, 130, 246, 0.15);
+    border-radius: @radius-xl;
     display: flex;
-    // align-items: center;
+    padding: @space-3xl;
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
   }
 
   .leftContainer {
-    // width: 60%;
-    padding: 30px;
+    width: 100%;
     margin: 0 auto;
   }
 
-  .loginRight {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    position: relative;
-    &::before {
-      content: ' ';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background-color: rgba(24, 73, 169, 0.6);
-      background-image: url('@/assets/svg/login-background.svg');
-      background-size: cover;
-      background-blend-mode: multiply;
-      filter: blur(3px);
-      background-position: center;
-      z-index: -1;
-    }
-    .white {
-    }
-    .pink {
-      color: #e9d7fe;
-    }
-    .rightPanel {
-      max-width: 670px;
-      .loginTitle {
-        font-size: 68px;
-        font-style: normal;
-        font-weight: 600;
-        line-height: 90px;
-        letter-spacing: -1.44px;
-      }
-      .loginDescription {
-        font-size: 20px;
-        font-style: normal;
-        font-weight: 500;
-        line-height: 30px;
-      }
-      .loginRateNumber {
-        font-size: 16px;
-        font-style: normal;
-        font-weight: 600;
-        line-height: 24px;
-      }
-      .loginRateReviews {
-        font-size: 16px;
-        font-style: normal;
-        font-weight: 500;
-        line-height: 24px;
-      }
-    }
-  }
-
   .loginTitle {
-    //styleName: Heading/1;
-    font-size: 38px;
-    font-weight: 600;
-    line-height: 46px;
-    letter-spacing: 0em;
-    // height: 80px;
-    margin-bottom: 15px;
+    margin-bottom: @space-2xl;
+    text-align: center;
 
-    // text-align: center;
-    span {
-      // font-size: 16px;
-      // line-height: 24px;
-      font-family:
-        Alibaba PuHuiTi 2,
-        Alibaba PuHuiTi 20;
-      font-weight: 600;
-      font-size: 14px;
-      color: #404447;
-      line-height: 19px;
-    }
     .loginLogo {
       display: flex;
       align-items: center;
       justify-content: center;
-      // margin-bottom: 10px;
+
       .logo {
-        width: 31px;
-        height: 36px;
-        margin-right: 10px;
-        background-image: url('@/assets/image/logo.png');
+        width: 48px;
+        height: 48px;
+        margin-right: @space-md;
+        background-image: url('@/assets/image/logo.svg');
         background-repeat: no-repeat;
         background-position: center;
-        background-size: 100% 100%;
+        background-size: contain;
+        flex-shrink: 0;
       }
+
       .name {
-        font-family:
-          Alibaba PuHuiTi 2,
-          Alibaba PuHuiTi 20;
-        font-weight: 500;
-        font-size: 38px;
-        color: #26293b;
-        line-height: 53px;
-        text-align: center;
+        font-weight: @font-weight-bold;
+        font-size: 32px;
+        color: @brand-primary-600;
+        line-height: 1.2;
+        background: linear-gradient(
+          135deg,
+          @brand-primary-600 0%,
+          @brand-primary-500 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
     }
   }
 
-  @media screen and (max-width: 957px) {
-    .loginLeft {
-      width: 100%;
-      height: 100%;
+  :global {
+    .ant-input {
+      border-radius: @radius-md;
+      border: 1px solid @color-border-default;
+      height: 48px;
+      padding: 0 @space-md;
+      font-size: @font-size-md;
+      transition: all @transition-base;
+
+      &:hover {
+        border-color: @brand-primary-400;
+      }
+
+      &:focus,
+      &.ant-input-focused {
+        border-color: @brand-primary-500;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
     }
 
-    .modal {
-      width: 80%;
+    .ant-input-affix-wrapper {
+      border-radius: @radius-md;
+      height: 48px;
+      padding: 0 @space-md;
+      font-size: @font-size-md;
+      transition: all @transition-base;
+
+      &:hover {
+        border-color: @brand-primary-400;
+      }
+
+      &.ant-input-affix-wrapper-focused {
+        border-color: @brand-primary-500;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+
+      .ant-input {
+        height: 100%;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+
+        &:focus {
+          box-shadow: none;
+        }
+      }
+    }
+
+    .ant-btn-primary {
+      background: @brand-primary-500;
+      border-color: @brand-primary-500;
+      border-radius: @radius-md;
+      height: 44px;
+      font-size: @font-size-md;
+      font-weight: @font-weight-semibold;
+      transition: all @transition-base;
+      margin-top: @space-lg;
+
+      &:hover {
+        background: @brand-primary-600;
+        border-color: @brand-primary-600;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      }
+    }
+
+    .ant-btn-default {
+      border-radius: @radius-md;
+      height: 44px;
+      font-size: @font-size-sm;
+      transition: all @transition-base;
+
+      &:hover {
+        border-color: @brand-primary-500;
+        color: @brand-primary-500;
+      }
+    }
+
+    .ant-btn-link {
+      color: @brand-primary-600;
+      font-weight: @font-weight-medium;
+
+      &:hover {
+        color: @brand-primary-700;
+      }
+    }
+
+    .ant-form-item {
+      margin-bottom: @space-lg;
+    }
+
+    .ant-form-item-label > label {
+      font-weight: @font-weight-medium;
+      color: @color-text-primary;
+    }
+  }
+
+  @media screen and (max-width: 768px) {
+    padding: @space-lg;
+
+    .loginLeft {
+      width: 100%;
+      max-width: 420px;
+      padding: @space-xl;
+    }
+
+    .loginTitle {
+      .loginLogo {
+        .logo {
+          width: 40px;
+          height: 40px;
+        }
+
+        .name {
+          font-size: 28px;
+        }
+      }
+    }
+  }
+
+  @media screen and (max-width: 480px) {
+    .loginLeft {
+      padding: @space-lg;
+    }
+
+    .loginTitle {
+      margin-bottom: @space-lg;
+
+      .loginLogo {
+        .logo {
+          width: 36px;
+          height: 36px;
+          margin-right: @space-sm;
+        }
+
+        .name {
+          font-size: 24px;
+        }
+      }
     }
   }
 }

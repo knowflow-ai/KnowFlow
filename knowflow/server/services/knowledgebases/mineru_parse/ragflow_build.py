@@ -3,10 +3,10 @@ import os
 import time
 import shutil
 import json
-from dotenv import load_dotenv
 from .minio_server import upload_directory_to_minio
 from .mineru_test import update_markdown_image_urls
-from .utils import split_markdown_to_chunks_configured, get_bbox_for_chunk, should_cleanup_temp_files
+from .utils import split_markdown_to_chunks_configured, should_cleanup_temp_files
+from .middle_json_simple import middle_json_to_markdown
 from ..utils import _get_kb_tenant_id, _get_tenant_api_key, _validate_base_url
 from database import get_db_connection
 
@@ -73,7 +73,7 @@ def _get_document_chunking_config(doc_id):
 def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_to_index, update_progress, parent_child_data=None, chunks_with_coordinates=None):
     """
     使用增强的batch接口处理分块（支持父子分块和坐标传递）
-    
+
     Args:
         doc: RAGFlow文档对象
         chunks: 分块内容列表
@@ -81,8 +81,8 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
         chunk_content_to_index: 分块内容到索引的映射
         update_progress: 进度更新回调
         parent_child_data: 父子分块数据（可选）
-        chunks_with_coordinates: 包含坐标信息的分块数据（可选，用于DOTS等没有md文件的情况）
-    
+        chunks_with_coordinates: 包含坐标信息的分块数据
+
     Returns:
         int: 成功添加的分块数量
     """
@@ -91,9 +91,8 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
         update_progress(0.8, "没有chunks需要添加")
         return 0
     
-    # 初始进度更新
-    update_progress(0.8, "开始批量添加chunks到文档（使用增强batch接口）...")
-    
+    update_progress(0.8, "开始批量添加chunks到文档...")
+
     try:
         # 准备批量数据，包含位置信息
         batch_chunks = []
@@ -101,67 +100,46 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
             if chunk and chunk.strip():
                 chunk_data = {
                     "content": chunk.strip(),
-                    "important_keywords": [],  # 可以根据需要添加关键词提取
-                    "questions": []  # 可以根据需要添加问题生成
+                    "important_keywords": [],
+                    "questions": []
                 }
-                
-                # 获取chunk的原始索引（确保排序正确性）
+
+                # 获取chunk的原始索引
                 original_index = chunk_content_to_index.get(chunk.strip(), i)
-                
+
                 # 统一排序机制：固定page_num_int=1，top_int=原始索引
-                chunk_data["page_num_int"] = [1]  # 固定为1，保证所有chunks都在同一"页"
-                chunk_data["top_int"] = original_index  # 使用原始索引保证顺序
-                
-                # 尝试获取精确位置信息（作为额外的位置数据，不影响排序）
-                position_found = False
-                
-                # 优先从chunks_with_coordinates获取坐标（DOTS等情况）
+                chunk_data["page_num_int"] = [1]
+                chunk_data["top_int"] = original_index
+
+                # 获取坐标信息
                 if chunks_with_coordinates and i < len(chunks_with_coordinates):
                     chunk_with_coord = chunks_with_coordinates[i]
-                    if chunk_with_coord and chunk_with_coord.get('positions'):
-                        chunk_data["positions"] = chunk_with_coord['positions']
-                        print(f"📍 chunk {original_index}: DOTS坐标 ({len(chunk_with_coord['positions'])} 个位置) + 索引排序 (page=1, top={original_index})")
-                        position_found = True
-                
-                # 如果没有直接坐标，尝试从md文件获取（MinerU情况）
-                if not position_found and md_file_path is not None:
-                    try:
-                        position_int_temp = get_bbox_for_chunk(md_file_path, chunk.strip())
-                        if position_int_temp is not None:
-                            # 有完整位置信息时，仅添加positions，不覆盖排序字段
-                            chunk_data["positions"] = position_int_temp
-                            print(f"📍 chunk {original_index}: 找到精确坐标 ({len(position_int_temp)} 个位置) + 索引排序 (page=1, top={original_index})")
-                            position_found = True
+                    if chunk_with_coord:
+                        # 优先使用positions字段
+                        positions = chunk_with_coord.get('positions')
+                        if positions:
+                            chunk_data["positions"] = positions
                         else:
-                            print(f"📍 chunk {original_index}: 使用索引排序 (page=1, top={original_index})")
-                    except Exception as pos_e:
-                        print(f"📍 chunk {original_index}: 坐标获取异常，使用索引排序 (page=1, top={original_index})")
-                
-                # 如果都没有找到坐标
-                if not position_found:
-                    if md_file_path is None and chunks_with_coordinates is None:
-                        print(f"📍 chunk {original_index}: 无MD文件和坐标数据，使用索引排序 (page=1, top={original_index})")
-                    elif chunks_with_coordinates is None:
-                        print(f"📍 chunk {original_index}: 无坐标数据，使用索引排序 (page=1, top={original_index})")
-                    else:
-                        print(f"📍 chunk {original_index}: 坐标数据为空，使用索引排序 (page=1, top={original_index})")
-                
+                            # 向后兼容：检查coordinates字段
+                            coords = chunk_with_coord.get('coordinates', [])
+                            if coords:
+                                positions = [[int(c[0]), c[1], c[2], c[3], c[4]] for c in coords]
+                                chunk_data["positions"] = positions
+
                 batch_chunks.append(chunk_data)
-        
+
         if not batch_chunks:
             update_progress(0.95, "没有有效的chunks")
             return 0
-        
-        print(f"📦 准备调用增强的batch接口处理 {len(batch_chunks)} 个有效chunks")
-        
+
         # 调用增强的batch接口
         import requests
         import json
-        
+
         # 获取API基本信息
         base_url = doc.rag.api_url
         headers = doc.rag.authorization_header
-        
+
         # 构建请求数据
         request_data = {
             "chunks": batch_chunks,
@@ -171,15 +149,11 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
         # 如果有父子分块数据，添加到请求中
         if parent_child_data:
             request_data["parent_child_data"] = parent_child_data
-            print(f"🔗 [INFO] 添加父子分块数据到batch请求: {len(parent_child_data.get('parent_chunks', []))} 父分块, {len(parent_child_data.get('relationships', []))} 映射关系")
         
         # 调用增强的batch接口
         api_url = f"{base_url}/datasets/{doc.dataset_id}/documents/{doc.id}/chunks/batch"
-        print(f"🔗 发送增强batch请求到: {api_url}")
         
         response = requests.post(api_url, json=request_data, headers=headers)
-        
-        print(f"📥 增强batch接口响应状态码: {response.status_code}")
         
         if response.status_code == 200:
             try:
@@ -190,33 +164,22 @@ def add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_
                     added = data.get("total_added", 0)
                     failed = data.get("total_failed", 0)
                     
-                    print(f"✅ 增强batch接口处理完成: 成功 {added} 个，失败 {failed} 个")
-                    
-                    if parent_child_data:
-                        print(f"🔗 父子分块处理也已完成")
-                    
                     update_progress(0.95, f"batch处理完成: 成功 {added}/{len(batch_chunks)} chunks")
                     return added
                 else:
                     # 批量添加失败
                     error_msg = result.get("message", "Unknown error")
-                    print(f"❌ 增强batch接口失败: {error_msg}")
                     update_progress(0.95, f"batch处理失败: {error_msg}")
                     return 0
             except json.JSONDecodeError:
-                print(f"❌ 增强batch接口响应解析失败")
                 update_progress(0.95, "响应解析失败")
                 return 0
         else:
-            print(f"❌ 增强batch接口HTTP错误: {response.status_code}")
             update_progress(0.95, f"HTTP错误: {response.status_code}")
             return 0
         
     except Exception as e:
         update_progress(0.95, f"增强batch处理异常: {str(e)}")
-        print(f"❌ 增强batch处理异常: {e}")
-        import traceback
-        traceback.print_exc()
         return 0
 
 
@@ -243,47 +206,59 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
 
         # 获取文档的分块配置
         chunking_config = _get_document_chunking_config(doc_id)
-        
-        enhanced_text = update_markdown_image_urls(md_file_path, kb_id)
 
-        # 保存原始markdown到本地用于调试
-        try:
-            debug_md_path = f"/tmp/debug_markdown_{doc_id}_{kb_id}.md"
-            with open(debug_md_path, 'w', encoding='utf-8') as f:
-                f.write(enhanced_text)
-            print(f"🔍 [DEBUG] 原始markdown已保存到: {debug_md_path}")
-        except Exception as e:
-            pass
-        
-        # 传递分块配置给分块函数
+        # 检查是否有 middle.json 文件
+        middle_json_path = md_file_path.replace('.md', '_middle.json')
+        use_simple_method = os.path.exists(middle_json_path)
+
+        coordinate_map = None
+        if use_simple_method:
+            # 从 middle.json 生成 markdown 并获取 coordinate_map
+            markdown_from_middle_path = md_file_path.replace('.md', '_from_middle.md')
+            enhanced_text, coordinate_map = middle_json_to_markdown(middle_json_path, markdown_from_middle_path, kb_id=kb_id)
+        else:
+            enhanced_text = update_markdown_image_urls(md_file_path, kb_id)
+
+        # 调用分块函数，传入 coordinate_map
         if chunking_config:
             chunks = split_markdown_to_chunks_configured(
-                enhanced_text, 
+                enhanced_text,
                 chunk_token_num=chunking_config.get('chunk_token_num', 256),
                 min_chunk_tokens=chunking_config.get('min_chunk_tokens', 10),
                 chunking_config=chunking_config,
                 doc_id=doc_id,
-                kb_id=kb_id
+                kb_id=kb_id,
+                coordinate_map=coordinate_map
             )
         else:
-            chunks = split_markdown_to_chunks_configured(enhanced_text, chunk_token_num=256)
-        
-        # 准备父子分块数据（如果使用了父子分块策略）
+            chunks = split_markdown_to_chunks_configured(
+                enhanced_text,
+                chunk_token_num=256,
+                coordinate_map=coordinate_map
+            )
+
+        # 处理分块结果
+        chunks_with_coordinates = None
+        chunk_contents = []
+
+        if chunks and isinstance(chunks[0], dict):
+            # 字典格式，包含坐标
+            chunks_with_coordinates = chunks
+            chunk_contents = [chunk.get('content', '') for chunk in chunks]
+        else:
+            # 字符串列表（向后兼容）
+            chunk_contents = chunks
+
+        # 准备父子分块数据
         parent_child_data = None
-        is_parent_child = (chunking_config and 
+        is_parent_child = (chunking_config and
                           chunking_config.get('strategy') == 'parent_child')
-        
+
         if is_parent_child:
-            # 获取父子分块的详细结果
             from .utils import get_last_parent_child_result
             parent_child_result = get_last_parent_child_result()
-            
+
             if parent_child_result:
-                print(f"🎯 [INFO] 检测到父子分块策略，将使用增强的batch接口处理")
-                print(f"  👨 父分块数: {parent_child_result.get('total_parents', 0)}")
-                print(f"  👶 子分块数: {parent_child_result.get('total_children', 0)}")
-                
-                # 准备父子分块数据
                 parent_child_data = {
                     'doc_id': doc_id,
                     'kb_id': kb_id,
@@ -291,13 +266,23 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
                     'child_chunks': parent_child_result.get('child_chunks', []),
                     'relationships': parent_child_result.get('relationships', [])
                 }
-                
-                # 对于父子分块，使用子分块内容
-                chunks = [chunk['content'] for chunk in parent_child_data['child_chunks']]
-        
-        # 统一分块处理 - 优化后统一使用增强的batch接口（支持父子分块和标准分块）
-        chunk_content_to_index = {chunk: i for i, chunk in enumerate(chunks)}
-        chunk_count = add_chunks_with_enhanced_batch_api(doc, chunks, md_file_path, chunk_content_to_index, update_progress, parent_child_data=parent_child_data)
+
+                # 同步坐标信息
+                if chunks_with_coordinates:
+                    child_chunks = parent_child_result.get('child_chunks', [])
+                    if child_chunks and isinstance(child_chunks[0], dict) and 'coordinates' in child_chunks[0]:
+                        chunks_with_coordinates = child_chunks
+                        chunk_contents = [chunk.get('content', '') for chunk in child_chunks]
+                else:
+                    chunk_contents = [chunk['content'] for chunk in parent_child_data['child_chunks']]
+
+        # 调用batch接口添加分块
+        chunk_content_to_index = {content: i for i, content in enumerate(chunk_contents)}
+        chunk_count = add_chunks_with_enhanced_batch_api(
+            doc, chunk_contents, md_file_path, chunk_content_to_index,
+            update_progress, parent_child_data=parent_child_data,
+            chunks_with_coordinates=chunks_with_coordinates
+        )
         # 根据环境变量决定是否清理临时文件
         _cleanup_temp_files(md_file_path)
 
@@ -306,12 +291,8 @@ def create_ragflow_resources(doc_id, kb_id, md_file_path, image_dir, update_prog
         return chunk_count
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-
         try:
             update_progress(1.0, f"处理过程中发生异常: {str(e)}")
-        except Exception as progress_e:
+        except Exception:
             pass
-        
         raise

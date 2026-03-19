@@ -1,0 +1,487 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: 测试
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: package
+  value:
+    plugin_unique_identifier: witmeng/ragflow-api:0.0.7@dec4bf1f513ead834a4bc0abdd58558646332b37498923f69e6903756887ff06
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/siliconflow:0.0.33@6792acf632f24f1c41a3192a78ef181f7149811a8dfd9a16ade984978613f79c
+    version: null
+kind: app
+version: 0.4.0
+workflow:
+  conversation_variables:
+  - description: 知识库 ID
+    id: 953c4025-7c63-4556-8f95-91055d25de62
+    name: knowledge_id
+    selector:
+    - conversation
+    - knowledge_id
+    value: ''
+    value_type: string
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: 1761616794896-source-1761626169644-target
+      selected: false
+      source: '1761616794896'
+      sourceHandle: source
+      target: '1761626169644'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 1761626169644-source-1761629388510-target
+      source: '1761626169644'
+      sourceHandle: source
+      target: '1761629388510'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: 1761629388510-source-1761626661555-target
+      source: '1761629388510'
+      sourceHandle: source
+      target: '1761626661555'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1761626661555-source-1761626877609-target
+      source: '1761626661555'
+      sourceHandle: source
+      target: '1761626877609'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: 开始
+        type: start
+        variables: []
+      height: 52
+      id: '1761616794896'
+      position:
+        x: 78.98744519264949
+        y: 280.98744519264955
+      positionAbsolute:
+        x: 78.98744519264949
+        y: 280.98744519264955
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Search query text
+            ja_JP: Search query text
+            pt_BR: Search query text
+            zh_Hans: 检索查询文本
+          label:
+            en_US: Query
+            ja_JP: Query
+            pt_BR: Query
+            zh_Hans: 查询文本
+          llm_description: The search query text to retrieve relevant content from
+            knowledge base
+          max: null
+          min: null
+          name: query
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Knowledge base ID
+            ja_JP: Knowledge base ID
+            pt_BR: Knowledge base ID
+            zh_Hans: 知识库ID
+          label:
+            en_US: Knowledge ID
+            ja_JP: Knowledge ID
+            pt_BR: Knowledge ID
+            zh_Hans: 知识库ID
+          llm_description: The unique identifier of the knowledge base to search in
+          max: null
+          min: null
+          name: knowledge_id
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: 3
+          form: llm
+          human_description:
+            en_US: Number of results to return
+            ja_JP: Number of results to return
+            pt_BR: Number of results to return
+            zh_Hans: 返回结果数量
+          label:
+            en_US: Top K
+            ja_JP: Top K
+            pt_BR: Top K
+            zh_Hans: 返回数量
+          llm_description: Number of top relevant results to return (1-20)
+          max: 20
+          min: 1
+          name: top_k
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: number
+        - auto_generate: null
+          default: 0.1
+          form: llm
+          human_description:
+            en_US: Minimum similarity threshold
+            ja_JP: Minimum similarity threshold
+            pt_BR: Minimum similarity threshold
+            zh_Hans: 相似度阈值
+          label:
+            en_US: Similarity Threshold
+            ja_JP: Similarity Threshold
+            pt_BR: Similarity Threshold
+            zh_Hans: 相似度阈值
+          llm_description: Minimum similarity score threshold for results (0.0-1.0)
+          max: 1
+          min: 0
+          name: similarity_threshold
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: number
+        - auto_generate: null
+          default: 0
+          form: llm
+          human_description:
+            en_US: Enable knowledge graph enhancement
+            ja_JP: Enable knowledge graph enhancement
+            pt_BR: Enable knowledge graph enhancement
+            zh_Hans: 启用知识图谱增强
+          label:
+            en_US: Use Knowledge Graph
+            ja_JP: Use Knowledge Graph
+            pt_BR: Use Knowledge Graph
+            zh_Hans: 使用知识图谱
+          llm_description: Whether to use knowledge graph to enhance retrieval results
+          max: null
+          min: null
+          name: use_knowledge_graph
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: boolean
+        - auto_generate: null
+          default: markdown
+          form: llm
+          human_description:
+            en_US: Output format
+            ja_JP: Output format
+            pt_BR: Output format
+            zh_Hans: 输出格式
+          label:
+            en_US: Format Output
+            ja_JP: Format Output
+            pt_BR: Format Output
+            zh_Hans: 输出格式
+          llm_description: Output format for results (markdown/json/text)
+          max: null
+          min: null
+          name: format_output
+          options:
+          - icon: ''
+            label:
+              en_US: Markdown
+              ja_JP: Markdown
+              pt_BR: Markdown
+              zh_Hans: Markdown格式
+            value: markdown
+          - icon: ''
+            label:
+              en_US: JSON
+              ja_JP: JSON
+              pt_BR: JSON
+              zh_Hans: JSON格式
+            value: json
+          - icon: ''
+            label:
+              en_US: Plain Text
+              ja_JP: Plain Text
+              pt_BR: Plain Text
+              zh_Hans: 纯文本
+            value: text
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: select
+        params:
+          format_output: ''
+          knowledge_id: ''
+          query: ''
+          similarity_threshold: ''
+          top_k: ''
+          use_knowledge_graph: ''
+        provider_id: witmeng/ragflow-api/ragflow-api
+        provider_name: witmeng/ragflow-api/ragflow-api
+        provider_type: builtin
+        selected: true
+        title: Dify知识库检索
+        tool_configurations: {}
+        tool_description: 从RAGFlow知识库检索相关内容，支持知识图谱增强检索
+        tool_label: Dify知识库检索
+        tool_name: dify-retrieval
+        tool_node_version: '2'
+        tool_parameters:
+          format_output:
+            type: constant
+            value: markdown
+          knowledge_id:
+            type: mixed
+            value: e17360bab0f111f098f866fc51ac58df
+          query:
+            type: mixed
+            value: '{{#sys.query#}}'
+          similarity_threshold:
+            type: constant
+            value: 0.1
+          top_k:
+            type: constant
+            value: 3
+          use_knowledge_graph:
+            type: constant
+            value: 0
+        type: tool
+      height: 52
+      id: '1761626169644'
+      position:
+        x: 151.25360555910254
+        y: 488.08072872405427
+      positionAbsolute:
+        x: 151.25360555910254
+        y: 488.08072872405427
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '1761629388510'
+          - result
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 50
+        model:
+          completion_params: {}
+          mode: chat
+          name: Qwen/Qwen3-32B
+          provider: langgenius/siliconflow/siliconflow
+        prompt_template:
+        - id: 326cdf8a-0d39-475a-9f04-9dbd5cf00107
+          role: system
+          text: '你是一个严格按照知识库回答问题的智能助手。你需要根据知识库内容进找出相关的内容行回复。
+
+
+            回答规则：
+
+            1.  知识库可能有多个相关内容，你需要找出与用户问题最相关的内容。
+
+            4.若知识库中找不到与问题直接相关的内容，回答必须包含：
+
+            知识库中未找到您要的答案！
+
+            5.禁止加入任何自己的解释、推测、总结性语言或通用知识
+
+            6.如文中含有图片链接，需原样保留其位置与上下文，禁止任何形式的改写、移动或删除。
+
+
+            知识库内容：
+
+            {{#1761629388510.result#}}
+
+            知识库结束'
+        selected: false
+        structured_output_enabled: false
+        title: LLM
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1761626661555'
+      position:
+        x: 588.7808317855912
+        y: 401.07268620077986
+      positionAbsolute:
+        x: 588.7808317855912
+        y: 401.07268620077986
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#1761626661555.text#}}'
+        selected: false
+        title: 直接回复
+        type: answer
+        variables: []
+      height: 103
+      id: '1761626877609'
+      position:
+        x: 710.4968155335661
+        y: 519.0807287240543
+      positionAbsolute:
+        x: 710.4968155335661
+        y: 519.0807287240543
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "def main(arg1):\n    \"\"\"\n    arg1: Dify 传入的 ArrayObject，例如：\n \
+          \   [\n        {\n            \"formatted_output\": \"...\",\n         \
+          \   \"query\": \"...\",\n            \"records\": [...],\n            \"\
+          success\": true,\n            \"total\": 3\n        }\n    ]\n    \"\"\"\
+          \n    formatted_output = \"未找到 formatted_output\"\n\n    if isinstance(arg1,\
+          \ list) and len(arg1) > 0:\n        data = arg1[0]\n        # 直接取 formatted_output\n\
+          \        formatted_output = data.get(\"formatted_output\", formatted_output)\n\
+          \n    # 返回给下一个节点\n    return {\n        \"result\": formatted_output\n \
+          \   }\n"
+        code_language: python3
+        outputs:
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 代码执行
+        type: code
+        variables:
+        - value_selector:
+          - '1761626169644'
+          - json
+          value_type: array[object]
+          variable: arg1
+      height: 52
+      id: '1761629388510'
+      position:
+        x: 272.76866907924943
+        y: 706.767826132108
+      positionAbsolute:
+        x: 272.76866907924943
+        y: 706.767826132108
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: -136.93248486160655
+      y: -280.3197410198786
+      zoom: 1.0281199687486031
+  rag_pipeline_variables: []

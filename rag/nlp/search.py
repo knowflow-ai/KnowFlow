@@ -18,6 +18,7 @@ import re
 import math
 from collections import OrderedDict
 from dataclasses import dataclass
+from copy import deepcopy
 
 from rag.settings import TAG_FLD, PAGERANK_FLD
 from rag.utils import rmSpace, get_float
@@ -344,6 +345,123 @@ class Dealer:
                                            rag_tokenizer.tokenize(ans).split(),
                                            rag_tokenizer.tokenize(inst).split())
 
+    def _check_parent_child_enabled(self, kb_ids):
+        """检查知识库中是否有使用父子分块方法的文档"""
+        try:
+            from api.db.db_models import Document
+            from api.db.parent_child_models import ParentChildMapping
+
+            for kb_id in kb_ids:
+                documents = Document.select().where(Document.kb_id == kb_id)
+                for doc in documents:
+                    if doc.parser_id and str(doc.parser_id).lower() == 'parent_child':
+                        return True
+        except ImportError as e:
+            logging.warning(f"Parent-child chunking not available: {e}")
+            return False
+        except Exception as e:
+            logging.warning(f"Failed to check parent_child enabled for kb_ids {kb_ids}: {e}")
+            return False
+
+        return False
+
+    def _apply_parent_child_retrieval(self, ranks, page_size):
+        """将子块替换为父块"""
+        if not ranks.get("chunks"):
+            return ranks
+
+        try:
+            from api.db.parent_child_models import ParentChildMapping
+        except ImportError as e:
+            logging.warning(f"Parent-child chunking not available: {e}")
+            return ranks
+
+        parent_chunks = []
+        processed_parents = set()
+
+        for chunk in ranks["chunks"]:
+            child_chunk_id = chunk.get("chunk_id")
+            doc_id = chunk.get("doc_id")
+
+            if not child_chunk_id or not doc_id:
+                parent_chunks.append(chunk)
+                continue
+
+            # 默认使用子块
+            current_chunk_result = {
+                **chunk,
+                "chunk_type": "child_as_parent"
+            }
+
+            try:
+                mappings = ParentChildMapping.select().where(
+                    ParentChildMapping.child_chunk_id == child_chunk_id
+                ).limit(1)
+
+                for mapping in mappings:
+                    parent_id = mapping.parent_chunk_id
+                    if parent_id in processed_parents:
+                        continue
+                    processed_parents.add(parent_id)
+
+                    # 获取 tenant_id
+                    try:
+                        from api.db.services.document_service import DocumentService
+                        tenant_id = DocumentService.get_tenant_id(mapping.doc_id)
+                        if not tenant_id:
+                            continue
+                    except Exception as e:
+                        logging.warning(f"Failed to get tenant_id for doc {mapping.doc_id}: {e}")
+                        continue
+
+                    # 从父块索引获取父块内容
+                    parent_index = f"{index_name(tenant_id)}_parent"
+                    parent_chunk_data = self.dataStore.get(
+                        parent_id,
+                        parent_index,
+                        [mapping.kb_id]
+                    )
+
+                    if parent_chunk_data:
+                        logging.info(f"Retrieved parent chunk {parent_id} for child {child_chunk_id}")
+                        current_chunk_result = {
+                            "chunk_id": parent_id,
+                            "content_with_weight": parent_chunk_data.get("content_with_weight", ""),
+                            "content_ltks": parent_chunk_data.get("content_ltks", ""),
+                            "doc_id": mapping.doc_id,
+                            "docnm_kwd": parent_chunk_data.get("docnm_kwd", ""),
+                            "kb_id": mapping.kb_id,
+                            "similarity": chunk.get("similarity", 0.5),
+                            "vector_similarity": chunk.get("vector_similarity", 0.5),
+                            "term_similarity": chunk.get("term_similarity", 0.5),
+                            "vector": chunk.get("vector", []),
+                            "positions": parent_chunk_data.get("position_int", []),
+                            "image_id": parent_chunk_data.get("img_id", ""),
+                            "important_kwd": parent_chunk_data.get("important_kwd", []),
+                            "question_kwd": parent_chunk_data.get("question_kwd", []),
+                            "doc_type_kwd": parent_chunk_data.get("doc_type_kwd", ""),
+                            "chunk_type": "parent"
+                        }
+                        break
+                    else:
+                        logging.warning(f"Failed to retrieve parent chunk {parent_id}")
+
+            except Exception as e:
+                logging.warning(f"Failed to get parent chunk for child {child_chunk_id}: {e}")
+
+            parent_chunks.append(current_chunk_result)
+
+        if parent_chunks:
+            actual_parent_count = sum(1 for c in parent_chunks if c.get("chunk_type") == "parent")
+            child_as_parent_count = sum(1 for c in parent_chunks if c.get("chunk_type") == "child_as_parent")
+            logging.info(f"Parent-child retrieval: {len(parent_chunks)} total ({actual_parent_count} parent, {child_as_parent_count} child fallback)")
+
+            result = deepcopy(ranks)
+            result["chunks"] = parent_chunks[:page_size]
+            return result
+
+        return ranks
+
     def retrieval(self, question, embd_mdl, tenant_ids, kb_ids, page, page_size, similarity_threshold=0.2,
                   vector_similarity_weight=0.3, top=1024, doc_ids=None, aggs=True,
                   rerank_mdl=None, highlight=False,
@@ -383,8 +501,6 @@ class Dealer:
         vector_column = f"q_{dim}_vec"
         zero_vector = [0.0] * dim
         sim_np = np.array(sim)
-        if doc_ids:
-            similarity_threshold = 0
         filtered_count = (sim_np >= similarity_threshold).sum()    
         ranks["total"] = int(filtered_count) # Convert from np.int64 to Python int otherwise JSON serializable error
         for i in idx:
@@ -436,6 +552,11 @@ class Dealer:
                                                        v in sorted(ranks["doc_aggs"].items(),
                                                                    key=lambda x: x[1]["count"] * -1)]
         ranks["chunks"] = ranks["chunks"][:page_size]
+
+        # 检查并应用父子分块检索
+        if self._check_parent_child_enabled(kb_ids):
+            logging.info(f"Parent-child chunking enabled for kb_ids: {kb_ids}")
+            ranks = self._apply_parent_child_retrieval(ranks, page_size)
 
         return ranks
 

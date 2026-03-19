@@ -97,7 +97,8 @@ def create(tenant_id):
             chunk_method:
               type: string
               enum: ["naive", "book", "email", "laws", "manual", "one", "paper",
-                     "picture", "presentation", "qa", "table", "tag"
+                     "picture", "presentation", "qa", "table", "tag", "smart",
+                     "regex", "parent_child", "title"
                      ]
               description: Chunking method.
             parser_config:

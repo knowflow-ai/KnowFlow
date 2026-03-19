@@ -3,7 +3,7 @@ import SvgIcon from '@/components/svg-icon';
 import { IReferenceChunk, IReferenceObject } from '@/interfaces/database/chat';
 import { getExtension } from '@/utils/document-util';
 import DOMPurify from 'dompurify';
-import { memo, useCallback, useEffect, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import Markdown from 'react-markdown';
 import reactStringReplace from 'react-string-replace';
 import SyntaxHighlighter from 'react-syntax-highlighter';
@@ -25,11 +25,13 @@ import {
 } from '@/utils/chat';
 
 import { cn } from '@/lib/utils';
-import { replaceTextByOldReg } from '@/pages/chat/utils';
+import { currentReg, replaceTextByOldReg } from '@/pages/chat/utils';
 import classNames from 'classnames';
+import { omit } from 'lodash';
 import { pipe } from 'lodash/fp';
 import { CircleAlert } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent } from '../ui/dialog';
 import {
   HoverCard,
   HoverCardContent,
@@ -37,8 +39,7 @@ import {
 } from '../ui/hover-card';
 import styles from './index.less';
 
-const reg = /(~{2}\d+={2})/g;
-const getChunkIndex = (match: string) => Number(match.slice(2, -2));
+const getChunkIndex = (match: string) => Number(match);
 function MarkdownContent({
   reference,
   clickDocumentButton,
@@ -52,6 +53,7 @@ function MarkdownContent({
   const { t } = useTranslation();
   const { setDocumentIds, data: fileThumbnails } =
     useFetchDocumentThumbnailsByIds();
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const contentWithCursor = useMemo(() => {
     // let text = DOMPurify.sanitize(content);
     let text = content;
@@ -206,7 +208,7 @@ function MarkdownContent({
 
   const renderReference = useCallback(
     (text: string) => {
-      let replacedText = reactStringReplace(text, reg, (match, i) => {
+      let replacedText = reactStringReplace(text, currentReg, (match, i) => {
         const chunkIndex = getChunkIndex(match);
 
         const { documentUrl, fileExtension, imageId, chunkItem, documentId } =
@@ -234,7 +236,7 @@ function MarkdownContent({
             <HoverCardTrigger>
               <CircleAlert className="size-4 inline-block" />
             </HoverCardTrigger>
-            <HoverCardContent>
+            <HoverCardContent className="max-w-3xl">
               {renderPopoverContent(chunkIndex)}
             </HoverCardContent>
           </HoverCard>
@@ -247,37 +249,70 @@ function MarkdownContent({
   );
 
   return (
-    <Markdown
-      rehypePlugins={[rehypeWrapReference, rehypeKatex, rehypeRaw]}
-      remarkPlugins={[remarkGfm, remarkMath]}
-      className={styles.markdownContentWrapper}
-      components={
-        {
-          'custom-typography': ({ children }: { children: string }) =>
-            renderReference(children),
-          code(props: any) {
-            const { children, className, node, ...rest } = props;
-            const match = /language-(\w+)/.exec(className || '');
-            return match ? (
-              <SyntaxHighlighter
-                {...rest}
-                PreTag="div"
-                language={match[1]}
-                wrapLongLines
-              >
-                {String(children).replace(/\n$/, '')}
-              </SyntaxHighlighter>
-            ) : (
-              <code {...rest} className={classNames(className, 'text-wrap')}>
-                {children}
-              </code>
-            );
-          },
-        } as any
-      }
-    >
-      {contentWithCursor}
-    </Markdown>
+    <>
+      <Markdown
+        rehypePlugins={[rehypeWrapReference, rehypeKatex, rehypeRaw]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        className={styles.markdownContentWrapper}
+        components={
+          {
+            'custom-typography': ({ children }: { children: string }) =>
+              renderReference(children),
+            code(props: any) {
+              const { children, className, ...rest } = props;
+              const restProps = omit(rest, 'node');
+              const match = /language-(\w+)/.exec(className || '');
+              return match ? (
+                <SyntaxHighlighter
+                  {...restProps}
+                  PreTag="div"
+                  language={match[1]}
+                  wrapLongLines
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              ) : (
+                <code
+                  {...restProps}
+                  className={classNames(className, 'text-wrap')}
+                >
+                  {children}
+                </code>
+              );
+            },
+            img(props: any) {
+              const { src, alt, ...rest } = props;
+              return (
+                <img
+                  {...rest}
+                  src={src}
+                  alt={alt || ''}
+                  className={styles.markdownImage}
+                  onClick={() => setPreviewImage(src)}
+                />
+              );
+            },
+          } as any
+        }
+      >
+        {contentWithCursor}
+      </Markdown>
+
+      <Dialog
+        open={!!previewImage}
+        onOpenChange={(open) => !open && setPreviewImage(null)}
+      >
+        <DialogContent className={styles.imagePreviewDialog}>
+          {previewImage && (
+            <img
+              src={previewImage}
+              alt=""
+              className={styles.imagePreviewFull}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

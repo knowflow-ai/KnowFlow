@@ -1,0 +1,126 @@
+# =======================================================
+# KnowFlow - 服务器端业务配置
+# =======================================================
+#
+# 📋 部署前配置清单:
+#   1. 修改 mineru.fastapi.url 为 MinerU 服务地址
+#   2. 修改 dots.vllm.url 为 DOTS 服务地址
+#   3. 修改 paddleocr.url 为 PaddleOCR 服务地址
+#   4. 如需启用 VLM 高级 OCR，配置 mineru.vlm.http_client.server_url
+#   5. 生产环境建议设置 app.dev_mode: false
+#
+# 🔧 配置示例:
+#   - 同服务器部署: http://localhost:8000
+#   - 独立服务器部署: http://192.168.1.100:8000
+#   - Docker 同网络: http://knowflow-mineru-api:8000
+#
+# 📖 重要提示:
+#   本配置文件被本地开发和 Docker 部署统一使用：
+#   - 本地开发: 自动从 docker/knowflow-server/settings.yaml 加载
+#   - Docker 部署: 通过 volume 挂载到容器内
+#   详细配置加载机制请查看: CONFIG_LOADING.md
+#
+# 🔧 环境变量覆盖:
+#   所有配置项都可以在启动时通过环境变量覆盖。
+#   覆盖规则: 大写 + 双下划线替换层级。
+#   示例: 要覆盖 app.dev_mode, 设置环境变量 KNOWFLOW_APP_DEV_MODE=true
+#   DOTS: 设置环境变量 DOTS_VLLM_URL=http://your-service:port
+#
+# =======================================================
+
+app:
+  # 开发模式: true 启用详细日志，false 生产模式
+  dev_mode: true
+
+
+# =======================================================
+# MinerU 文档解析配置
+# =======================================================
+mineru:
+  # 默认使用的后端类型: pipeline, vlm-http-client
+  default_backend: "pipeline"
+
+  # FastAPI 客户端配置
+  fastapi:
+    # 🔑 MinerU 服务地址（必须配置）
+    # 示例:
+    #   - 本地部署: http://localhost:8000
+    #   - 远程部署: http://192.168.1.100:8000
+    #   - Docker 网络: http://knowflow-mineru-api:8000
+    url: "http://localhost:8000"
+
+  # VLM 后端配置（可选，用于高级 OCR）
+  vlm:
+    http_client:
+      # VLM HTTP 服务器地址
+      # 仅在使用 vlm-http-client 后端时需要配置
+      server_url: "http://localhost:30000"
+
+  # Pipeline 后端配置
+  pipeline:
+    # 解析方法: auto, txt, ocr
+    parse_method: "auto"
+
+    # 文档语言（提升OCR准确率）: ch, en
+    lang: "ch"
+
+    # 是否启用公式解析
+    formula_enable: true
+
+    # 是否启用表格解析
+    table_enable: true
+
+# =======================================================
+# DOTS OCR 文档解析配置
+# =======================================================
+dots:
+  vllm:
+    # 🔑 DOTS OCR 服务地址（必须配置）
+    # 配置示例同 MinerU
+    url: "http://localhost:8000"
+
+    # 模型名称（根据部署配置调整）
+    model_name: "dotsocr-model"
+
+    # 生成参数
+    temperature: 0.1
+    top_p: 1.0
+    max_completion_tokens: 16384
+
+# =======================================================
+# PaddleOCR 文档解析配置
+# =======================================================
+paddleocr:
+  # 🔑 PaddleOCR 服务地址（必须配置）
+  # API 端点: /layout-parsing
+  # 默认端口: 8888
+  # 示例:
+  #   - 本地部署: http://localhost:8888
+  #   - 远程部署: http://your-server-ip:8888
+  #   - Docker 网络: http://knowflow-paddleocr:8888
+  url: "http://localhost:8888"
+
+  # 请求超时时间（毫秒）
+  timeout: 30000
+
+  # 单次请求最大文件大小（MB）
+  max_file_size: 5000
+
+  # PaddleOCR 特点:
+  # ✅ 块级布局识别 (block_label):
+  #    - doc_title: 文档主标题 → H1
+  #    - paragraph_title: 章节标题 → H2
+  #    - section_title: 节标题 → H2
+  #    - subsection_title: 小节标题 → H3
+  #    - title: 通用标题 → H3
+  #    - text: 正文
+  #    - table: 表格
+  #    - image/chart_box: 图片/图表
+  #    - list: 列表
+  # ✅ 自动标题层级推断: 基于 block_label 映射
+  # ⚠️ 块级坐标精度: 返回块级坐标（非行级）
+  #
+  # 适用场景:
+  #   - Title/Regex 分块方法
+  #   - 需要标题层级区分的文档
+  #   - 快速部署（配置简单）

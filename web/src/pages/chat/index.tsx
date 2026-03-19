@@ -276,15 +276,11 @@ const Chat = () => {
                         <div className={styles.chatDesc}>{x.description}</div>
                       </section>
                     </Space>
-                    {activated === x.id && (
-                      <section>
-                        <Dropdown menu={{ items: buildAppItems(x) }}>
-                          <ChatAppCube
-                            className={styles.cubeIcon}
-                          ></ChatAppCube>
-                        </Dropdown>
-                      </section>
-                    )}
+                    <section>
+                      <Dropdown menu={{ items: buildAppItems(x) }}>
+                        <ChatAppCube className={styles.cubeIcon}></ChatAppCube>
+                      </Dropdown>
+                    </section>
                   </Flex>
                 </Card>
               ))}
@@ -360,19 +356,13 @@ const Chat = () => {
                       {x.name}
                     </Text>
                   </Flex>
-                  {conversationActivated === x.id &&
-                    x.id !== '' &&
-                    !x.is_new && (
-                      <section>
-                        <Dropdown
-                          menu={{ items: buildConversationItems(x.id) }}
-                        >
-                          <ChatAppCube
-                            className={styles.cubeIcon}
-                          ></ChatAppCube>
-                        </Dropdown>
-                      </section>
-                    )}
+                  {x.id !== '' && !x.is_new && (
+                    <section>
+                      <Dropdown menu={{ items: buildConversationItems(x.id) }}>
+                        <ChatAppCube className={styles.cubeIcon}></ChatAppCube>
+                      </Dropdown>
+                    </section>
+                  )}
                 </Flex>
               </Card>
             ))}

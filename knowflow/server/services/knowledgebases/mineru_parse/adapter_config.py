@@ -33,7 +33,6 @@ class AdapterConfig:
     DEFAULT_CONFIG = {
         'fastapi_url': 'http://localhost:8888',
         'backend': 'pipeline',
-        'timeout': 30000,
         'pipeline_config': {
             'parse_method': 'auto',
             'lang': 'ch',
@@ -71,7 +70,6 @@ class AdapterConfig:
             config = {
                 'fastapi_url': MINERU_CONFIG.fastapi.url,
                 'backend': MINERU_CONFIG.default_backend,
-                'timeout': MINERU_CONFIG.fastapi.timeout,
                 'pipeline_config': {
                     'parse_method': MINERU_CONFIG.pipeline.parse_method,
                     'lang': MINERU_CONFIG.pipeline.lang,
@@ -92,8 +90,7 @@ class AdapterConfig:
         """从环境变量加载配置"""
         env_mappings = {
             'MINERU_FASTAPI_URL': 'fastapi_url',
-            'MINERU_FASTAPI_BACKEND': 'backend', 
-            'MINERU_FASTAPI_TIMEOUT': 'timeout',
+            'MINERU_FASTAPI_BACKEND': 'backend',
             'MINERU_PARSE_METHOD': 'pipeline_config.parse_method',
             'MINERU_LANG': 'pipeline_config.lang',
             'MINERU_FORMULA_ENABLE': 'pipeline_config.formula_enable',
@@ -168,8 +165,7 @@ class AdapterConfig:
         """获取 FastAPI 相关配置"""
         return {
             'base_url': self.get('fastapi_url'),
-            'backend': self.get('backend'),
-            'timeout': self.get('timeout')
+            'backend': self.get('backend')
         }
     
     def get_backend_config(self, backend: str = None) -> Dict[str, Any]:
@@ -201,7 +197,6 @@ class AdapterConfig:
         env_mappings = {
             'fastapi_url': 'MINERU_FASTAPI_URL',
             'backend': 'MINERU_FASTAPI_BACKEND',
-            'timeout': 'MINERU_FASTAPI_TIMEOUT',
             'pipeline_config.parse_method': 'MINERU_PARSE_METHOD',
             'pipeline_config.lang': 'MINERU_LANG',
             'pipeline_config.formula_enable': 'MINERU_FORMULA_ENABLE',
@@ -220,18 +215,17 @@ class AdapterConfig:
         print(f"配置来源: {'KnowFlow统一配置' if KNOWFLOW_CONFIG_AVAILABLE else '环境变量/默认值'}")
         print(f"FastAPI URL: {self.get('fastapi_url')}")
         print(f"默认后端: {self.get('backend')}")
-        print(f"超时时间: {self.get('timeout')}秒")
-        
+
         print("\nPipeline 配置:")
         pipeline_config = self.get('pipeline_config', {})
         for key, value in pipeline_config.items():
             print(f"  {key}: {value}")
-        
+
         print("\nVLM 配置:")
         vlm_config = self.get('vlm_config', {})
         for key, value in vlm_config.items():
             print(f"  {key}: {value}")
-        
+
         print("=" * 35)
 
 
@@ -274,6 +268,5 @@ def get_current_config() -> Dict[str, Any]:
         'mode': 'FastAPI',
         'url': config.get('fastapi_url'),
         'backend': config.get('backend'),
-        'timeout': config.get('timeout'),
         'config_source': 'KnowFlow统一配置' if KNOWFLOW_CONFIG_AVAILABLE else '环境变量/默认值'
     } 

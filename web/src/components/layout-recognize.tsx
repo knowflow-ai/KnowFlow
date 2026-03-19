@@ -15,8 +15,23 @@ const LayoutRecognize = () => {
   const allOptions = useSelectLlmOptionsByModelType();
 
   const options = useMemo(() => {
-    const list = [DocumentType.DeepDOC, DocumentType.PlainText].map((x) => ({
-      label: x === DocumentType.PlainText ? t(camelCase(x)) : 'DeepDoc',
+    const list = [
+      DocumentType.DeepDOC,
+      DocumentType.PlainText,
+      'MinerU',
+      'DOTS',
+      'PaddleOCR',
+    ].map((x) => ({
+      label:
+        x === DocumentType.PlainText
+          ? t(camelCase(x))
+          : x === 'MinerU'
+            ? 'MinerU'
+            : x === 'DOTS'
+              ? 'DOTS'
+              : x === 'PaddleOCR'
+                ? 'PaddleOCR'
+                : 'DeepDoc',
       value: x,
     }));
 
@@ -44,7 +59,7 @@ const LayoutRecognize = () => {
     <Form.Item
       name={['parser_config', 'layout_recognize']}
       label={t('layoutRecognize')}
-      initialValue={DocumentType.DeepDOC}
+      initialValue={'MinerU'}
       tooltip={t('layoutRecognizeTip')}
     >
       <Select options={options} popupMatchSelectWidth={false} />

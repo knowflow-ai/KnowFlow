@@ -1,228 +1,232 @@
-.tag {
-  height: 40px;
-  padding: 0 30px;
-  margin: 0 5px;
-  border: 1px solid #000;
-  border-radius: 10px;
-  cursor: pointer;
-}
+@import '../../../theme/design-tokens.less';
 
-.checked {
-  color: #1677ff;
-  border-color: #1677ff;
-}
-
+/* ============================================
+   侧边栏 Header
+   ============================================ */
 .logoWrapper {
-  margin-top: 10px;
-  .pointerCursor;
+  padding: @space-md @space-sm;
+  padding-bottom: @space-lg;
+  margin-bottom: @space-md;
+  border-bottom: 1px solid @color-border-default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all @transition-base;
+
+  &:hover {
+    opacity: 0.8;
+  }
 }
 
 .appIcon {
   vertical-align: middle;
-  max-width: 36px;
+  max-width: 48px;
+  height: auto;
 }
 
 .appName {
   vertical-align: middle;
-  font-family: Inter;
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 600;
-  line-height: 20px;
+  font-family: @font-family-base;
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  line-height: 1.2;
+  margin-left: @space-sm;
+  color: @color-text-primary;
 }
+
+/* ============================================
+   导航菜单容器
+   ============================================ */
 .ragContent {
+  flex: 1;
   width: 100%;
-  height: 100%;
-  padding: 0 8px;
-  .ragItem {
-    width: 72px;
-    height: 56px;
-    border-radius: 12px;
-    font-family:
-      Alibaba PuHuiTi 2,
-      Alibaba PuHuiTi 20;
-    font-weight: 500;
-    font-size: 11px;
-    color: #64748b;
-    line-height: 14px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    &:hover {
-      background: rgba(148, 163, 184, 0.1);
-      color: #475569;
-    }
-    & a {
-      display: flex;
-      text-align: center;
-      width: 100%;
-      height: 100%;
-      padding: 8px 4px;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: 4px;
-    }
+  padding: 0 @space-sm;
+  display: flex;
+  flex-direction: column;
+  gap: @space-xs;
+  overflow-y: auto;
+}
+
+/* ============================================
+   菜单项样式
+   ============================================ */
+.ragItem {
+  position: relative;
+  border-radius: @menu-item-border-radius;
+  font-family: @font-family-base;
+  font-weight: @font-weight-medium;
+  font-size: @font-size-md;
+  color: @menu-item-color;
+  cursor: pointer;
+  transition: all @transition-base;
+
+  a {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: @menu-item-height;
+    padding: 10px 12px;
+    gap: @space-sm;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  &:hover {
+    background: @menu-item-bg-hover;
+    color: @menu-item-color-hover;
 
     .radioButtonIcon {
-      color: #64748b;
-      fill: #64748b;
-      transition: all 0.2s ease;
+      color: @menu-item-color-hover;
+      fill: @menu-item-color-hover;
 
-      svg {
-        color: #64748b;
-        fill: #64748b;
-      }
-
+      svg,
       path {
-        fill: #64748b;
-      }
-    }
-
-    &:hover .radioButtonIcon {
-      color: #475569;
-      fill: #475569;
-
-      svg {
-        color: #475569;
-        fill: #475569;
-      }
-
-      path {
-        fill: #475569;
+        color: @menu-item-color-hover;
+        fill: @menu-item-color-hover;
       }
     }
   }
-  .ragItemActive {
-    width: 72px;
-    height: 56px;
-    border-radius: 12px;
-    font-family:
-      Alibaba PuHuiTi 2,
-      Alibaba PuHuiTi 20;
-    font-weight: 600;
-    font-size: 11px;
-    background: transparent;
-    border: none;
-    color: #3b82f6;
-    line-height: 14px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
 
-    .radioButtonIcon {
-      color: #3b82f6;
-      fill: #3b82f6;
+  .radioButtonIcon {
+    color: @menu-item-color;
+    fill: @menu-item-color;
+    width: @menu-icon-size;
+    height: @menu-icon-size;
+    flex-shrink: 0;
+    transition: all @transition-base;
 
-      svg {
-        color: #3b82f6;
-        fill: #3b82f6;
-      }
-
-      path {
-        fill: #3b82f6;
-      }
+    svg,
+    path {
+      color: @menu-item-color;
+      fill: @menu-item-color;
+      transition: all @transition-base;
     }
-    & a {
-      padding: 8px 4px;
-      display: flex;
-      text-align: center;
-      width: 100%;
-      height: 100%;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: 4px;
-    }
+  }
+
+  .ragText {
+    flex: 1;
+    font-size: @font-size-md;
+    line-height: 1.4;
   }
 }
 
-.radioGroup {
-  & label {
-    height: 40px;
-    line-height: 40px;
-    border: 0 !important;
-    background-color: rgba(249, 249, 249, 1);
-    font-weight: @fontWeight700;
-    color: rgba(29, 25, 41, 1);
-    &::before {
-      display: none !important;
+/* 激活状态的菜单项 */
+.ragItemActive {
+  position: relative;
+  background: @menu-item-bg-active;
+  border-radius: @menu-item-border-radius;
+  font-family: @font-family-base;
+  font-weight: @font-weight-semibold;
+  font-size: @font-size-md;
+  color: @menu-item-color-active;
+  cursor: pointer;
+
+  /* 左侧激活指示条 */
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 24px;
+    background: @brand-primary-600;
+    border-radius: 0 @radius-sm @radius-sm 0;
+  }
+
+  a {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: @menu-item-height;
+    padding: 10px 12px;
+    gap: @space-sm;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .radioButtonIcon {
+    color: @menu-item-color-active;
+    fill: @menu-item-color-active;
+    width: @menu-icon-size;
+    height: @menu-icon-size;
+    flex-shrink: 0;
+
+    svg,
+    path {
+      color: @menu-item-color-active;
+      fill: @menu-item-color-active;
     }
   }
-  :global(.ant-radio-button-wrapper-checked) {
-    border-radius: 6px !important;
-    & a {
-      color: white;
-    }
-  }
-  :global(.ant-radio-button-wrapper-checked.dark) {
-    border-radius: 0px !important;
-    & a {
-      color: white;
-    }
-  }
-  :global(.ant-radio-button-wrapper-checked.dark.first) {
-    border-top-left-radius: 6px !important;
-    border-bottom-left-radius: 6px !important;
-    & a {
-      color: white;
-    }
-  }
-  :global(.ant-radio-button-wrapper-checked.dark.last) {
-    border-top-right-radius: 6px !important;
-    border-bottom-right-radius: 6px !important;
-    & a {
-      color: white;
-    }
+
+  .ragText {
+    flex: 1;
+    font-size: @font-size-md;
+    line-height: 1.4;
   }
 }
 
+/* ============================================
+   废弃的 Radio Group 样式（保留兼容）
+   ============================================ */
+.radioGroup,
 .radioGroupDark {
-  & label {
-    height: 40px;
-    line-height: 40px;
+  label {
+    height: @button-height-md;
+    line-height: @button-height-md;
     border: 0 !important;
-    background-color: rgba(249, 249, 249, 0.25);
-    font-weight: @fontWeight700;
-    color: rgba(29, 25, 41, 1);
+    background-color: @neutral-100;
+    font-weight: @font-weight-semibold;
+    color: @color-text-primary;
+
     &::before {
       display: none !important;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked) {
-    border-radius: 6px !important;
-    & a {
+    border-radius: @radius-md !important;
+
+    a {
       color: white;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked.dark) {
     border-radius: 0px !important;
-    & a {
+
+    a {
       color: white;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked.dark.first) {
-    border-top-left-radius: 6px !important;
-    border-bottom-left-radius: 6px !important;
-    & a {
+    border-top-left-radius: @radius-md !important;
+    border-bottom-left-radius: @radius-md !important;
+
+    a {
       color: white;
     }
   }
+
   :global(.ant-radio-button-wrapper-checked.dark.last) {
-    border-top-right-radius: 6px !important;
-    border-bottom-right-radius: 6px !important;
-    & a {
+    border-top-right-radius: @radius-md !important;
+    border-bottom-right-radius: @radius-md !important;
+
+    a {
       color: white;
     }
   }
 }
 
-.ant-radio-button-wrapper-checked {
-  border-radius: 6px !important;
-}
 .radioButtonIcon {
   margin-bottom: 2px;
   vertical-align: middle;
-  width: 20px;
-  height: 20px;
+  width: @menu-icon-size;
+  height: @menu-icon-size;
+}
+
+.ant-radio-button-wrapper-checked {
+  border-radius: @radius-md !important;
 }

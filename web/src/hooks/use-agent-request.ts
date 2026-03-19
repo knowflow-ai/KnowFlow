@@ -2,11 +2,13 @@ import { FileUploadProps } from '@/components/file-upload';
 import message from '@/components/ui/message';
 import { AgentGlobals } from '@/constants/agent';
 import {
+  DSL,
   IAgentLogsRequest,
   IAgentLogsResponse,
+  IFlow,
+  IFlowTemplate,
   ITraceData,
 } from '@/interfaces/database/agent';
-import { DSL, IFlow, IFlowTemplate } from '@/interfaces/database/flow';
 import { IDebugSingleRequestBody } from '@/interfaces/request/agent';
 import i18n from '@/locales/config';
 import { BeginId } from '@/pages/agent/constant';
@@ -22,9 +24,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from 'ahooks';
 import { get, set } from 'lodash';
 import { useCallback, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useParams } from 'umi';
-import { v4 as uuid } from 'uuid';
+import { useParams, useSearchParams } from 'umi';
 import {
   useGetPaginationWithRouter,
   useHandleSearchChange,
@@ -49,6 +49,7 @@ export const enum AgentApiAction {
   FetchAgentAvatar = 'fetchAgentAvatar',
   FetchExternalAgentInputs = 'fetchExternalAgentInputs',
   SetAgentSetting = 'setAgentSetting',
+  FetchPrompt = 'fetchPrompt',
 }
 
 export const EmptyDsl = {
@@ -77,7 +78,7 @@ export const EmptyDsl = {
         component_name: 'Begin',
         params: {},
       },
-      downstream: ['Answer:China'], // other edge target is downstream, edge source is current node id
+      downstream: [], // other edge target is downstream, edge source is current node id
       upstream: [], // edge source is upstream, edge target is current node id
     },
   },
@@ -93,21 +94,11 @@ export const EmptyDsl = {
 };
 
 export const useFetchAgentTemplates = () => {
-  const { t } = useTranslation();
-
   const { data } = useQuery<IFlowTemplate[]>({
     queryKey: [AgentApiAction.FetchAgentTemplates],
     initialData: [],
     queryFn: async () => {
       const { data } = await agentService.listTemplates();
-      if (Array.isArray(data?.data)) {
-        data.data.unshift({
-          id: uuid(),
-          title: t('flow.blank'),
-          description: t('flow.createFromNothing'),
-          dsl: EmptyDsl,
-        });
-      }
 
       return data.data;
     },
@@ -122,7 +113,7 @@ export const useFetchAgentListByPage = () => {
   const debouncedSearchString = useDebounce(searchString, { wait: 500 });
 
   const { data, isFetching: loading } = useQuery<{
-    kbs: IFlow[];
+    canvas: IFlow[];
     total: number;
   }>({
     queryKey: [
@@ -132,7 +123,7 @@ export const useFetchAgentListByPage = () => {
         ...pagination,
       },
     ],
-    initialData: { kbs: [], total: 0 },
+    initialData: { canvas: [], total: 0 },
     gcTime: 0,
     queryFn: async () => {
       const { data } = await agentService.listCanvasTeam(
@@ -146,7 +137,7 @@ export const useFetchAgentListByPage = () => {
         true,
       );
 
-      return data?.data ?? [];
+      return data?.data;
     },
   });
 
@@ -159,7 +150,7 @@ export const useFetchAgentListByPage = () => {
   );
 
   return {
-    data: data.kbs,
+    data: data.canvas,
     loading,
     searchString,
     handleInputChange: onInputChange,
@@ -302,6 +293,9 @@ export const useSetAgent = (showMessage: boolean = true) => {
 // Only one file can be uploaded at a time
 export const useUploadCanvasFile = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const shared_id = searchParams.get('shared_id');
+  const canvasId = id || shared_id;
   const {
     data,
     isPending: loading,
@@ -319,7 +313,7 @@ export const useUploadCanvasFile = () => {
         }
 
         const { data } = await agentService.uploadCanvasFile(
-          { url: api.uploadAgentFile(id), data: nextBody },
+          { url: api.uploadAgentFile(canvasId as string), data: nextBody },
           true,
         );
         if (data?.code === 0) {
@@ -366,16 +360,7 @@ export const useUploadCanvasFileWithProgress = (
           {
             url: api.uploadAgentFile(identifier || id),
             data: formData,
-            onUploadProgress: ({
-              loaded,
-              total,
-              progress,
-              bytes,
-              estimated,
-              rate,
-              upload,
-              lengthComputable,
-            }) => {
+            onUploadProgress: ({ progress }) => {
               files.forEach((file) => {
                 onProgress(file, (progress || 0) * 100);
               });
@@ -394,7 +379,7 @@ export const useUploadCanvasFileWithProgress = (
         files.forEach((file) => {
           onError(file, error as Error);
         });
-        message.error('error', error?.message);
+        message.error(error?.message);
       }
     },
   });
@@ -640,4 +625,25 @@ export const useSetAgentSetting = () => {
   });
 
   return { data, loading, setAgentSetting: mutateAsync };
+};
+
+export const useFetchPrompt = () => {
+  const {
+    data,
+    isFetching: loading,
+    refetch,
+  } = useQuery<Record<string, string>>({
+    queryKey: [AgentApiAction.FetchPrompt],
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    gcTime: 0,
+    queryFn: async () => {
+      const { data } = await agentService.fetchPrompt();
+
+      return data?.data ?? {};
+    },
+  });
+
+  return { data, loading, refetch };
 };

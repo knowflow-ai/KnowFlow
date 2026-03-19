@@ -361,6 +361,44 @@ def delete_document(doc_id):
     except Exception as e:
         return error_response(str(e))
 
+@knowledgebase_bp.route('/documents/<doc_id>/update-parser-config', methods=['POST', 'OPTIONS'])
+def update_parser_config(doc_id):
+    """更新文档的解析配置（不触发解析）"""
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+
+    try:
+        # 尝试多种方式获取 JSON 数据
+        if request.is_json:
+            data = request.get_json() or {}
+        elif request.data:
+            import json
+            data = json.loads(request.data) if request.data else {}
+        else:
+            data = {}
+
+        parser_id = data.get('parser_id')
+        layout_recognize = data.get('layout_recognize')
+        parser_config_updates = data.get('parser_config')
+
+        result = KnowledgebaseService.update_document_parser_config(
+            doc_id,
+            parser_id=parser_id,
+            layout_recognize=layout_recognize,
+            parser_config_updates=parser_config_updates
+        )
+
+        if result.get("success"):
+            return success_response(data=result, message="配置已保存")
+        else:
+            return error_response(result.get("message", "保存失败"), code=500)
+    except Exception as e:
+        return error_response(str(e), code=500)
+
+
 @knowledgebase_bp.route('/documents/<doc_id>/parse', methods=['POST'])
 def parse_document(doc_id):
     """开始解析文档"""
@@ -371,21 +409,76 @@ def parse_document(doc_id):
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         return response
-        
+
+    from database import get_db_connection
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT kb_id FROM document WHERE id = %s", (doc_id,))
+    doc_result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not doc_result:
+        return error_response('文档不存在', code=404)
+
+    kb_id = doc_result['kb_id']
+
+    # 检查用户是否有知识库的写权限
+    current_user_id = getattr(g, 'current_user_id', None)
+    if current_user_id:
+        # 使用 RBAC 权限检查
+        from services.rbac.permission_service import permission_service
+        from models.rbac_models import ResourceType, PermissionType
+
+        permission_check = permission_service.check_permission(
+            user_id=current_user_id,
+            resource_type=ResourceType.KNOWLEDGEBASE,
+            resource_id=kb_id,
+            permission_type=PermissionType.WRITE,
+            tenant_id='default'
+        )
+
+        if not permission_check.has_permission:
+            return error_response('权限不足，请联系管理员添加知识库写权限', code=109)
+
+    # 检查用户对知识库的写权限
     try:
-        # 立即更新文档状态为"正在解析"，确保UI及时响应
-        from services.knowledgebases.document_parser import _update_document_progress
-        _update_document_progress(doc_id, run="1", progress=0.0, message="开始解析文档...")
-        
-        # 异步执行解析，避免阻塞API响应
-        result = KnowledgebaseService.async_parse_document(doc_id)
-        return success_response(data=result)
+        # 获取前端传来的 JWT token，直接转发给 RAGFlow
+        auth_token = request.headers.get('Authorization')
+
+        # 获取解析配置参数（可选，用于临时覆盖）
+        if request.is_json:
+            data = request.get_json() or {}
+        elif request.data:
+            import json
+            data = json.loads(request.data) if request.data else {}
+        else:
+            data = {}
+
+        parser_id = data.get('parser_id')  # 分块方法: smart/title/regex/parent_child
+        layout_recognize = data.get('layout_recognize')  # PDF 解析器: DeepDOC/MinerU/DOTS
+        parser_config_updates = data.get('parser_config')  # 其他配置更新
+
+        # 使用统一的解析方法（调用 RAGFlow API）
+        # 如果没有提供配置参数，将使用文档现有的配置
+        result = KnowledgebaseService.parse_document_unified(
+            doc_id,
+            auth_token=auth_token,
+            parser_id=parser_id,
+            layout_recognize=layout_recognize,
+            parser_config_updates=parser_config_updates
+        )
+
+        if result.get("success"):
+            return success_response(data=result)
+        else:
+            return error_response(result.get("message", "解析失败"), code=500)
     except Exception as e:
         return error_response(str(e), code=500)
 
 @knowledgebase_bp.route('/documents/<doc_id>/parse/progress', methods=['GET'])
 def get_parse_progress(doc_id):
-    """获取文档解析进度"""
+    """获取文档解析进度（使用统一方法，从 RAGFlow task 表查询）"""
     # 处理 OPTIONS 预检请求
     if request.method == 'OPTIONS':
         response = success_response({})
@@ -393,9 +486,9 @@ def get_parse_progress(doc_id):
         response.headers.add('Access-Control-Allow-Methods', 'GET')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         return response
-        
+
     try:
-        result = KnowledgebaseService.get_document_parse_progress(doc_id)
+        result = KnowledgebaseService.get_document_parse_progress_unified(doc_id)
         if isinstance(result, dict) and 'error' in result:
             return error_response(result['error'], code=404)
         return success_response(data=result)
@@ -405,7 +498,7 @@ def get_parse_progress(doc_id):
 
 @knowledgebase_bp.route('/documents/<doc_id>/parse/cancel', methods=['POST'])
 def cancel_parse_document(doc_id):
-    """取消文档解析"""
+    """取消文档解析（使用统一方法，调用 RAGFlow API）"""
     # 处理 OPTIONS 预检请求
     if request.method == 'OPTIONS':
         response = success_response({})
@@ -413,13 +506,58 @@ def cancel_parse_document(doc_id):
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         return response
-        
+
     try:
-        result = KnowledgebaseService.cancel_document_parse(doc_id)
-        return success_response(data=result, message="取消解析成功")
+        # 获取并转发 JWT token
+        auth_token = request.headers.get('Authorization')
+        result = KnowledgebaseService.cancel_document_parse_unified(doc_id, auth_token=auth_token)
+        if result.get("success"):
+            return success_response(data=result, message="取消解析成功")
+        else:
+            return error_response(result.get("message", "取消失败"), code=500)
     except Exception as e:
         print(f"取消解析失败: {str(e)}")
         return error_response(f"取消解析失败: {str(e)}", code=500)
+
+@knowledgebase_bp.route('/<kb_id>/batch_parse_sequential/start', methods=['POST'])
+def start_batch_parse_sequential(kb_id):
+    """启动批量顺序解析（串行执行）"""
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+
+    try:
+        # 获取并转发 JWT token
+        auth_token = request.headers.get('Authorization')
+
+        # 启动批量解析
+        result = KnowledgebaseService.start_batch_parse_sequential(kb_id, auth_token=auth_token)
+
+        if result.get("success"):
+            return success_response(data=result, message="批量解析已启动")
+        else:
+            return error_response(result.get("message", "启动批量解析失败"), code=500)
+    except Exception as e:
+        print(f"启动批量解析失败: {str(e)}")
+        return error_response(f"启动批量解析失败: {str(e)}", code=500)
+
+@knowledgebase_bp.route('/<kb_id>/batch_parse_sequential/progress', methods=['GET'])
+def get_batch_parse_progress(kb_id):
+    """获取批量解析进度"""
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        response.headers.add('Access-Control-Allow-Methods', 'GET')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+
+    try:
+        result = KnowledgebaseService.get_batch_parse_progress(kb_id)
+        return success_response(data=result)
+    except Exception as e:
+        print(f"获取批量解析进度失败: {str(e)}")
+        return error_response(f"获取批量解析进度失败: {str(e)}", code=500)
 
 # 获取系统 Embedding 配置路由
 @knowledgebase_bp.route('/system_embedding_config', methods=['GET'])
@@ -466,10 +604,11 @@ def set_system_embedding_config_route():
         print(f"设置系统 Embedding 配置失败: {str(e)}")
         return error_response(message=f"设置配置时发生内部错误: {str(e)}", code=500)
 
-# 启动顺序批量解析路由
-@knowledgebase_bp.route('/<string:kb_id>/batch_parse_sequential/start', methods=['POST'])
-def start_sequential_batch_parse_route(kb_id):
-    """异步启动知识库的顺序批量解析任务"""
+# ========== 新的统一批量解析路由 ==========
+
+@knowledgebase_bp.route('/<string:kb_id>/batch_parse/start', methods=['POST'])
+def start_batch_parse_unified_route(kb_id):
+    """启动批量解析（统一方法，调用 RAGFlow API）"""
     if request.method == 'OPTIONS':
         response = success_response({})
         response.headers.add('Access-Control-Allow-Methods', 'POST')
@@ -477,21 +616,22 @@ def start_sequential_batch_parse_route(kb_id):
         return response
 
     try:
-        result = KnowledgebaseService.start_sequential_batch_parse_async(kb_id)
+        # 获取并转发 JWT token
+        auth_token = request.headers.get('Authorization')
+        result = KnowledgebaseService.start_batch_parse_unified(kb_id, auth_token=auth_token)
         if result.get("success"):
-            return success_response(data={"message": result.get("message")})
+            return success_response(data=result)
         else:
-            # 如果任务已在运行或启动失败，返回错误信息
-            return error_response(result.get("message", "启动失败"), code=409 if "已在运行中" in result.get("message", "") else 500)
+            return error_response(result.get("message", "启动失败"), code=500)
     except Exception as e:
-        print(f"启动顺序批量解析路由处理失败 (KB ID: {kb_id}): {str(e)}")
+        print(f"启动批量解析失败 (KB ID: {kb_id}): {str(e)}")
         traceback.print_exc()
-        return error_response(f"启动顺序批量解析失败: {str(e)}", code=500)
+        return error_response(f"启动批量解析失败: {str(e)}", code=500)
 
-# 获取顺序批量解析进度路由
-@knowledgebase_bp.route('/<string:kb_id>/batch_parse_sequential/progress', methods=['GET'])
-def get_sequential_batch_parse_progress_route(kb_id):
-    """获取知识库的顺序批量解析任务进度"""
+
+@knowledgebase_bp.route('/<string:kb_id>/batch_parse/progress', methods=['GET'])
+def get_batch_parse_progress_unified_route(kb_id):
+    """获取批量解析进度（统一方法，从 RAGFlow task 表查询）"""
     if request.method == 'OPTIONS':
         response = success_response({})
         response.headers.add('Access-Control-Allow-Methods', 'GET')
@@ -499,10 +639,15 @@ def get_sequential_batch_parse_progress_route(kb_id):
         return response
 
     try:
-        result = KnowledgebaseService.get_sequential_batch_parse_progress(kb_id)
-        # 直接返回从 service 获取的状态信息
+        result = KnowledgebaseService.get_batch_parse_progress_unified(kb_id)
         return success_response(data=result)
     except Exception as e:
-        print(f"获取顺序批量解析进度路由处理失败 (KB ID: {kb_id}): {str(e)}")
+        print(f"获取批量解析进度失败 (KB ID: {kb_id}): {str(e)}")
         traceback.print_exc()
         return error_response(f"获取进度失败: {str(e)}", code=500)
+
+
+# 注意：旧的批量解析路由已删除
+# 请使用新的统一接口：
+# - POST /<kb_id>/batch_parse/start
+# - GET /<kb_id>/batch_parse/progress

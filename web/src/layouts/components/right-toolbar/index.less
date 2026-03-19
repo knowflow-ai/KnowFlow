@@ -1,12 +1,15 @@
+@import '../../../theme/design-tokens.less';
+
 .toolbarWrapper {
   position: absolute;
   bottom: 0;
+  width: 100%;
+  padding: 0 24px @space-md; /* 24px = Header 16px + ragContent 8px，确保和其他菜单对齐 */
+
   :global(.ant-avatar) {
     background-color: rgba(242, 243, 245, 1);
   }
   .content {
-    // display: flex;
-    // flex-direction: column;
     justify-content: center;
   }
 }

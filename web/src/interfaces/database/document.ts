@@ -30,7 +30,7 @@ export interface IDocumentInfo {
 export interface IParserConfig {
   delimiter?: string;
   html4excel?: boolean;
-  layout_recognize?: boolean;
+  layout_recognize?: string;
   pages: any[];
   raptor?: Raptor;
   graphrag?: GraphRag;

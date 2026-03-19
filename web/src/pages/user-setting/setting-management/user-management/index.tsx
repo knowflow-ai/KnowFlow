@@ -154,24 +154,40 @@ const UserManagementPage = () => {
       setUserData(list);
       setPagination((prev) => ({ ...prev, total: data.total || 0 }));
 
-      // 拉取每个用户的角色，构建映射
+      // 使用批量接口获取所有用户的角色
       const rolesMap: Record<string, UserRole> = {};
-      await Promise.all(
-        (list as UserData[]).map(async (u) => {
-          try {
-            const r = await request.get(
-              `/api/knowflow/v1/rbac/users/${u.id}/roles`,
-            );
-            const rolesList = r?.data?.data ?? r?.data?.roles ?? [];
-            const userRole = getUserRole(rolesList);
+      if (list.length > 0) {
+        try {
+          // 提取用户ID列表
+          const userIds = list.map((u: UserData) => u.id);
+
+          // 调用批量角色查询接口
+          const batchRolesRes = await request.post(
+            '/api/knowflow/v1/rbac/users/batch-roles',
+            {
+              data: {
+                user_ids: userIds,
+                tenant_id: 'default',
+              },
+            },
+          );
+
+          // 处理批量查询结果
+          const userRolesData = batchRolesRes?.data?.user_roles || {};
+
+          // 构建角色映射
+          Object.entries(userRolesData).forEach(([userId, rolesList]) => {
+            const userRole = getUserRole(rolesList as UserRole[]);
             if (userRole) {
-              rolesMap[u.id] = userRole;
+              rolesMap[userId] = userRole;
             }
-          } catch (e) {
-            // 错误情况下不设置角色
-          }
-        }),
-      );
+          });
+        } catch (error) {
+          console.error('批量获取用户角色失败:', error);
+          // 批量接口失败时的降级处理（可选）
+          // 可以选择静默失败，或者回退到单个查询
+        }
+      }
       setUserRolesMap(rolesMap);
     } catch (error) {
       message.error('加载用户数据失败');
@@ -248,8 +264,10 @@ const UserManagementPage = () => {
     setEditingUser(user);
     setCurrentUserId(user.id);
     try {
-      // 获取所有角色
-      const rolesRes = await request.get('/api/knowflow/v1/rbac/roles');
+      // 获取可分配的角色（根据当前用户权限过滤）
+      const rolesRes = await request.get(
+        '/api/knowflow/v1/rbac/assignable-roles',
+      );
       setRoles(rolesRes.data.data || []);
 
       // 获取用户当前角色（兼容不同返回结构）
@@ -310,19 +328,33 @@ const UserManagementPage = () => {
       setLoading(true);
       if (editingUser) {
         if (editingUser.id) {
-          await request.put(`/api/knowflow/v1/users/${editingUser.id}`, {
-            data: values,
-          });
+          const result = await request.put(
+            `/api/knowflow/v1/users/${editingUser.id}`,
+            {
+              data: values,
+            },
+          );
+          // 由于 getResponse: true，需要检查响应数据
+          if (result?.data?.code === 0) {
+            message.success('更新用户成功');
+            setUserModalVisible(false);
+            await loadUserData();
+          }
         }
-        message.success('更新用户成功');
       } else {
-        await request.post('/api/knowflow/v1/users', { data: values });
-        message.success('创建用户成功');
+        const result = await request.post('/api/knowflow/v1/users', {
+          data: values,
+        });
+        // 由于 getResponse: true，需要检查响应数据
+        if (result?.data?.code === 0) {
+          message.success('创建用户成功');
+          setUserModalVisible(false);
+          await loadUserData();
+        }
       }
-      setUserModalVisible(false);
-      await loadUserData();
     } catch (error) {
-      message.error('操作失败');
+      // 错误已经由 request 拦截器显示，这里只记录日志
+      console.error('操作失败:', error);
     } finally {
       setLoading(false);
     }

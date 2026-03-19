@@ -16,9 +16,10 @@
 
 from flask import request
 from flask_login import login_required, current_user
+from api.db.services import duplicate_name
 from api.db.services.dialog_service import DialogService
 from api.db import StatusEnum
-from api.db.services.llm_service import TenantLLMService
+from api.db.services.tenant_llm_service import TenantLLMService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.user_service import TenantService, UserTenantService
 from api import settings
@@ -41,6 +42,15 @@ def set_dialog():
         return get_data_error_result(message="Dialog name can't be empty.")
     if len(name.encode("utf-8")) > 255:
         return get_data_error_result(message=f"Dialog name length is {len(name)} which is larger than 255")
+
+    if is_create and DialogService.query(tenant_id=current_user.id, name=name.strip()):
+        name = name.strip()
+        name = duplicate_name(
+            DialogService.query,
+            name=name,
+            tenant_id=current_user.id,
+            status=StatusEnum.VALID.value)
+
     description = req.get("description", "A helpful dialog")
     icon = req.get("icon", "")
     top_n = req.get("top_n", 6)
@@ -51,11 +61,12 @@ def set_dialog():
     similarity_threshold = req.get("similarity_threshold", 0.1)
     vector_similarity_weight = req.get("vector_similarity_weight", 0.3)
     llm_setting = req.get("llm_setting", {})
+    meta_data_filter = req.get("meta_data_filter", {})
     prompt_config = req["prompt_config"]
 
     if not is_create:
         if not req.get("kb_ids", []) and not prompt_config.get("tavily_api_key") and "{knowledge}" in prompt_config['system']:
-            return get_data_error_result(message="Please remove `{knowledge}` in system prompt since no knowledge base/Tavily used here.")
+            return get_data_error_result(message="Please remove `{knowledge}` in system prompt since no knowledge base / Tavily used here.")
 
         for p in prompt_config["parameters"]:
             if p["optional"]:
@@ -85,6 +96,7 @@ def set_dialog():
                 "llm_id": llm_id,
                 "llm_setting": llm_setting,
                 "prompt_config": prompt_config,
+                "meta_data_filter": meta_data_filter,
                 "top_n": top_n,
                 "top_k": top_k,
                 "rerank_id": rerank_id,

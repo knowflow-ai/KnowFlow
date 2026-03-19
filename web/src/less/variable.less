@@ -1,17 +1,23 @@
-@fontWeight600: 600;
-@fontWeight700: 700;
+/* 导入设计 Tokens */
+@import '../theme/design-tokens.less';
 
-@grayBackground: rgba(247, 248, 250, 0.1);
-@gray2: rgba(29, 25, 41, 1);
-@gray3: rgba(52, 48, 62, 1);
-@gray8: rgba(165, 163, 169, 1);
-@gray11: rgba(232, 232, 234, 1);
-@purple: rgba(127, 86, 217, 1);
-@selectedBackgroundColor: rgba(239, 248, 255, 1);
-@blurBackground: rgba(22, 119, 255, 0.5);
-@blurBackgroundHover: rgba(22, 119, 255, 0.2);
+/* 字重 - 使用设计 Token */
+@fontWeight600: @font-weight-semibold;
+@fontWeight700: @font-weight-bold;
 
-@fontSize12: 12px;
-@fontSize14: 14px;
-@fontSize16: 16px;
-@fontSize18: 18px;
+/* 背景色 - 使用设计 Token */
+@grayBackground: @neutral-100;
+@gray2: @neutral-900;
+@gray3: @neutral-800;
+@gray8: @neutral-400;
+@gray11: @neutral-200;
+@purple: #7f56d9; /* 保留自定义紫色 */
+@selectedBackgroundColor: @brand-primary-50;
+@blurBackground: fade(@brand-primary-600, 50%);
+@blurBackgroundHover: fade(@brand-primary-600, 20%);
+
+/* 字号 - 使用设计 Token */
+@fontSize12: @font-size-xs;
+@fontSize14: @font-size-md;
+@fontSize16: @font-size-lg;
+@fontSize18: @font-size-xl;

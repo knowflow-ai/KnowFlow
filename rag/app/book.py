@@ -24,7 +24,7 @@ from rag.nlp import bullets_category, is_english,remove_contents_table, \
     hierarchical_merge, make_colon_as_title, naive_merge, random_choices, tokenize_table, \
     tokenize_chunks
 from rag.nlp import rag_tokenizer
-from deepdoc.parser import PdfParser, DocxParser, PlainParser, HtmlParser
+from deepdoc.parser import PdfParser, DocxParser, PlainParser, HtmlParser, MinerUParser, DOTSParser
 
 
 class Pdf(PdfParser):
@@ -91,11 +91,36 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         callback(0.8, "Finish parsing.")
 
     elif re.search(r"\.pdf$", filename, re.IGNORECASE):
-        pdf_parser = Pdf()
-        if parser_config.get("layout_recognize", "DeepDOC") == "Plain Text":
+        layout_recognize = parser_config.get("layout_recognize", "DeepDOC")
+
+        if layout_recognize == "MinerU":
+            logging.info("Using MinerU parser for PDF (book mode)")
+            pdf_parser = MinerUParser()
+            sections, tbls = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+        elif layout_recognize == "DOTS":
+            logging.info("Using DOTS parser for PDF (book mode)")
+            pdf_parser = DOTSParser()
+            sections, tbls = pdf_parser(
+                filename if not binary else binary,
+                from_page=from_page,
+                to_page=to_page,
+                chunk_level='semantic',
+                **kwargs
+            )
+        elif layout_recognize == "Plain Text":
             pdf_parser = PlainParser()
-        sections, tbls = pdf_parser(filename if not binary else binary,
-                                    from_page=from_page, to_page=to_page, callback=callback)
+            sections, tbls = pdf_parser(filename if not binary else binary,
+                                        from_page=from_page, to_page=to_page, callback=callback)
+        else:
+            pdf_parser = Pdf()
+            sections, tbls = pdf_parser(filename if not binary else binary,
+                                        from_page=from_page, to_page=to_page, callback=callback)
 
     elif re.search(r"\.txt$", filename, re.IGNORECASE):
         callback(0.1, "Start to parse.")
@@ -128,19 +153,48 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         raise NotImplementedError(
             "file type not supported yet(doc, docx, pdf, txt supported)")
 
-    make_colon_as_title(sections)
-    bull = bullets_category(
-        [t for t in random_choices([t for t, _ in sections], k=100)])
-    if bull >= 0:
-        chunks = ["\n".join(ck)
-                  for ck in hierarchical_merge(bull, sections, 5)]
+    # 对于 MinerU/DOTS，需要先移除 position tag 再进行标题分析
+    if layout_recognize in ("MinerU", "DOTS"):
+        # 使用 parser 的 remove_tag 方法移除 position tag
+        clean_sections = [(pdf_parser.remove_tag(txt), pos) for txt, pos in sections]
+        make_colon_as_title(clean_sections)
+        bull = bullets_category(
+            [t for t in random_choices([t for t, _ in clean_sections], k=100)])
+        if bull >= 0:
+            # hierarchical_merge 使用 clean_sections，但最终 chunks 要保留 position tag
+            merged_groups = hierarchical_merge(bull, clean_sections, 5)
+            chunks = []
+            for group in merged_groups:
+                # 找到 clean text 对应的原始 text（带 tag）
+                chunk_parts = []
+                for clean_txt in group:
+                    for orig_txt, _ in sections:
+                        if pdf_parser.remove_tag(orig_txt) == clean_txt:
+                            chunk_parts.append(orig_txt)
+                            break
+                chunks.append("\n".join(chunk_parts))
+        else:
+            # naive_merge 需要保留 position tag
+            # MinerU/DOTS 的 position tag 格式是 @@...##，不能用 @ 分割
+            # 直接传入 sections，naive_merge 内部会正确处理
+            chunks = naive_merge(
+                sections, kwargs.get(
+                    "chunk_token_num", 256), kwargs.get(
+                    "delimer", "\n。；！？"))
     else:
-        sections = [s.split("@") for s, _ in sections]
-        sections = [(pr[0], "@" + pr[1]) if len(pr) == 2 else (pr[0], '') for pr in sections ]
-        chunks = naive_merge(
-            sections, kwargs.get(
-                "chunk_token_num", 256), kwargs.get(
-                "delimer", "\n。；！？"))
+        make_colon_as_title(sections)
+        bull = bullets_category(
+            [t for t in random_choices([t for t, _ in sections], k=100)])
+        if bull >= 0:
+            chunks = ["\n".join(ck)
+                      for ck in hierarchical_merge(bull, sections, 5)]
+        else:
+            sections = [s.split("@") for s, _ in sections]
+            sections = [(pr[0], "@" + pr[1]) if len(pr) == 2 else (pr[0], '') for pr in sections ]
+            chunks = naive_merge(
+                sections, kwargs.get(
+                    "chunk_token_num", 256), kwargs.get(
+                    "delimer", "\n。；！？"))
 
     # is it English
     # is_english(random_choices([t for t, _ in sections], k=218))

@@ -1,148 +1,192 @@
+@import '../../theme/design-tokens.less';
+
 .chatWrapper {
   height: 100%;
   width: 100%;
 
+  /* 左侧助手列表区域 */
   .chatAppWrapper {
-    width: 180px;
-    padding: 16px;
-    -webkit-box-shadow: 10px 10px 5px 0px rgba(0, 0, 0, 0.5);
-    -moz-box-shadow: 10px 10px 5px 0px rgba(0, 0, 0, 0.5);
-    box-shadow: 10px 10px 5px 0px rgba(0, 0, 0, 0.5);
+    width: 150px;
+    padding: @space-sm @space-md;
+    background: @color-bg-primary;
+    border-right: 1px solid @color-border-default;
+    overflow-x: hidden;
 
     .chatAppContent {
-      margin-top: 20px;
-      // overflow-y: hidden;
+      margin-top: @space-md;
       width: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: @space-sm;
     }
 
+    /* 助手卡片 */
     .chatAppCard {
-      width: 150px;
-      height: 42px;
-      background: #f8f8f8;
-      // border-radius: 8px;
+      width: 100%;
+      max-width: 100%;
+      background: @color-bg-secondary;
+      border-radius: @radius-md;
+      border: 1px solid @color-border-subtle;
+      transition: all @transition-base;
       overflow: hidden;
+      box-sizing: border-box;
+      flex-shrink: 0;
+      margin-bottom: @space-xs;
+
       :global(.ant-card-body) {
-        padding: 0px 10px;
+        padding: @space-xs;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
       }
+
+      &:hover {
+        background: @color-bg-primary;
+        border-color: @brand-primary-300;
+        box-shadow: @shadow-xs;
+      }
+
       .cubeIcon {
+        cursor: pointer;
+        color: @color-text-secondary;
+        transition: all @transition-base;
+        flex-shrink: 0;
+        opacity: 0;
+        visibility: hidden;
+
         &:hover {
-          cursor: pointer;
+          color: @brand-primary-500;
         }
       }
+
+      &:hover .cubeIcon {
+        opacity: 1;
+        visibility: visible;
+      }
+
       .chatAvatar {
-        width: 23px;
-        height: 23px;
-        // margin: 8px;
-        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        border-radius: @radius-md;
+        flex-shrink: 0;
       }
+
       .chatTitle {
-        font-weight: 400;
-        font-size: 13px;
-        color: #0d1c2e;
-        line-height: 20px;
-        width: 80px;
-        white-space: nowrap; /* 确保文本在一行内显示 */
-        overflow: hidden; /* 隐藏溢出的内容 */
-        text-overflow: ellipsis; /* 使用省略号表示文字被截断 */
+        font-weight: @font-weight-medium;
+        font-size: @font-size-sm;
+        color: @color-text-primary;
+        line-height: @line-height-normal;
+        max-width: 60px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
+
       .chatDesc {
-        font-weight: 400;
-        font-size: 11px;
-        color: #6b7280;
-        line-height: 15px;
-        padding-bottom: 6px;
-        width: 80px;
-        white-space: nowrap; /* 确保文本在一行内显示 */
-        overflow: hidden; /* 隐藏溢出的内容 */
-        text-overflow: ellipsis; /* 使用省略号表示文字被截断 */
+        font-weight: @font-weight-regular;
+        font-size: @font-size-xs;
+        color: @color-text-tertiary;
+        line-height: @line-height-normal;
+        margin-top: @space-xs;
+        max-width: 60px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
+
     .chatAppCardSelected {
+      background: @brand-primary-50;
+      border-color: @brand-primary-400;
+      box-shadow: @shadow-xs;
+
+      &:hover {
+        background: @brand-primary-50;
+        border-color: @brand-primary-500;
+        box-shadow: @shadow-xs;
+      }
+
       :global(.ant-card-body) {
-        // background-color: #a7f3a5;
-        background: rgba(59, 130, 246, 0.08);
-        // background: #6ebaf8;
-        // background: #1570EF;
-        border-radius: 8px;
         .chatTitle {
-          font-weight: 400;
-          font-size: 13px;
-          color: #1570ef;
-          line-height: 20px;
-          white-space: nowrap; /* 确保文本在一行内显示 */
-          overflow: hidden; /* 隐藏溢出的内容 */
-          text-overflow: ellipsis; /* 使用省略号表示文字被截断 */
+          font-weight: @font-weight-semibold;
+          color: @brand-primary-600;
         }
+
         .chatDesc {
-          font-weight: 400;
-          font-size: 11px;
-          color: #4b5563;
-          line-height: 15px;
-          padding-bottom: 6px;
-          white-space: nowrap; /* 确保文本在一行内显示 */
-          overflow: hidden; /* 隐藏溢出的内容 */
-          text-overflow: ellipsis; /* 使用省略号表示文字被截断 */
+          color: @color-text-secondary;
         }
       }
     }
+
     .chatAppCardSelectedDark {
       :global(.ant-card-body) {
         background-color: rgba(255, 255, 255, 0.1);
-
-        border-radius: 8px;
+        border-radius: @radius-md;
       }
     }
   }
+
+  /* 右侧主区域 */
   .chatTitleWrapper {
-    width: 100%;
-    height: 100%;
-    padding: 0 0 26px 0;
+    flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
     overflow: hidden;
-    background: #f8fafc;
-    box-shadow: 0px 3 8px 0px rgba(0, 0, 0, 0.06);
+    background: @neutral-50;
   }
 
-  // .chatTitle {
-  //   padding: 5px 15px;
-  // }
-
+  /* 顶部对话标签区域 */
   .chatTitleContent {
-    background-color: #fff;
-    padding: 8px;
-    margin-left: 2px;
+    background: @color-bg-primary;
+    padding: @space-sm;
     display: flex;
-    justify-content: start;
+    justify-content: flex-start;
     align-items: center;
-    // height: 45px;
+    gap: @space-sm;
     width: 100%;
     overflow-x: auto;
+    border-bottom: 1px solid @color-border-default;
+    flex-shrink: 0;
   }
 
   .chatSpin {
     :global(.ant-spin-container) {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-    }
-  }
-  .chatCol {
-    :global(.ant-spin-container) {
-      display: flex;
-      // flex-direction: column;
-      gap: 10px;
+      gap: @space-sm;
     }
   }
 
-  .chatTitleCard {
-    :global(.ant-card-body) {
-      padding: 4px 8px;
-      height: 30px;
-      width: 120px;
+  .chatCol {
+    :global(.ant-spin-container) {
+      display: flex;
+      gap: @space-sm;
     }
+  }
+
+  /* 对话标签卡片 */
+  .chatTitleCard {
+    flex-shrink: 0;
+    background: @color-bg-secondary;
+    border-radius: @radius-md;
+    border: 1px solid @color-border-subtle;
+    transition: all @transition-base;
+
+    :global(.ant-card-body) {
+      padding: @space-xs @space-sm;
+      min-height: 32px;
+      min-width: 100px;
+    }
+
+    &:hover {
+      background: @color-bg-primary;
+      border-color: @brand-primary-300;
+      box-shadow: @shadow-xs;
+    }
+
     .chatAvatar {
       display: inline-block;
       background-image: url(@/assets/image/chat/chat.png);
@@ -151,8 +195,10 @@
       background-size: 100% 100%;
       width: 18px;
       height: 18px;
-      margin-right: 5px;
+      margin-right: @space-xs;
+      flex-shrink: 0;
     }
+
     .chatAddAvatar {
       display: inline-block;
       background-image: url(@/assets/image/chat/addChat.png);
@@ -161,35 +207,65 @@
       background-size: 100% 100%;
       width: 18px;
       height: 18px;
-      margin-right: 5px;
+      margin-right: @space-xs;
+      flex-shrink: 0;
+    }
+
+    .cubeIcon {
+      cursor: pointer;
+      color: @color-text-secondary;
+      transition: all @transition-base;
+      opacity: 0;
+      visibility: hidden;
+
+      &:hover {
+        color: @brand-primary-500;
+      }
+    }
+
+    &:hover .cubeIcon {
+      opacity: 1;
+      visibility: visible;
     }
   }
 
   .chatTitleCardSelected {
-    :global(.ant-card-body) {
-      background-color: @gray11;
-      border-radius: 8px;
+    position: relative;
+    background: @brand-primary-50;
+    border-color: @brand-primary-400;
+    box-shadow: @shadow-xs;
+
+    &:hover {
+      background: @brand-primary-50;
+      border-color: @brand-primary-500;
+      box-shadow: @shadow-card;
     }
+
+    /* 左侧激活指示条 */
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 20px;
+      background: @brand-primary-600;
+      border-radius: 0 @radius-sm @radius-sm 0;
+    }
+
+    :global(.ant-card-body) {
+      color: @brand-primary-600;
+      font-weight: @font-weight-medium;
+    }
+
     .chatAvatar {
-      display: inline-block;
       background-image: url(@/assets/image/chat/chatActive.png);
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 100% 100%;
-      width: 18px;
-      height: 18px;
-      margin-right: 5px;
-    }
-  }
-  .chatTitleCardSelectedDark {
-    :global(.ant-card-body) {
-      background-color: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
     }
   }
 
-  .divider {
-    margin: 0;
-    height: 100%;
+  .chatTitleCardSelectedDark {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: @radius-md;
   }
 }

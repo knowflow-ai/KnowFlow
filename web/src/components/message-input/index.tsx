@@ -236,7 +236,7 @@ const MessageInput = ({
     >
       <TextArea
         size="large"
-        placeholder="请输入您的问题"
+        placeholder={disabled ? '请先创建会话后再开始对话' : '请输入您的问题'}
         value={value}
         allowClear
         disabled={disabled}
@@ -245,6 +245,8 @@ const MessageInput = ({
           boxShadow: 'none',
           padding: '0px 10px',
           marginTop: 10,
+          backgroundColor: 'transparent',
+          color: disabled ? '#94a3b8' : 'inherit',
         }}
         autoSize={{ minRows: 1, maxRows: 10 }}
         onKeyDown={handleKeyDown}

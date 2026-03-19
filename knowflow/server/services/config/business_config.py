@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 class AppConfig(BaseModel):
     """应用主配置"""
     dev_mode: bool = Field(False, description="是否启用开发模式")
-    cleanup_temp_files: bool = Field(True, description="是否清理临时文件")
     chunk_method: str = Field("smart", description="全局分块方法")
 
 
@@ -36,9 +35,8 @@ class ChunkingConfig(BaseModel):
 @dataclass
 class DOTSVLLMConfig:
     """DOTS VLLM 服务配置"""
-    url: str = "http://8.134.177.47:30001"
+    url: str = "http://localhost:30001"
     model_name: str = "dotsocr-model"
-    timeout: int = 300
     temperature: float = 0.1
     top_p: float = 1.0
     max_completion_tokens: int = 16384
@@ -47,8 +45,17 @@ class DOTSVLLMConfig:
 class DOTSConfig:
     """DOTS OCR 客户端配置"""
     vllm: DOTSVLLMConfig = field(default_factory=DOTSVLLMConfig)
-    dev_mode: bool = False
-    cleanup_temp_files: bool = True
+
+# =======================================================
+# PaddleOCR 配置模型类
+# =======================================================
+
+@dataclass
+class PaddleOCRConfig:
+    """PaddleOCR 客户端配置"""
+    url: str = "http://localhost:15003"
+    timeout: int = 300
+    max_file_size: int = 50
 
 # =======================================================
 # MinerU 配置模型类
@@ -58,7 +65,6 @@ class DOTSConfig:
 class MinerUFastAPIConfig:
     """MinerU FastAPI 客户端配置"""
     url: str = "http://localhost:8888"
-    timeout: int = 30
 
 @dataclass
 class MinerUPipelineConfig:
@@ -69,14 +75,14 @@ class MinerUPipelineConfig:
     table_enable: bool = True
 
 @dataclass
-class MinerUSGLangConfig:
-    """MinerU SGLang 配置"""
-    server_url: str = "http://localhost:30000"
+class MinerUHTTPClientConfig:
+    """MinerU HTTP Client 配置"""
+    server_url: str = "http://localhost:30001"
 
 @dataclass
 class MinerUVLMConfig:
     """MinerU VLM 配置"""
-    sglang: MinerUSGLangConfig = field(default_factory=MinerUSGLangConfig)
+    http_client: MinerUHTTPClientConfig = field(default_factory=MinerUHTTPClientConfig)
 
 @dataclass
 class MinerUModelConfig:
@@ -102,4 +108,5 @@ class RootConfig(BaseModel):
     chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
     mineru: MinerUConfig = Field(default_factory=MinerUConfig)
     dots: DOTSConfig = Field(default_factory=DOTSConfig)
+    paddleocr: PaddleOCRConfig = Field(default_factory=PaddleOCRConfig)
     default_parser: str = Field("mineru", description="默认解析器: mineru, dots") 

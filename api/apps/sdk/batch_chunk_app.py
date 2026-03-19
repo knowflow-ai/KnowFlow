@@ -22,6 +22,7 @@ KnowFlow 批量 Chunk 添加插件 (集成式实现)
 """
 
 import datetime
+import logging
 import xxhash
 import traceback
 from timeit import default_timer as timer
@@ -89,7 +90,7 @@ def _clear_progress_state(document_id):
     with _progress_lock:
         if document_id in _progress_states:
             del _progress_states[document_id]
-            print(f"🧹 清空进度状态: {document_id}")
+            logging.debug(f"清空进度状态: {document_id}")
 
 
 def _process_single_batch(batch_chunks, batch_index, embd_mdl, doc, dataset_id, document_id, 
@@ -153,14 +154,11 @@ def _process_single_batch(batch_chunks, batch_index, embd_mdl, doc, dataset_id, 
             if "positions" in chunk_req:
                 # 添加精确位置信息，但不覆盖page_num_int和top_int
                 _add_positions_to_chunk_data(d, chunk_req["positions"])
-                print(f"[_process_single_batch] global_idx={global_top_int}: 精确坐标 + 索引排序 (page={d['page_num_int'][0]}, top={global_top_int})")
-            
+
             # 准备embedding文本
             text_for_embedding = content if not d["question_kwd"] else "\n".join(d["question_kwd"])
             embedding_texts.append([doc.name, text_for_embedding])
             processed_chunks.append(d)
-            
-            print(f"[_process_single_batch] chunk_idx={original_index}, content_len={len(chunk_req['content'])}, has_positions={'positions' in chunk_req}, top_int={d.get('top_int')}")
         
         # 批量执行embedding
         all_texts_for_embedding = []
@@ -182,13 +180,13 @@ def _process_single_batch(batch_chunks, batch_index, embd_mdl, doc, dataset_id, 
             try:
                 settings.docStoreConn.insert(batch_for_db, search.index_name(tenant_id), dataset_id)
             except Exception as db_error:
-                print(f"[_process_single_batch] DB写入异常: {db_error}\n{traceback.format_exc()}")
+                logging.error(f"批次数据库写入失败: {db_error}", exc_info=True)
                 return False, {"error": f"Database insertion failed: {str(db_error)}"}
-        
+
         return True, {"processed_chunks": processed_chunks, "cost": batch_cost}
-        
+
     except Exception as e:
-        print(f"[_process_single_batch] Batch处理异常: {e}\n{traceback.format_exc()}")
+        logging.error(f"批次处理异常: {e}", exc_info=True)
         return False, {"error": str(e)}
 
 
@@ -240,13 +238,13 @@ def _process_auto_keywords_questions(all_processed_chunks, document_id, chat_mod
                                 search.index_name(tenant_id), dataset_id
                             )
                     except Exception as e:
-                        print(f"Keywords extraction error: {str(e)[:100]}")
-                
+                        logging.error(f"关键词提取失败: {str(e)[:100]}")
+
                 async with trio.open_nursery() as nursery:
                     for d in all_processed_chunks:
                         nursery.start_soon(doc_keyword_extraction, chat_model, d, auto_keywords)
-                
-                print(f"[Keywords] 全量关键词生成完成: {keywords_processed}/{len(all_processed_chunks)}, 耗时 {timer() - st:.2f}s")
+
+                logging.info(f"关键词生成完成: {keywords_processed}/{len(all_processed_chunks)}, 耗时 {timer() - st:.2f}s")
                 
                 # 更新关键词生成完成进度
                 if keywords_processed > 0:
@@ -291,13 +289,13 @@ def _process_auto_keywords_questions(all_processed_chunks, document_id, chat_mod
                                 search.index_name(tenant_id), dataset_id
                             )
                     except Exception as e:
-                        print(f"Questions generation error: {str(e)[:100]}")
-                
+                        logging.error(f"问题生成失败: {str(e)[:100]}")
+
                 async with trio.open_nursery() as nursery:
                     for d in all_processed_chunks:
                         nursery.start_soon(doc_question_proposal, chat_model, d, auto_questions)
-                
-                print(f"[Questions] 全量问题生成完成: {questions_processed}/{len(all_processed_chunks)}, 耗时 {timer() - st:.2f}s")
+
+                logging.info(f"问题生成完成: {questions_processed}/{len(all_processed_chunks)}, 耗时 {timer() - st:.2f}s")
                 
                 # 更新问题生成完成进度
                 if questions_processed > 0:
@@ -310,9 +308,9 @@ def _process_auto_keywords_questions(all_processed_chunks, document_id, chat_mod
         # 运行异步处理
         keywords_processed, questions_processed = trio.run(process_batch_keywords_and_questions)
         return True
-        
+
     except Exception as e:
-        print(f"[_process_auto_keywords_questions] 处理异常: {e}")
+        logging.error(f"关键词和问题处理异常: {e}", exc_info=True)
         return False
 
 
@@ -339,28 +337,28 @@ def _handle_parent_child_processing(parent_child_data, child_chunk_ids, tenant_i
         if len(child_chunk_ids) != len(child_chunks):
             raise Exception(f"子分块数量不匹配: 实际IDs={len(child_chunk_ids)}, 子分块数据={len(child_chunks)}")
         
-        print(f"🔗 [Parent-Child] 开始处理 {len(parent_chunks)} 个父分块和 {len(relationships)} 个映射关系")
-        
+        logging.info(f"开始处理父子分块: {len(parent_chunks)} 个父分块和 {len(relationships)} 个映射关系")
+
         # 1. 生成父分块IDs并索引到单独的ES索引
         import uuid
         parent_ids = [str(uuid.uuid4()) for _ in parent_chunks]
-        
-        print(f"📥 [Parent-Child] 索引父分块到单独的Elasticsearch索引...")
+
+        logging.info("索引父分块到单独的Elasticsearch索引")
         _index_parents_to_separate_elasticsearch_in_ragflow(doc_id, kb_id, parent_chunks, parent_ids, tenant_id, dataset_id)
-        print(f"✅ [Parent-Child] {len(parent_chunks)} 个父分块已索引到单独的ES索引")
-        
+        logging.info(f"{len(parent_chunks)} 个父分块已索引到单独的ES索引")
+
         # 2. 建立映射关系
-        print(f"🔗 [Parent-Child] 建立父子映射关系...")
+        logging.info("建立父子映射关系")
         _create_parent_child_mappings_in_ragflow(
-            doc_id, kb_id, 
+            doc_id, kb_id,
             parent_chunks, parent_ids,
-            child_chunks, child_chunk_ids, 
+            child_chunks, child_chunk_ids,
             relationships
         )
-        print(f"✅ [Parent-Child] {len(relationships)} 个映射关系已建立")
-        
+        logging.info(f"{len(relationships)} 个映射关系已建立")
+
     except Exception as e:
-        print(f"❌ [Parent-Child] 处理失败: {e}")
+        logging.error(f"父子分块处理失败: {e}", exc_info=True)
         raise
 
 
@@ -382,8 +380,8 @@ def _index_parents_to_separate_elasticsearch_in_ragflow(doc_id, kb_id, parent_ch
         # 构建专门的父分块索引名（与子分块索引分离）
         parent_index_name = f"{search.index_name(tenant_id)}_parent"
         
-        print(f"📄 [Parent-ES] 保存 {len(parent_chunks)} 个父分块到专门的ES索引: {parent_index_name}")
-        
+        logging.info(f"保存 {len(parent_chunks)} 个父分块到ES索引: {parent_index_name}")
+
         # 索引父分块到专门的索引
         for i, parent_chunk in enumerate(parent_chunks):
             parent_id = parent_ids[i]
@@ -416,15 +414,11 @@ def _index_parents_to_separate_elasticsearch_in_ragflow(doc_id, kb_id, parent_ch
             
             # 索引到专门的父分块ES索引（与子分块索引分离）
             settings.docStoreConn.insert([doc_body], parent_index_name, dataset_id)
-        
-        print(f"✅ [Parent-ES] 成功保存 {len(parent_chunks)} 个父分块到专门的ES索引")
-        print(f"  💡 [Parent-ES] 父分块存储在 {parent_index_name}，不会出现在主检索结果中")
-        print(f"  🔍 [Parent-ES] 子分块存储在 {search.index_name(tenant_id)}，用于正常检索")
-        
+
+        logging.info(f"成功保存 {len(parent_chunks)} 个父分块到ES索引 {parent_index_name}")
+
     except Exception as e:
-        print(f"❌ [Parent-Child] 父分块ES索引失败: {e}")
-        import traceback
-        traceback.print_exc()
+        logging.error(f"父分块ES索引失败: {e}", exc_info=True)
         raise
 
 
@@ -471,11 +465,11 @@ def _create_parent_child_mappings_in_ragflow(doc_id, kb_id, parent_chunks, paren
                     relevance_score=100
                 )
                 mapping_count += 1
-        
-        print(f"📊 [Parent-Child] 成功建立 {mapping_count} 个父子映射关系")
-        
+
+        logging.info(f"成功建立 {mapping_count} 个父子映射关系")
+
     except Exception as e:
-        print(f"❌ [Parent-Child] 创建父子映射失败: {e}")
+        logging.error(f"创建父子映射失败: {e}", exc_info=True)
         raise
 
 

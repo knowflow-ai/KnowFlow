@@ -15,6 +15,7 @@
 #
 import datetime
 import json
+import logging
 import os
 import re
 
@@ -24,15 +25,18 @@ from flask_login import current_user, login_required
 
 from api import settings
 from api.db import LLMType, ParserType
+from api.db.services.dialog_service import meta_filter
 from api.db.services.document_service import DocumentService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.llm_service import LLMBundle
+from api.db.services.search_service import SearchService
 from api.db.services.user_service import UserTenantService
 from api.utils.api_utils import get_data_error_result, get_json_result, server_error_response, validate_request
 from rag.app.qa import beAdoc, rmPrefix
 from rag.app.tag import label_question
 from rag.nlp import rag_tokenizer, search
 from rag.prompts import cross_languages, keyword_extraction
+from rag.prompts.prompts import gen_meta_filter
 from rag.settings import PAGERANK_FLD
 from rag.utils import rmSpace
 
@@ -74,6 +78,7 @@ def list_chunk():
                 "image_id": sres.field[id].get("img_id", ""),
                 "available_int": int(sres.field[id].get("available_int", 1)),
                 "positions": sres.field[id].get("position_int", []),
+                "parent_chunk_id": sres.field[id].get("parent_chunk_id", ""),  # 添加父块ID
             }
             assert isinstance(d["positions"], list)
             assert len(d["positions"]) == 0 or (isinstance(d["positions"][0], list) and len(d["positions"][0]) == 5)
@@ -91,6 +96,7 @@ def list_chunk():
 def get():
     chunk_id = request.args["chunk_id"]
     try:
+        chunk = None
         tenants = UserTenantService.query(user_id=current_user.id)
         if not tenants:
             return get_data_error_result(message="Tenant not found!")
@@ -113,6 +119,68 @@ def get():
     except Exception as e:
         if str(e).find("NotFoundError") >= 0:
             return get_json_result(data=False, message='Chunk not found!',
+                                   code=settings.RetCode.DATA_ERROR)
+        return server_error_response(e)
+
+
+@manager.route('/get_parent', methods=['GET'])  # noqa: F821
+@login_required
+def get_parent():
+    """获取父块内容"""
+    req = request.args
+    parent_chunk_id = req.get("parent_chunk_id")
+    doc_id = req.get("doc_id")
+
+    # 手动验证必需参数
+    if not parent_chunk_id:
+        return get_data_error_result(message="parent_chunk_id is required")
+    if not doc_id:
+        return get_data_error_result(message="doc_id is required")
+
+    try:
+        # 获取文档信息（包含 kb_id）
+        e, doc = DocumentService.get_by_id(doc_id)
+        if not e:
+            return get_data_error_result(message="Document not found!")
+
+        kb_id = doc.kb_id
+
+        # 从知识库获取 tenant_id（避免重复查询）
+        ok, kb = KnowledgebaseService.get_by_id(kb_id)
+        if not ok:
+            return get_data_error_result(message="Knowledgebase not found!")
+
+        tenant_id = kb.tenant_id
+
+        # 构造父块索引名
+        parent_index = f"{search.index_name(tenant_id)}_parent"
+
+        logging.info(f"Querying parent chunk: parent_id={parent_chunk_id}, index={parent_index}, kb_id={kb_id}")
+
+        # 使用 docStoreConn.get 查询父块（传递 kb_id）
+        parent_chunk_data = settings.docStoreConn.get(
+            parent_chunk_id,
+            parent_index,
+            [kb_id]
+        )
+
+        if not parent_chunk_data:
+            logging.warning(f"Parent chunk not found: {parent_chunk_id}")
+            return get_json_result(data=False, message='Parent chunk not found!',
+                                   code=settings.RetCode.DATA_ERROR)
+
+        # 返回父块数据
+        result = {
+            "chunk_id": parent_chunk_id,
+            "content_with_weight": parent_chunk_data.get("content_with_weight", ""),
+            "doc_id": parent_chunk_data.get("doc_id", ""),
+        }
+
+        logging.info(f"Successfully retrieved parent chunk: {parent_chunk_id}")
+        return get_json_result(data=result)
+    except Exception as e:
+        if str(e).find("NotFoundError") >= 0 or str(e).find("not_found") >= 0:
+            return get_json_result(data=False, message='Parent chunk not found!',
                                    code=settings.RetCode.DATA_ERROR)
         return server_error_response(e)
 
@@ -169,6 +237,51 @@ def set():
         v = 0.1 * v[0] + 0.9 * v[1] if doc.parser_id != ParserType.QA else v[1]
         d["q_%d_vec" % len(v)] = v.tolist()
         settings.docStoreConn.update({"id": req["chunk_id"]}, d, search.index_name(tenant_id), doc.kb_id)
+        return get_json_result(data=True)
+    except Exception as e:
+        return server_error_response(e)
+
+
+@manager.route('/set_parent', methods=['POST'])  # noqa: F821
+@login_required
+@validate_request("doc_id", "parent_chunk_id", "content_with_weight")
+def set_parent():
+    """更新父块内容"""
+    req = request.json
+    parent_chunk_id = req["parent_chunk_id"]
+    content = req["content_with_weight"]
+    doc_id = req["doc_id"]
+
+    try:
+        # 获取租户ID和文档信息
+        tenant_id = DocumentService.get_tenant_id(doc_id)
+        if not tenant_id:
+            return get_data_error_result(message="Tenant not found!")
+
+        e, doc = DocumentService.get_by_id(doc_id)
+        if not e:
+            return get_data_error_result(message="Document not found!")
+
+        # 构造父块索引名
+        parent_index = f"{search.index_name(tenant_id)}_parent"
+
+        # 准备更新数据(父块不需要向量,只更新内容)
+        d = {
+            "id": parent_chunk_id,
+            "content_with_weight": content
+        }
+        # 分词处理
+        d["content_ltks"] = rag_tokenizer.tokenize(content)
+        d["content_sm_ltks"] = rag_tokenizer.fine_grained_tokenize(d["content_ltks"])
+
+        # 更新父块索引
+        settings.docStoreConn.update(
+            {"id": parent_chunk_id},
+            d,
+            parent_index,
+            doc.kb_id
+        )
+
         return get_json_result(data=True)
     except Exception as e:
         return server_error_response(e)
@@ -288,13 +401,30 @@ def retrieval_test():
     kb_ids = req["kb_id"]
     if isinstance(kb_ids, str):
         kb_ids = [kb_ids]
+    if not kb_ids:
+        return get_json_result(data=False, message='Please specify dataset firstly.',
+                               code=settings.RetCode.DATA_ERROR)
+
     doc_ids = req.get("doc_ids", [])
-    similarity_threshold = float(req.get("similarity_threshold", 0.0))
-    vector_similarity_weight = float(req.get("vector_similarity_weight", 0.3))
     use_kg = req.get("use_kg", False)
     top = int(req.get("top_k", 1024))
     langs = req.get("cross_languages", [])
     tenant_ids = []
+
+    if req.get("search_id", ""):
+        search_config = SearchService.get_detail(req.get("search_id", "")).get("search_config", {})
+        meta_data_filter = search_config.get("meta_data_filter", {})
+        metas = DocumentService.get_meta_by_kbs(kb_ids)
+        if meta_data_filter.get("method") == "auto":
+            chat_mdl = LLMBundle(current_user.id, LLMType.CHAT, llm_name=search_config.get("chat_id", ""))
+            filters = gen_meta_filter(chat_mdl, metas, question)
+            doc_ids.extend(meta_filter(metas, filters))
+            if not doc_ids:
+                doc_ids = None
+        elif meta_data_filter.get("method") == "manual":
+            doc_ids.extend(meta_filter(metas, meta_data_filter["manual"]))
+            if not doc_ids:
+                doc_ids = None
 
     try:
         tenants = UserTenantService.query(user_id=current_user.id)
@@ -350,7 +480,9 @@ def retrieval_test():
 
         labels = label_question(question, [kb])
         ranks = settings.retrievaler.retrieval(question, embd_mdl, tenant_ids, kb_ids, page, size,
-                               similarity_threshold, vector_similarity_weight, top,
+                               float(req.get("similarity_threshold", 0.0)),
+                               float(req.get("vector_similarity_weight", 0.3)),
+                               top,
                                doc_ids, rerank_mdl=rerank_mdl, highlight=req.get("highlight"),
                                rank_feature=labels
                                )

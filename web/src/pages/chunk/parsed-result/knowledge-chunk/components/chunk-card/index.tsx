@@ -1,8 +1,8 @@
 import Image from '@/components/image';
+import MathMarkdown from '@/components/math-markdown';
 import { IChunk } from '@/interfaces/database/knowledge';
 import { Card, Checkbox, CheckboxProps, Flex, Popover, Switch } from 'antd';
 import classNames from 'classnames';
-import DOMPurify from 'dompurify';
 import { useEffect, useState } from 'react';
 
 import { useTheme } from '@/components/theme-provider';
@@ -80,14 +80,12 @@ const ChunkCard = ({
           onClick={handleContentClick}
           className={styles.content}
         >
-          <div
-            dangerouslySetInnerHTML={{
-              __html: DOMPurify.sanitize(item.content_with_weight),
-            }}
+          <MathMarkdown
+            content={item.content_with_weight}
             className={classNames(styles.contentText, {
               [styles.contentEllipsis]: textMode === ChunkTextMode.Ellipse,
             })}
-          ></div>
+          />
         </section>
 
         <div>

@@ -1,55 +1,47 @@
-// @import '~@/less/variable.less';
+@import '../../theme/design-tokens.less';
 
 .knowledge {
-  padding: 0 0 48px;
+  padding: 0 0 @space-3xl;
   overflow: auto;
-  background: #ffffff;
+  background: @color-bg-primary;
 }
+
 .topTitle {
-  height: 45px;
-  background: #f8fafc;
-  box-shadow: 0px 3 8px 0px rgba(0, 0, 0, 0.06);
-  font-family:
-    Alibaba PuHuiTi 2,
-    Alibaba PuHuiTi 20;
-  font-weight: 500;
-  font-size: 23px;
-  color: #0d1c2e;
-  line-height: 45px;
-  padding-left: 35px;
+  height: 48px;
+  background: @color-bg-secondary;
+  box-shadow: @shadow-xs;
+  font-weight: @font-weight-medium;
+  font-size: @font-size-3xl;
+  color: @color-text-primary;
+  line-height: 48px;
+  padding-left: @space-lg;
 }
 
 .topWrapper {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 18px 35px 20px;
+  padding: @space-lg;
 
   .title {
-    font-family: Inter;
-    font-size: 23px;
-    font-style: normal;
-    font-weight: @fontWeight600;
-    line-height: 31px;
-    color: var(--ant-color-info);
-    font-weight: 500;
+    font-size: @font-size-3xl;
+    font-weight: @font-weight-semibold;
+    line-height: @line-height-tight;
+    color: @brand-primary-600;
   }
+
   .description {
-    font-family: Inter;
-    font-style: normal;
-    font-weight: 400;
-    font-size: 12px;
-    color: #999999;
-    line-height: 17px;
-    margin-top: 8px;
+    font-weight: @font-weight-regular;
+    font-size: @font-size-xs;
+    color: @color-text-tertiary;
+    line-height: @line-height-normal;
+    margin-top: @space-sm;
   }
 
   .topButton {
-    font-family: Inter;
-    font-size: 14px;
-    font-style: normal;
-    font-weight: @fontWeight600;
-    line-height: 20px;
+    font-size: @font-size-md;
+    font-weight: @font-weight-medium;
+    line-height: @line-height-normal;
   }
 
   .filterButton {
@@ -58,37 +50,51 @@
     .topButton();
   }
 }
+
 .knowledgeCardContainer {
-  padding: 0 35px;
-  overflow: auto;
+  padding: @space-sm @space-lg;
+  overflow: visible;
+
   .knowledgeEmpty {
     width: 100%;
   }
+
   .addCard {
     width: 293px;
-    height: 138px;
-    background-image: url(@/assets/image/knowledge/addbg.png);
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 100% 100%;
-    border-radius: 8px;
+    height: 160px;
+    background: @brand-primary-50;
+    border: 2px dashed @brand-primary-300;
+    border-radius: @radius-lg;
     cursor: pointer;
+    transition: all @transition-base;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background: @brand-primary-100;
+      border-color: @brand-primary-500;
+      transform: translateY(-2px);
+      box-shadow: @shadow-card-hover;
+    }
+
     .addIcon {
       width: 36px;
       height: 36px;
-      margin-top: 32px;
-      margin-left: 53px;
       background-size: contain;
       background-image: url(@/assets/image/knowledge/addbtn.png);
       background-repeat: no-repeat;
+      filter: brightness(0) saturate(100%) invert(50%) sepia(98%)
+        saturate(2476%) hue-rotate(200deg) brightness(100%) contrast(101%);
     }
+
     .addDesc {
-      font-weight: 400;
-      font-size: 23px;
-      color: #1570ef;
-      line-height: 31px;
-      margin-top: 2px;
-      margin-left: 16px;
+      font-weight: @font-weight-medium;
+      font-size: @font-size-2xl;
+      color: @brand-primary-600;
+      line-height: @line-height-normal;
+      margin-top: @space-sm;
     }
   }
 }

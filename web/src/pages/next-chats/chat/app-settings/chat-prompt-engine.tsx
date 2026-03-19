@@ -15,7 +15,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { UseKnowledgeGraphFormField } from '@/components/use-knowledge-graph-item';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useFormContext } from 'react-hook-form';
-import { Subhead } from './subhead';
 
 export function ChatPromptEngine() {
   const { t } = useTranslate('chat');
@@ -23,7 +22,6 @@ export function ChatPromptEngine() {
 
   return (
     <section>
-      <Subhead>Prompt Engine</Subhead>
       <div className="space-y-8">
         <FormField
           control={form.control}

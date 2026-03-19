@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  mineru-api:
+    image: ${MINERU_IMAGE:-zxwei/mineru-api-full:v2.5.4}
+    container_name: knowflow-mineru-api
+    restart: always
+    ports:
+      - "${MINERU_API_PORT:-8000}:8000"
+    environment:
+      - MINERU_MODEL_SOURCE=${MINERU_MODEL_SOURCE:-local}
+      - MINERU_MODELS_PRELOADED=${MINERU_MODELS_PRELOADED:-true}
+      - TZ=${TIMEZONE:-Asia/Shanghai}
+    volumes:
+      - mineru-output:/opt/mineru/output
+    command:
+      - mineru-api
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${MINERU_GPU_DEVICE_IDS:-0}"]
+              capabilities: [gpu]
+
+  # 可选：MinerU VLM 服务器（用于高级 OCR）
+  # 启用方式: docker compose --profile vllm up -d
+  mineru-vllm-server:
+    image: ${MINERU_IMAGE:-zxwei/mineru-api-full:v2.5.4}
+    container_name: knowflow-mineru-vllm
+    restart: always
+    profiles: ["vllm"]
+    ports:
+      - "${MINERU_VLLM_PORT:-30000}:30000"
+    environment:
+      - MINERU_MODEL_SOURCE=${MINERU_MODEL_SOURCE:-local}
+      - MINERU_MODELS_PRELOADED=${MINERU_MODELS_PRELOADED:-true}
+      - TZ=${TIMEZONE:-Asia/Shanghai}
+    command:
+      - mineru-vllm-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "30000"
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${MINERU_GPU_DEVICE_IDS:-0}"]
+              capabilities: [gpu]
+
+volumes:
+  mineru-output:
+    name: knowflow-mineru-output

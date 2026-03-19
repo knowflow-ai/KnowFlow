@@ -159,7 +159,7 @@ def create_team(name, owner_id, description="", created_by=None):
 
         # 如果没有找到超级管理员配置，使用默认值
         if not admin_config:
-            default_parser_ids = "naive:General,qa:Q&A,resume:Resume,manual:Manual,table:Table,paper:Paper,book:Book,laws:Laws,presentation:Presentation,picture:Picture,one:One,audio:Audio,email:Email,tag:Tag,mineru:MinerU,dots:DOTS"
+            default_parser_ids = "naive:General,qa:Q&A,resume:Resume,manual:Manual,table:Table,paper:Paper,book:Book,laws:Laws,presentation:Presentation,picture:Picture,one:One,audio:Audio,email:Email,tag:Tag,smart:Smart"
             admin_config = {
                 'llm_id': '',
                 'embd_id': '',

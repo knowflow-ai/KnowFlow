@@ -12,19 +12,11 @@ DOTS OCR 结果处理器
 import json
 import logging
 import os
-import difflib
 import tempfile
 from typing import Dict, List, Any, Optional, Callable
 from pathlib import Path
-from PIL import Image
 
-# 导入 DOTS 官方的 markdown 转换方法
-try:
-    from .format_transformer import layoutjson2md
-    DOTS_FORMATTER_AVAILABLE = True
-except ImportError:
-    DOTS_FORMATTER_AVAILABLE = False
-    logging.getLogger(__name__).warning("DOTS format_transformer not available")
+from .dots_json_converter import DotsJsonConverter
 
 logger = logging.getLogger(__name__)
 
@@ -74,10 +66,16 @@ class DOTSLayoutElement:
 class DOTSProcessor:
     """DOTS OCR结果处理器"""
     
-    def __init__(self):
+    def __init__(self, kb_id: Optional[str] = None):
         """初始化处理器"""
+        self.kb_id = kb_id
         self.elements = []
         self.pages_data = []
+        self.converter = DotsJsonConverter(kb_id=kb_id)
+        self.coordinate_map: Dict[int, List[int]] = {}
+        self.markdown_content: str = ""
+        self.markdown_lines: List[str] = []
+        self.current_doc_id: Optional[str] = None
     
     def process_page_result(self, page_result: Dict[str, Any]) -> List[DOTSLayoutElement]:
         """处理单页的DOTS解析结果
@@ -134,67 +132,37 @@ class DOTSProcessor:
         return all_elements
     
     def to_markdown(self, output_dir: str = None) -> tuple:
-        """将所有元素转换为Markdown格式的文档（使用DOTS官方方法）
-        
+        """将所有元素转换为Markdown格式的文档，并保留坐标映射
+
         Args:
             output_dir: 图片输出目录，可选
-            
+
         Returns:
-            tuple: (markdown_text, extracted_images_list)
+            tuple: (markdown_text, coordinate_map, extracted_images_list)
         """
         if not self.elements or not self.pages_data:
             return "", []
         
-        if not DOTS_FORMATTER_AVAILABLE:
-            logger.error("DOTS format_transformer 不可用，无法生成 markdown")
-            return "", []
-        
         try:
-            # 使用 DOTS 官方方法生成 markdown
-            markdown_parts = []
-            all_extracted_images = []
-            
-            for page_idx, page_data in enumerate(self.pages_data):
-                # 检查页面是否有有效的布局元素
-                layout_elements = page_data.get('layout_elements', [])
-                if not layout_elements:
-                    continue
-                
-                # 构造符合 DOTS 格式的 cells 数据
-                cells = []
-                for element_data in layout_elements:
-                    cell = {
-                        'bbox': element_data.get('bbox', [0, 0, 0, 0]),
-                        'category': element_data.get('category', 'Text'),
-                        'text': element_data.get('text', '')
-                    }
-                    cells.append(cell)
-                
-                # 获取页面图像对象
-                page_image = page_data.get('page_image')
-                if page_image is None:
-                    # 如果没有页面图像，创建虚拟图像
-                    image_dims = page_data.get('image_dimensions', {'width': 1240, 'height': 1754})
-                    page_image = Image.new('RGB', (image_dims['width'], image_dims['height']), 'white')
-                
-                # 使用官方方法生成 markdown（no_page_hf=True 去除页眉页脚）
-                page_markdown, page_images = layoutjson2md(
-                    page_image, cells, text_key='text', no_page_hf=True, output_dir=output_dir
-                )
-                
-                if page_markdown.strip():
-                    markdown_parts.append(page_markdown.strip())
-                
-                # 收集提取的图片
-                if page_images:
-                    all_extracted_images.extend(page_images)
-            
-            final_markdown = '\n\n'.join(markdown_parts)
-            return final_markdown, all_extracted_images
-            
+            markdown_content, coordinate_map, extracted_images = self.converter.convert_pages_to_markdown_with_coordinates(
+                pages_data=self.pages_data,
+                output_dir=output_dir
+            )
+
+            # 持久化关键信息，供后续坐标映射使用
+            self.coordinate_map = coordinate_map or {}
+            self.update_markdown_cache(markdown_content)
+
+            return markdown_content, coordinate_map, extracted_images
+
         except Exception as e:
-            logger.error(f"DOTS 官方 markdown 转换失败: {e}")
-            return "", []
+            logger.error(f"DOTS markdown 转换失败: {e}")
+            return "", {}, []
+
+    def update_markdown_cache(self, markdown_content: Optional[str]):
+        """更新缓存的 markdown 内容和行列表"""
+        self.markdown_content = markdown_content or ""
+        self.markdown_lines = self.markdown_content.split('\n') if self.markdown_content else []
     
     
     def generate_chunks_unified(self, chunking_config: Optional[dict] = None,
@@ -216,8 +184,12 @@ class DOTSProcessor:
             return {'success': False, 'chunks': [], 'extracted_images': []}
         
         try:
+            self.current_doc_id = doc_id
+
             # 1. 生成完整的Markdown文档
-            markdown_content, extracted_images = self.to_markdown(output_dir=output_dir)
+            markdown_content, coordinate_map, extracted_images = self.to_markdown(
+                output_dir=output_dir
+            )
             if not markdown_content.strip():
                 logger.warning("完整Markdown内容为空")
                 return {'success': False, 'chunks': [], 'extracted_images': []}
@@ -246,7 +218,9 @@ class DOTSProcessor:
                 chunking_config=chunking_config,
                 coordinate_source='dots',
                 doc_id=doc_id,
-                kb_id=kb_id
+                kb_id=kb_id,
+                coordinate_map=coordinate_map,
+                markdown_lines=self.markdown_lines
             )
             
             # 4. 添加DOTS特有信息
@@ -327,7 +301,10 @@ class DOTSProcessor:
         logger.info(f"DOTS基于已处理markdown进行统一分块，文档长度: {len(markdown_content)} 字符")
         
         try:
-            # 准备DOTS元素数据
+            # 更新缓存的markdown信息，确保坐标映射与最新内容保持一致
+            self.update_markdown_cache(markdown_content)
+
+            # 准备DOTS元素数据（向后兼容）
             dots_elements = self._prepare_dots_elements_for_unified_mapping()
             
             # 调用统一分块接口
@@ -347,7 +324,9 @@ class DOTSProcessor:
                 chunking_config=chunking_config,
                 coordinate_source='dots',
                 doc_id=doc_id,
-                kb_id=kb_id
+                kb_id=kb_id,
+                coordinate_map=self.coordinate_map if enable_coordinates else None,
+                markdown_lines=self.markdown_lines if enable_coordinates else None
             )
             
             result['success'] = True
@@ -387,7 +366,7 @@ class DOTSProcessor:
         output_path.mkdir(parents=True, exist_ok=True)
         
         # 保存Markdown文档
-        markdown_content, _ = self.to_markdown()
+        markdown_content, _, _ = self.to_markdown()
         with open(output_path / 'dots_output.md', 'w', encoding='utf-8') as f:
             f.write(markdown_content)
         
@@ -442,7 +421,7 @@ def process_dots_result(document_results: List[Dict[str, Any]],
     Returns:
         dict: 包含处理结果的字典
     """
-    processor = DOTSProcessor()
+    processor = DOTSProcessor(kb_id=kb_id)
     
     # 处理解析结果
     elements = processor.process_document_results(document_results)
@@ -454,9 +433,9 @@ def process_dots_result(document_results: List[Dict[str, Any]],
     
     # 生成markdown并提取图片
     if image_output_dir:
-        markdown_content, extracted_images = processor.to_markdown(output_dir=image_output_dir)
+        markdown_content, coordinate_map, extracted_images = processor.to_markdown(output_dir=image_output_dir)
     else:
-        markdown_content, extracted_images = processor.to_markdown()
+        markdown_content, coordinate_map, extracted_images = processor.to_markdown()
     
     # 第二步：如果有图片，先处理图片上传和URL更新，然后再进行分块
     if extracted_images and kb_id and temp_dir:
@@ -480,6 +459,7 @@ def process_dots_result(document_results: List[Dict[str, Any]],
                     
                     if updated_markdown:
                         markdown_content = updated_markdown
+                        processor.update_markdown_cache(markdown_content)
                         logger.info(f"已更新 {len(extracted_images)} 个图片URL为MinIO格式")
                     
                     # 清理临时文件
@@ -538,7 +518,8 @@ def process_dots_result(document_results: List[Dict[str, Any]],
         'extracted_images': extracted_images,
         'chunking_strategy': chunking_strategy_used,
         'processor': processor,  # 返回处理器实例以便进一步操作
-        
+        'coordinate_map': coordinate_map,
+
         # 统一分块接口的额外信息
         'coordinate_source': result.get('coordinate_source', 'dots'),
         'has_coordinates': result.get('has_coordinates', False),

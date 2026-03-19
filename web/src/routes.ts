@@ -1,4 +1,5 @@
 export enum Routes {
+  Root = '/',
   Login = '/login',
   Logout = '/logout',
   Home = '/home',
@@ -11,6 +12,7 @@ export enum Routes {
   AgentList = '/agent-list',
   Searches = '/next-searches',
   Search = '/next-search',
+  SearchShare = '/next-search/share',
   Chats = '/next-chats',
   Chat = '/next-chat',
   Files = '/files',
@@ -37,6 +39,14 @@ export enum Routes {
   ResultView = `${Chunk}${Result}`,
   KnowledgeGraph = '/knowledge-graph',
   AgentLogPage = '/agent-log-page',
+  AgentShare = '/agent/share',
+  ChatShare = `${Chats}/share`,
+  UserSetting = '/user-setting',
+  DataFlows = '/data-flows',
+  DataFlow = '/data-flow',
+  DataSetOverview = '/dataset-overview',
+  DataSetSetting = '/dataset-setting',
+  DataflowResult = '/dataflow-result',
 }
 
 const routes = [
@@ -61,12 +71,22 @@ const routes = [
     layout: false,
   },
   {
-    path: '/',
+    path: Routes.ChatShare,
+    component: `@/pages${Routes.ChatShare}`,
+    layout: false,
+  },
+  {
+    path: Routes.AgentShare,
+    component: `@/pages${Routes.AgentShare}`,
+    layout: false,
+  },
+  {
+    path: Routes.Root,
     component: '@/layouts',
     layout: false,
     wrappers: ['@/wrappers/auth'],
     routes: [
-      { path: '/', redirect: '/knowledge' },
+      { path: Routes.Root, redirect: '/knowledge' },
       {
         path: '/knowledge',
         component: '@/pages/knowledge',
@@ -265,9 +285,14 @@ const routes = [
     ],
   },
   {
-    path: Routes.Search,
+    path: `${Routes.Search}/:id`,
     layout: false,
     component: `@/pages${Routes.Search}`,
+  },
+  {
+    path: `${Routes.SearchShare}`,
+    layout: false,
+    component: `@/pages${Routes.SearchShare}`,
   },
   {
     path: Routes.Agents,
@@ -333,7 +358,20 @@ const routes = [
         path: `${Routes.DatasetBase}${Routes.KnowledgeGraph}/:id`,
         component: `@/pages${Routes.DatasetBase}${Routes.KnowledgeGraph}`,
       },
+      {
+        path: `${Routes.DatasetBase}${Routes.DataSetOverview}/:id`,
+        component: `@/pages${Routes.DatasetBase}${Routes.DataSetOverview}`,
+      },
+      {
+        path: `${Routes.DatasetBase}${Routes.DataSetSetting}/:id`,
+        component: `@/pages${Routes.DatasetBase}${Routes.DataSetSetting}`,
+      },
     ],
+  },
+  {
+    path: `${Routes.DataflowResult}/:id`,
+    layout: false,
+    component: `@/pages${Routes.DataflowResult}`,
   },
   {
     path: `${Routes.ParsedResult}/chunks`,
@@ -403,6 +441,22 @@ const routes = [
         component: `@/pages${Routes.ProfileMcp}`,
       },
     ],
+  },
+  {
+    path: Routes.DataFlows,
+    layout: false,
+    component: '@/layouts/next',
+    routes: [
+      {
+        path: Routes.DataFlows,
+        component: `@/pages${Routes.DataFlows}`,
+      },
+    ],
+  },
+  {
+    path: `${Routes.DataFlow}/:id`,
+    layout: false,
+    component: `@/pages${Routes.DataFlow}`,
   },
 ];
 

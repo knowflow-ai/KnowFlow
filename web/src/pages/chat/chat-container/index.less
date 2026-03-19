@@ -1,11 +1,15 @@
+@import '../../../theme/design-tokens.less';
+
 .chatContainer {
-  padding: 0 0 24px 24px;
+  padding: @space-lg;
   flex: 1;
   overflow-y: auto;
   width: 100%;
+  background: @neutral-50;
+
   .messageContainer {
-    // padding-right: 24px;
-    width: 800px;
+    max-width: 900px;
+    width: 100%;
     margin: 0 auto;
   }
 }

@@ -25,6 +25,7 @@ services:
       - HF_ENDPOINT=${HF_ENDPOINT}
       - MACOS=${MACOS}
       - KNOWFLOW_API_URL=${KNOWFLOW_API_URL:-http://knowflow-backend:5000}
+      - GOTENBERG_URL=http://knowflow-gotenberg:3000
     networks:
       - ragflow
     restart: on-failure
@@ -43,7 +44,7 @@ services:
 
   knowflow-backend:
     container_name: knowflow-backend
-    image: zxwei/knowflow-server:v2.1.1
+    image: zxwei/knowflow-server:v2.1.8
     build:
       context: ../knowflow
       dockerfile: Dockerfile
@@ -58,6 +59,7 @@ services:
     ports:
       - "5000:5000"
     environment:
+      - FLASK_DEBUG=false
       - RAGFLOW_BASE_URL=${RAGFLOW_BASE_URL:-http://ragflow-server:9380}
       - DB_HOST=${DB_HOST:-mysql}
       - MYSQL_PORT=3306
@@ -74,7 +76,7 @@ services:
       - MANAGEMENT_JWT_SECRET=${MANAGEMENT_JWT_SECRET:-12345678}
       - TZ=${TIMEZONE:-UTC}
     volumes:
-      - ../knowflow/server/services/config:/app/services/config:ro
+      - ./knowflow-server/settings.yaml:/app/services/config/settings.yaml:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

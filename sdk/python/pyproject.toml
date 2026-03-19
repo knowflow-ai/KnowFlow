@@ -1,6 +1,6 @@
 [project]
 name = "ragflow-sdk"
-version = "0.20.1"
+version = "0.20.5"
 description = "Python client sdk of [RAGFlow](https://github.com/infiniflow/ragflow). RAGFlow is an open-source RAG (Retrieval-Augmented Generation) engine based on deep document understanding."
 authors = [{ name = "Zhichang Yu", email = "yuzhichang@gmail.com" }]
 license = { text = "GNU Affero General Public License v3.0" }

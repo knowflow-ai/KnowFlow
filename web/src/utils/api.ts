@@ -44,6 +44,7 @@ export default {
   get_kb_detail: `${api_host}/kb/detail`,
   getKnowledgeGraph: (knowledgeId: string) =>
     `${api_host}/kb/${knowledgeId}/knowledge_graph`,
+  getMeta: `${api_host}/kb/get_meta`,
 
   // tags
   listTag: (knowledgeId: string) => `${api_host}/kb/${knowledgeId}/tags`,
@@ -57,6 +58,8 @@ export default {
   create_chunk: `${api_host}/chunk/create`,
   set_chunk: `${api_host}/chunk/set`,
   get_chunk: `${api_host}/chunk/get`,
+  get_parent: `${api_host}/chunk/get_parent`,
+  set_parent: `${api_host}/chunk/set_parent`,
   switch_chunk: `${api_host}/chunk/switch`,
   rm_chunk: `${api_host}/chunk/rm`,
   retrieval_test: `${api_host}/chunk/retrieval_test`,
@@ -80,11 +83,6 @@ export default {
   parse: `${api_host}/document/parse`,
   setMeta: `${api_host}/document/set_meta`,
   get_dataset_filter: `${api_host}/document/filter`,
-
-  // knowflow mineru parser
-  knowflow_document_parse: `/api/knowflow/v1/knowledgebases/documents`,
-  knowflow_parse_progress: `/api/knowflow/v1/knowledgebases/documents`,
-  knowflow_parse_cancel: `/api/knowflow/v1/knowledgebases/documents`,
 
   // chat
   setDialog: `${api_host}/dialog/set`,
@@ -115,6 +113,8 @@ export default {
 
   // next chat
   listNextDialog: `${api_host}/dialog/next`,
+  fetchExternalChatInfo: (id: string) =>
+    `${ExternalApi}${api_host}/chatbots/${id}/info`,
 
   // file manager
   listFile: `${api_host}/file/list`,
@@ -167,6 +167,7 @@ export default {
     `${api_host}/canvas/${canvasId}/sessions`,
   fetchExternalAgentInputs: (canvasId: string) =>
     `${ExternalApi}${api_host}/agentbots/${canvasId}/inputs`,
+  prompt: `${api_host}/canvas/prompts`,
 
   // mcp server
   listMcpServer: `${api_host}/mcp_server/list`,
@@ -180,4 +181,16 @@ export default {
   testMcpServerTool: `${api_host}/mcp_server/test_tool`,
   cacheMcpServerTool: `${api_host}/mcp_server/cache_tools`,
   testMcpServer: `${api_host}/mcp_server/test_mcp`,
+
+  // next-search
+  createSearch: `${api_host}/search/create`,
+  getSearchList: `${api_host}/search/list`,
+  deleteSearch: `${api_host}/search/rm`,
+  getSearchDetail: `${api_host}/search/detail`,
+  getSearchDetailShare: `${ExternalApi}${api_host}/searchbots/detail`,
+  updateSearchSetting: `${api_host}/search/update`,
+  askShare: `${ExternalApi}${api_host}/searchbots/ask`,
+  mindmapShare: `${ExternalApi}${api_host}/searchbots/mindmap`,
+  getRelatedQuestionsShare: `${ExternalApi}${api_host}/searchbots/related_questions`,
+  retrievalTestShare: `${ExternalApi}${api_host}/searchbots/retrieval_test`,
 };

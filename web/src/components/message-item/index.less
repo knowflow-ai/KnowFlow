@@ -1,44 +1,53 @@
+@import '../../theme/design-tokens.less';
+
 .messageItem {
-  padding: 20px 0;
+  padding: @space-lg 0;
+
   .messageItemSection {
     display: inline-block;
   }
+
   .messageItemSectionLeft {
     width: 80%;
   }
+
   .messageItemContent {
     display: inline-flex;
-    gap: 20px;
+    gap: @space-md;
   }
+
   .messageItemContentReverse {
     flex-direction: row-reverse;
   }
 
   .messageTextBase() {
-    padding: 6px 10px;
-    border-radius: 8px;
+    padding: @space-md;
+    border-radius: @radius-lg;
     & > p {
       margin: 0;
     }
   }
+
   .messageText {
     .chunkText();
     .messageTextBase();
-    background-color: #fff;
-    box-shadow: 5px 3 8px 0px rgba(42, 139, 242, 0.1);
-    border-radius: 0px 15px 15px 15px;
-    padding: 12px;
+    background-color: @color-bg-primary;
+    box-shadow: @shadow-xs;
+    border-radius: 0 @radius-lg @radius-lg @radius-lg;
     word-break: break-word;
+
     .groupButtonContent {
       width: 100%;
       justify-content: right;
     }
   }
+
   .messageTextDark {
     .chunkText();
     .messageTextBase();
     background-color: #1668dc;
     word-break: break-word;
+
     :global(section.think) {
       color: rgb(166, 166, 166);
       border-left-color: rgb(78, 78, 86);
@@ -48,16 +57,16 @@
   .messageUserText {
     .chunkText();
     .messageTextBase();
-    // background-color: rgba(255, 255, 255, 0.3);
-    background: #1570ef;
-    color: #fff;
-    font-weight: 600;
-    font-size: 14px;
-    padding: 12px;
-    border-radius: 8px 0px 8px 8px;
+    background-color: @color-bg-primary;
+    color: @color-text-primary;
+    font-weight: @font-weight-medium;
+    font-size: @font-size-md;
+    border-radius: @radius-lg 0 @radius-lg @radius-lg;
     word-break: break-word;
     text-align: justify;
+    box-shadow: @shadow-xs;
   }
+
   .messageEmpty {
     width: 300px;
   }

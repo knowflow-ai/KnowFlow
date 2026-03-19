@@ -32,56 +32,99 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 def get_current_user():
     """
-    获取当前请求的用户信息（使用JWT token认证）
-    返回: (user_id, role) 或 None
+    获取当前请求的用户信息
+    支持两种鉴权方式：
+    1. JWT Token（RAGFlow原有方式）：Authorization: <token>
+    2. API Key（新增方式）：Authorization: Bearer <api_key>
+    返回: (user_id, role, nickname, email) 或 None
     """
     try:
-        # 从 Authorization header 获取 JWT token
         auth_header = request.headers.get('Authorization')
         if not auth_header:
             return None
-            
-        # 使用JWT token获取用户ID
-        user_id = get_user_id_from_token(auth_header)
+
+        user_id = None
+
+        # 判断鉴权类型
+        if auth_header.startswith('Bearer '):
+            # API Key 鉴权方式
+            api_key = auth_header[7:]  # 去掉 "Bearer " 前缀
+            logger.debug(f"检测到API Key鉴权: {api_key[:20] if len(api_key) > 20 else api_key}...")
+            user_id = get_user_id_from_api_key(api_key)
+        else:
+            # JWT Token 鉴权方式（RAGFlow原有方式）
+            logger.debug(f"检测到JWT Token鉴权")
+            user_id = get_user_id_from_token(auth_header)
+
         if not user_id:
             return None
-            
+
         # 从数据库获取用户角色信息
         return get_user_info_from_db(user_id)
-        
+
     except Exception as e:
         logger.warning(f"获取用户信息失败: {e}")
+        return None
+
+def get_user_id_from_api_key(api_key):
+    """从 API Key 获取用户ID"""
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+
+        # 查询 api_token 表获取租户ID，再从tenant表获取created_by（用户ID）
+        cursor.execute("""
+            SELECT t.created_by as user_id
+            FROM api_token at
+            INNER JOIN tenant t ON at.tenant_id = t.id
+            WHERE at.token = %s
+        """, (api_key,))
+
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if result:
+            user_id = result['user_id']
+            logger.info(f"从API Key获取到用户ID: {user_id}")
+            return user_id
+
+        logger.debug(f"API Key无效: {api_key[:20] if len(api_key) > 20 else api_key}...")
+        return None
+
+    except Exception as e:
+        logger.warning(f"从API Key获取用户ID失败: {e}")
         return None
 
 def get_user_id_from_token(token):
     """从 RAGFlow token 获取用户ID"""
     try:
         ragflow_base_url = os.getenv('RAGFLOW_BASE_URL', 'http://localhost:9380')
-        
+
         logger.info(f"使用JWT token调用RAGFlow用户信息接口: {token[:20]}...")
-        
+
         # 调用RAGFlow的用户信息接口
         headers = {
             'Authorization': token,  # 直接使用JWT token，不需要Bearer前缀
             'Content-Type': 'application/json'
         }
-        
+
         response = requests.get(
             f'{ragflow_base_url}/v1/user/info',
             headers=headers,
             timeout=5
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             if data.get('code') == 0 and data.get('data', {}).get('id'):
                 user_id = data['data']['id']
                 logger.info(f"从RAGFlow token解析用户ID成功: {user_id}")
                 return user_id
-        
+
         logger.debug(f"RAGFlow token解析失败: status={response.status_code}, response={response.text[:100]}")
         return None
-        
+
     except Exception as e:
         logger.warning(f"解析RAGFlow token失败: {e}")
         return None
@@ -540,12 +583,8 @@ def health_check():
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
-    logger.info(f"KnowFlow Server 启动中... 端口: {port}")
-    
-    # 检查是否是werkzeug reloader进程
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        logger.info("主工作进程启动 - RBAC将在后台自动初始化")
-    else:
-        logger.info("监控进程启动 - 等待主工作进程")
-    
-    app.run(host='0.0.0.0', port=port, debug=True)
+    debug_mode = os.getenv('FLASK_DEBUG', 'true').lower() == 'true'
+
+    logger.info(f"KnowFlow Server 启动中... 端口: {port}, Debug模式: {debug_mode}")
+
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)

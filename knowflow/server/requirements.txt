@@ -14,6 +14,7 @@ strenum==0.4.15
 peewee==3.17.1
 pytz==2020.5
 tiktoken==0.9.0
+xxhash==3.4.1
 ragflow-sdk==0.18.0
 markdown==3.6
 markdown-to-json==2.1.1

@@ -361,13 +361,13 @@ class RBACInitializer:
                 
                 self.cursor.execute("""
                     INSERT INTO tenant (
-                        id, name, llm_id, embd_id, asr_id, img2txt_id, rerank_id, 
-                        parser_ids, credit, status, create_time, create_date, update_time, update_date
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        id, name, llm_id, embd_id, asr_id, img2txt_id, rerank_id,
+                        parser_ids, credit, status, created_by, create_time, create_date, update_time, update_date
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     admin_user_id, '系统管理员', 'qwen-plus', 'BAAI/bge-large-zh-v1.5', 'local',
-                    'local', 'BAAI/bge-reranker-v2-m3', 'naive:General,qa:Q&A,resume:Resume,manual:Manual,table:Table,paper:Paper,book:Book,laws:Laws,presentation:Presentation,picture:Picture,one:One,audio:Audio,email:Email,tag:Tag,mineru:MinerU,dots:DOTS',
-                    1000000, '1', create_time, create_date, create_time, create_date
+                    'local', 'BAAI/bge-reranker-v2-m3', 'naive:General,qa:Q&A,resume:Resume,manual:Manual,table:Table,paper:Paper,book:Book,laws:Laws,presentation:Presentation,picture:Picture,one:One,audio:Audio,email:Email,tag:Tag,smart:Smart,regex:Regex,parent_child:Parent-Child,title:Title',
+                    1000000, '1', admin_user_id, create_time, create_date, create_time, create_date
                 ))
                 
                 logger.info(f"创建管理员租户: {admin_user_id}")

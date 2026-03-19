@@ -140,36 +140,48 @@ const TeamManagementPage = () => {
       setTeamData(list);
       setPagination((prev) => ({ ...prev, total: data.total || 0 }));
 
-      // 拉取每个团队的角色，构建映射
+      // 使用批量接口获取所有团队的角色
       const rolesMap: Record<string, Role> = {};
-      await Promise.all(
-        (list as TeamData[]).map(async (team) => {
-          try {
-            const r = await request.get(
-              `/api/knowflow/v1/teams/${team.id}/roles`,
-            );
-            const teamRolesList = r?.data?.data ?? [];
+      if (list.length > 0) {
+        try {
+          // 提取团队ID列表
+          const teamIds = list.map((t: TeamData) => t.id);
 
-            // 团队角色API返回的是TeamRole对象，需要转换为Role格式
-            if (teamRolesList.length > 0) {
-              // 获取所有角色信息用于匹配
-              const rolesRes = await request.get('/api/knowflow/v1/rbac/roles');
-              const allRoles = rolesRes?.data?.data || [];
+          // 并行请求批量角色查询和可分配角色列表
+          const [batchRolesRes, assignableRolesRes] = await Promise.all([
+            request.post('/api/knowflow/v1/rbac/teams/batch-roles', {
+              data: {
+                team_ids: teamIds,
+                tenant_id: 'default',
+              },
+            }),
+            request.get('/api/knowflow/v1/rbac/assignable-roles'),
+          ]);
 
-              // 根据role_code匹配角色信息
-              const teamRole = teamRolesList[0]; // 取第一个角色
+          // 处理批量查询结果
+          const teamRolesData = batchRolesRes?.data?.team_roles || {};
+          const allRoles = assignableRolesRes?.data?.data || [];
+
+          // 构建角色映射
+          Object.entries(teamRolesData).forEach(([teamId, teamRolesList]) => {
+            const roles = teamRolesList as any[];
+            if (roles && roles.length > 0) {
+              // 团队角色API返回的是包含role_code的对象
+              const teamRole = roles[0]; // 取第一个角色（单一角色语义）
               const matchedRole = allRoles.find(
                 (role: Role) => role.code === teamRole.role_code,
               );
               if (matchedRole) {
-                rolesMap[team.id] = matchedRole;
+                rolesMap[teamId] = matchedRole;
               }
             }
-          } catch (e) {
-            // 错误情况下不设置角色
-          }
-        }),
-      );
+          });
+        } catch (error) {
+          console.error('批量获取团队角色失败:', error);
+          // 批量接口失败时的降级处理（可选）
+          // 可以选择静默失败，或者回退到单个查询
+        }
+      }
       setTeamRolesMap(rolesMap);
     } catch (error) {
       message.error('加载团队数据失败');
@@ -272,8 +284,10 @@ const TeamManagementPage = () => {
   const handleTeamRoleManagement = async (team: TeamData) => {
     setCurrentTeam(team);
     try {
-      // 获取所有可用角色作为选项
-      const rolesRes = await request.get('/api/knowflow/v1/rbac/roles');
+      // 获取可分配的角色（根据当前用户权限过滤）
+      const rolesRes = await request.get(
+        '/api/knowflow/v1/rbac/assignable-roles',
+      );
       setTeamRoles(rolesRes?.data?.data || []);
 
       // 获取团队当前已分配角色，用于预选中

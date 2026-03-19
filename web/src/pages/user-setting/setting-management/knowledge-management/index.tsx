@@ -39,6 +39,7 @@ import {
   type DocumentProgress,
 } from './batch-parse-helper';
 import styles from './index.less';
+import ParseConfigModal from './parse-config-modal';
 import { ParsingStatusCard } from './parsing-status-card';
 import PermissionModal from './permission-modal';
 
@@ -79,6 +80,12 @@ interface DocumentData {
   status: string;
   create_date: string;
   logs?: LogItem[]; // 日志字段，带时间戳
+  parser_id?: string; // 分块方法
+  parser_config?: {
+    layout_recognize?: string; // PDF 解析器
+    chunk_token_num?: number; // 分块大小
+    [key: string]: any;
+  };
 }
 
 interface UserData {
@@ -170,6 +177,11 @@ const KnowledgeManagementPage = () => {
   const [pollingTimers, setPollingTimers] = useState<
     Record<string, { timerId?: NodeJS.Timeout; isActive: boolean }>
   >({});
+  // 解析配置对话框
+  const [parseConfigModalVisible, setParseConfigModalVisible] = useState(false);
+  const [currentParseDoc, setCurrentParseDoc] = useState<DocumentData | null>(
+    null,
+  );
 
   // 管理单个文档的解析状态
   const setDocumentParseLoading = (docId: string, loading: boolean) => {
@@ -648,7 +660,7 @@ const KnowledgeManagementPage = () => {
     }));
   };
 
-  // 解析文档
+  // 解析文档 - 直接使用当前配置解析
   const handleParseDocument = async (doc: DocumentData) => {
     // 如果文档已完成解析，显示确认对话框
     if (doc.progress === 1) {
@@ -679,22 +691,48 @@ const KnowledgeManagementPage = () => {
   };
 
   // 执行解析的具体逻辑
-  const performParse = async (doc: DocumentData) => {
+  const performParse = async (
+    doc: DocumentData,
+    parseConfig?: {
+      parser_id: string;
+      layout_recognize: string;
+      parser_config?: Record<string, any>;
+    },
+  ) => {
     try {
       // 设置解析状态为活跃
       setDocumentParseLoading(doc.id, true);
 
-      // 如果是重新解析（已完成的文档），立即更新前端显示的分块数量为0
-      if (doc.progress === 1) {
-        setDocumentList((prevList) =>
-          prevList.map((item) =>
-            item.id === doc.id ? { ...item, chunk_num: 0, progress: 0 } : item,
-          ),
-        );
-      }
+      // 立即重置前端显示的解析状态（无论文档之前是什么状态）
+      setDocumentList((prevList) =>
+        prevList.map((item) =>
+          item.id === doc.id
+            ? {
+                ...item,
+                chunk_num: 0,
+                progress: 0,
+                // 不手动设置 run，让后端返回的真实状态来更新
+                logs: [
+                  {
+                    time: new Date().toLocaleTimeString('zh-CN', {
+                      hour12: false,
+                    }),
+                    message: '提交解析任务...',
+                  },
+                ],
+              }
+            : item,
+        ),
+      );
 
       await request.post(
         `/api/knowflow/v1/knowledgebases/documents/${doc.id}/parse`,
+        {
+          data: parseConfig || {},
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
       );
 
       // 开始轮询进度
@@ -711,6 +749,40 @@ const KnowledgeManagementPage = () => {
       clearPollingTimer(doc.id);
     }
     // 注意：不在这里设置 loading 为 false，而是在轮询完成后设置
+  };
+
+  // 处理分块配置对话框的确认 - 只保存配置，不触发解析
+  const handleParseConfigOk = async (values: {
+    parser_id: string;
+    layout_recognize: string;
+    parser_config?: Record<string, any>;
+  }) => {
+    if (!currentParseDoc) return;
+
+    try {
+      // 调用后端保存配置
+      await request.post(
+        `/api/knowflow/v1/knowledgebases/documents/${currentParseDoc.id}/update-parser-config`,
+        {
+          data: {
+            parser_id: values.parser_id,
+            layout_recognize: values.layout_recognize,
+            parser_config: values.parser_config,
+          },
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      message.success('分块配置已保存');
+      setParseConfigModalVisible(false);
+
+      // 刷新文档列表以显示更新后的配置
+      loadDocumentList(currentKnowledgeBase?.id || '');
+    } catch (error) {
+      message.error('保存配置失败');
+    }
   };
 
   // 简化的轮询解析进度
@@ -742,45 +814,24 @@ const KnowledgeManagementPage = () => {
       tries++;
 
       try {
-        console.log(
-          `[DEBUG] 单文档轮询API调用 - docId: ${docId}, tries: ${tries}`,
-        );
         const res = await request.get(
           `/api/knowflow/v1/knowledgebases/documents/${docId}/parse/progress`,
         );
         const response = res?.data;
-        console.log(
-          `[DEBUG] 单文档轮询API响应 - docId: ${docId}, response:`,
-          response,
-        );
 
         if (response?.code === 0) {
           const data = response.data || {};
-          console.log(`[DEBUG] 单文档轮询数据解析 - docId: ${docId}, data:`, {
-            progress: data.progress,
-            chunk_num: data.chunk_num,
-            running: data.running,
-            status: data.status,
-            message: data.message,
-          });
 
           // 更新文档状态
           setDocumentList((prev) => {
-            console.log(
-              `[DEBUG] 单文档轮询状态更新前 - docId: ${docId}, documentList长度:`,
-              prev.length,
-            );
-            const updated = prev.map((item) => {
+            return prev.map((item) => {
               if (item.id === docId) {
-                console.log(
-                  `[DEBUG] 找到目标文档更新 - docId: ${docId}, 当前progress: ${item.progress} -> ${data.progress}, 当前chunk_num: ${item.chunk_num} -> ${data.chunk_num}`,
-                );
                 let logs: LogItem[] = item.logs ?? [];
-                if (data.message) {
+                if (data.progress_msg) {
                   const now = new Date();
                   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
                   logs = [
-                    { time: timeStr, message: data.message },
+                    { time: timeStr, message: data.progress_msg },
                     ...logs.slice(0, 19),
                   ];
                 }
@@ -788,33 +839,57 @@ const KnowledgeManagementPage = () => {
                   ...item,
                   progress: data.progress ?? item.progress,
                   chunk_num: data.chunk_num ?? item.chunk_num,
+                  run: data.run ?? item.run,
                   logs,
                 };
               }
               return item;
             });
-            console.log(`[DEBUG] 单文档轮询状态更新完成 - docId: ${docId}`);
-            return updated;
           });
 
-          // 检查是否完成
-          if (
-            data.running === '3' ||
-            data.progress === 1 ||
-            data.status === '3'
-          ) {
+          // 检查是否完成（run='3' 表示已完成，progress=1 表示100%）
+          if (data.run === '3' || data.progress === 1) {
             console.log(
-              `[DEBUG] 单文档轮询检测到完成 - docId: ${docId}, running: ${data.running}, progress: ${data.progress}, status: ${data.status}`,
+              `[解析完成] docId=${docId}, run=${data.run}, progress=${data.progress}, chunk_num=${data.chunk_num}`,
             );
             polling = false;
             setDocumentParseLoading(docId, false);
+            console.log(`[解析完成] 已清理parseLoadingMap - docId=${docId}`);
             clearPollingTimer(docId);
+
+            // 如果 chunk_num 为 0，说明 RAGFlow 还没更新完，延迟 2 秒后再查询一次
+            if (data.chunk_num === 0) {
+              setTimeout(async () => {
+                try {
+                  const finalRes = await request.get(
+                    `/api/knowflow/v1/knowledgebases/documents/${docId}/parse/progress`,
+                  );
+                  const finalData = finalRes?.data?.data || {};
+
+                  setDocumentList((prev) =>
+                    prev.map((item) =>
+                      item.id === docId
+                        ? {
+                            ...item,
+                            chunk_num: finalData.chunk_num ?? item.chunk_num,
+                            run: finalData.run ?? item.run,
+                          }
+                        : item,
+                    ),
+                  );
+                  loadKnowledgeData();
+                } catch (error) {
+                  console.error('延迟查询chunk_num失败:', error);
+                  loadKnowledgeData();
+                }
+              }, 1500);
+            } else {
+              // chunk_num 已有值，直接刷新
+              loadKnowledgeData();
+            }
+
             return;
           }
-        } else {
-          console.log(
-            `[DEBUG] 单文档轮询API响应码非0 - docId: ${docId}, code: ${response?.code}`,
-          );
         }
 
         // 继续轮询
@@ -852,12 +927,10 @@ const KnowledgeManagementPage = () => {
     };
   };
 
-  // 分块规则弹窗
+  // 分块规则弹窗 - 使用新的 ParseConfigModal
   const openChunkModal = (doc: DocumentData) => {
-    setChunkDocId(doc.id);
-    setChunkDocName(doc.name);
-    setChunkModalVisible(true);
-    loadChunkConfig(doc.id);
+    setCurrentParseDoc(doc);
+    setParseConfigModalVisible(true);
   };
   const loadChunkConfig = async (docId: string) => {
     setChunkConfigLoading(true);
@@ -1048,29 +1121,6 @@ const KnowledgeManagementPage = () => {
       render: (count: number) => <Tag color="blue">{count}</Tag>,
     },
     {
-      title: '解析方法',
-      dataIndex: 'parser_id',
-      key: 'parser_id',
-      width: 100,
-      align: 'left',
-      render: (parser: string) => {
-        const getParserDisplay = (parserId: string) => {
-          switch (parserId) {
-            case 'mineru':
-              return { text: 'MinerU', color: 'purple' };
-            case 'dots':
-              return { text: 'DOTS', color: 'cyan' };
-            case 'naive':
-              return { text: 'General', color: 'green' };
-            default:
-              return { text: parserId || 'MinerU', color: 'default' };
-          }
-        };
-        const { text, color } = getParserDisplay(parser);
-        return <Tag color={color}>{text}</Tag>;
-      },
-    },
-    {
       title: '角色配置',
       dataIndex: 'permission_stats',
       key: 'permission_stats',
@@ -1204,8 +1254,16 @@ const KnowledgeManagementPage = () => {
               )
             }
             loading={isDocumentParsing(record.id)}
-            disabled={isDocumentParsing(record.id) || record.run === '1'}
-            onClick={() => handleParseDocument(record)}
+            disabled={
+              isDocumentParsing(record.id) ||
+              (record.run === '1' && record.progress !== 1)
+            }
+            onClick={() => {
+              console.log(
+                `[按钮点击] docId=${record.id}, isParsing=${isDocumentParsing(record.id)}, run=${record.run}, progress=${record.progress}`,
+              );
+              handleParseDocument(record);
+            }}
           >
             {record.progress === 1 ? '重新解析' : '解析'}
           </Button>
@@ -1282,7 +1340,9 @@ const KnowledgeManagementPage = () => {
       message.success('文档添加成功');
       setAddDocModalVisible(false);
       setSelectedFileRowKeys([]);
+      // 刷新文档列表和知识库列表（更新文档数量）
       loadDocumentList(currentKnowledgeBase.id);
+      loadKnowledgeData();
     } catch (error) {
       message.error('添加文档失败');
     } finally {
@@ -1454,17 +1514,6 @@ const KnowledgeManagementPage = () => {
             <Select>
               <Option value="me">个人</Option>
               <Option value="team">团队</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="parser_id"
-            label="解析方法"
-            initialValue="mineru"
-            rules={[{ required: true, message: '请选择解析方法' }]}
-          >
-            <Select>
-              <Option value="mineru">MinerU</Option>
-              <Option value="dots">DOTS</Option>
             </Select>
           </Form.Item>
         </Form>
@@ -1766,156 +1815,7 @@ const KnowledgeManagementPage = () => {
         />
       </Modal>
 
-      {/* 分块规则弹窗 */}
-      <Modal
-        title={`分块规则 - ${chunkDocName || ''}`}
-        open={chunkModalVisible}
-        onOk={handleChunkConfigSave}
-        onCancel={() => setChunkModalVisible(false)}
-        confirmLoading={chunkConfigSaving}
-        destroyOnClose
-        width={500}
-      >
-        <Form layout="vertical">
-          <Form.Item label="分块策略" required>
-            <Select
-              value={chunkConfig.strategy}
-              onChange={(v) =>
-                setChunkConfig((c: any) => ({ ...c, strategy: v }))
-              }
-            >
-              <Option value="basic">基础分块</Option>
-              <Option value="smart">智能分块</Option>
-              <Option value="advanced">按标题分块</Option>
-              <Option value="strict_regex">正则分块</Option>
-              <Option value="parent_child">父子分块</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item label="分块大小" required>
-            <Input
-              type="number"
-              min={50}
-              max={2048}
-              value={chunkConfig.chunk_token_num}
-              onChange={(e) =>
-                setChunkConfig((c: any) => ({
-                  ...c,
-                  chunk_token_num: Number(e.target.value),
-                }))
-              }
-              placeholder="50-2048"
-            />
-          </Form.Item>
-          <Form.Item label="最小分块大小" required>
-            <Input
-              type="number"
-              min={10}
-              max={500}
-              value={chunkConfig.min_chunk_tokens}
-              onChange={(e) =>
-                setChunkConfig((c: any) => ({
-                  ...c,
-                  min_chunk_tokens: Number(e.target.value),
-                }))
-              }
-              placeholder="10-500"
-            />
-          </Form.Item>
-          {chunkConfig.strategy === 'strict_regex' && (
-            <Form.Item label="正则表达式" required>
-              <Input
-                value={chunkConfig.regex_pattern}
-                onChange={(e) =>
-                  setChunkConfig((c: any) => ({
-                    ...c,
-                    regex_pattern: e.target.value,
-                  }))
-                }
-                placeholder="请输入正则表达式"
-              />
-            </Form.Item>
-          )}
-          {chunkConfig.strategy === 'parent_child' && (
-            <>
-              <Form.Item label="父分块大小" required>
-                <Input
-                  type="number"
-                  min={200}
-                  max={4000}
-                  value={chunkConfig.parent_config?.parent_chunk_size}
-                  onChange={(e) =>
-                    setChunkConfig((c: any) => ({
-                      ...c,
-                      parent_config: {
-                        ...c.parent_config,
-                        parent_chunk_size: Number(e.target.value),
-                      },
-                    }))
-                  }
-                  placeholder="200-4000"
-                />
-              </Form.Item>
-              <Form.Item label="父分块重叠大小" required>
-                <Input
-                  type="number"
-                  min={0}
-                  max={512}
-                  value={chunkConfig.parent_config?.parent_chunk_overlap}
-                  onChange={(e) =>
-                    setChunkConfig((c: any) => ({
-                      ...c,
-                      parent_config: {
-                        ...c.parent_config,
-                        parent_chunk_overlap: Number(e.target.value),
-                      },
-                    }))
-                  }
-                  placeholder="0-512"
-                />
-              </Form.Item>
-              <Form.Item label="父分块分割级别" required>
-                <Select
-                  value={chunkConfig.parent_config?.parent_split_level}
-                  onChange={(v) =>
-                    setChunkConfig((c: any) => ({
-                      ...c,
-                      parent_config: {
-                        ...c.parent_config,
-                        parent_split_level: v,
-                      },
-                    }))
-                  }
-                >
-                  <Option value={1}>H1 - 最大章节</Option>
-                  <Option value={2}>H2 - 主要章节（推荐）</Option>
-                  <Option value={3}>H3 - 子章节</Option>
-                  <Option value={4}>H4 - 小节</Option>
-                  <Option value={5}>H5 - 段落级</Option>
-                  <Option value={6}>H6 - 细粒度</Option>
-                </Select>
-              </Form.Item>
-              <Form.Item label="检索模式" required>
-                <Select
-                  value={chunkConfig.parent_config?.retrieval_mode}
-                  onChange={(v) =>
-                    setChunkConfig((c: any) => ({
-                      ...c,
-                      parent_config: {
-                        ...c.parent_config,
-                        retrieval_mode: v,
-                      },
-                    }))
-                  }
-                >
-                  <Option value="parent">父分块模式（推荐）</Option>
-                  <Option value="child">子分块模式</Option>
-                  <Option value="hybrid">混合模式</Option>
-                </Select>
-              </Form.Item>
-            </>
-          )}
-        </Form>
-      </Modal>
+      {/* 旧的分块规则弹窗已移除，现在使用 ParseConfigModal */}
 
       {/* 解析进度弹窗 */}
       {/* 解析进度弹窗相关代码已移除 */}
@@ -1926,6 +1826,19 @@ const KnowledgeManagementPage = () => {
         onCancel={() => setPermissionModalVisible(false)}
         knowledgeBaseId={currentKnowledgeBase?.id || ''}
         knowledgeBaseName={currentKnowledgeBase?.name || ''}
+      />
+
+      {/* 解析配置对话框 */}
+      <ParseConfigModal
+        visible={parseConfigModalVisible}
+        documentName={currentParseDoc?.name}
+        defaultValues={{
+          parser_id: currentParseDoc?.parser_id,
+          layout_recognize: currentParseDoc?.parser_config?.layout_recognize,
+          chunk_token_num: currentParseDoc?.parser_config?.chunk_token_num,
+        }}
+        onOk={handleParseConfigOk}
+        onCancel={() => setParseConfigModalVisible(false)}
       />
     </div>
   );
