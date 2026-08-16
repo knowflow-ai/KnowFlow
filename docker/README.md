@@ -4,7 +4,7 @@
 
 # KnowFlow - 企业级智能知识库解决方案
 
-[![Star History Chart](https://api.star-history.com/svg?repos=weizxfree/KnowFlow&type=Date)](https://star-history.com/#weizxfree/KnowFlow&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=weizxfree/KnowFlow&type=Date)](https://star-history.dera.page/#weizxfree/KnowFlow&Date)
 
 🌐 **官方网站**: [https://www.knowflowchat.cn/](https://www.knowflowchat.cn/)
 
