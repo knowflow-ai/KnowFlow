@@ -445,7 +445,7 @@ sudo systemctl restart docker
 
 <div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=knowflow-ai/KnowFlow&type=Date)](https://star-history.com/#knowflow-ai/KnowFlow&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=knowflow-ai/KnowFlow&type=Date)](https://star-history.dera.page/#knowflow-ai/KnowFlow&Date)
 
 如果这个项目对您有帮助，欢迎点个 Star
 
