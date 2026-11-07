@@ -457,7 +457,7 @@ sudo systemctl restart docker
 
 - **微信公众号** - KnowFlow 企业知识库
 - **交流群** - 加微信 `skycode007`，备注"加群"
-- **问题反馈** - 本仓库已停止维护，不再处理 Issue，欢迎到 [KnowWork](https://github.com/knowflow-ai/KnowWork/issues) 交流
+- **问题反馈** - [GitHub Issues](https://github.com/knowflow-ai/KnowFlow/issues)
 
 ### 鸣谢
 
