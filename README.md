@@ -13,6 +13,28 @@
 
 </div>
 
+> [!IMPORTANT]
+> **KnowFlow 已停止维护，我们的后续工作都在 [KnowWork](https://github.com/knowflow-ai/KnowWork)。**
+>
+> 先说声谢谢。谢谢每一位给过 Star、把 KnowFlow 部署进自己业务、提过 Issue 和 PR 的朋友，KnowFlow 能走到今天，靠的是大家一路的反馈。
+>
+> 做到后来我们越来越确定，知识库问答正在从「检索一次、把片段拼进提示词」，走向「Agent 自己决定去哪查、读哪一段、读够了再回答」。所以团队已经把全部精力转到 KnowWork，基于 DeepSeek Harness（DSH）做 Agentic RAG。KnowFlow 在文档解析、分块和引用溯源上攒下的经验，都会带到那边。顺带说明，KnowWork 开源的是 Agent 平台这一层（DSH 内核、权限、会话沙箱、审批与审计），可以接 RAGFlow 知识库和其他三方知识库，内置知识库在商业版里。
+>
+> 这个仓库会一直保留，代码照常可以使用和 fork，许可证仍是 AGPL-3.0。只是之后不再发版，也不再跟进依赖升级和安全补丁，Issue 和 PR 我们没法再逐一回复，还请见谅。如果你需要一个持续维护的 RAG 引擎，KnowFlow 的上游 [RAGFlow](https://github.com/infiniflow/ragflow) 一直在更新。
+>
+> 想继续看我们往哪走，欢迎去 [KnowWork](https://github.com/knowflow-ai/KnowWork) 点个 Star，那边的 Issue 我们都会看。
+
+> [!IMPORTANT]
+> **KnowFlow is no longer maintained. Our work continues in [KnowWork](https://github.com/knowflow-ai/KnowWork).**
+>
+> Thank you to everyone who starred KnowFlow, ran it in production, filed issues and sent pull requests. Your feedback is what got it this far.
+>
+> We have come to believe that knowledge-base Q&A is moving from "retrieve once and paste the chunks into the prompt" to agents that decide where to look, what to read, and when they have read enough. The whole team now works on KnowWork, building agentic RAG on DeepSeek Harness (DSH), and what we learned about parsing, chunking and citation tracing in KnowFlow comes with us. To be clear, what KnowWork open-sources is the agent platform layer (the DSH core, permissions, per-session sandboxes, approvals and audit). It connects to RAGFlow and other third-party knowledge bases; the built-in knowledge base is part of the commercial edition.
+>
+> This repository will stay up, and the code remains free to use and fork under AGPL-3.0. There will be no new releases, dependency upgrades or security fixes, and we are no longer able to respond to issues or pull requests. If you need an actively maintained RAG engine, our upstream [RAGFlow](https://github.com/infiniflow/ragflow) is still under active development.
+>
+> To follow what we do next, please star [KnowWork](https://github.com/knowflow-ai/KnowWork). We do read the issues there.
+
 ---
 
 ## 项目简介
@@ -435,7 +457,7 @@ sudo systemctl restart docker
 
 - **微信公众号** - KnowFlow 企业知识库
 - **交流群** - 加微信 `skycode007`，备注"加群"
-- **问题反馈** - [GitHub Issues](https://github.com/knowflow-ai/KnowFlow/issues)
+- **问题反馈** - 本仓库已停止维护，不再处理 Issue，欢迎到 [KnowWork](https://github.com/knowflow-ai/KnowWork/issues) 交流
 
 ### 鸣谢
 
