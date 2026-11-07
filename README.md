@@ -14,7 +14,7 @@
 </div>
 
 > [!IMPORTANT]
-> **KnowFlow 已停止维护，我们的后续工作都在 [KnowWork](https://github.com/knowflow-ai/KnowWork)。**
+> **本项目 KnowFlow 知识库已停止维护，我们的后续工作都在 [KnowWork](https://github.com/knowflow-ai/KnowWork)。** 具体可见：[公众号文章](https://mp.weixin.qq.com/s/z44uCuYLbZvruWFcL2b0oQ)
 >
 > 先说声谢谢。谢谢每一位给过 Star、把 KnowFlow 部署进自己业务、提过 Issue 和 PR 的朋友，KnowFlow 能走到今天，靠的是大家一路的反馈。
 >
@@ -23,17 +23,6 @@
 > 这个仓库会一直保留，代码照常可以使用和 fork，许可证仍是 AGPL-3.0。只是之后不再发版，也不再跟进依赖升级和安全补丁，Issue 和 PR 我们没法再逐一回复，还请见谅。如果你需要一个持续维护的 RAG 引擎，KnowFlow 的上游 [RAGFlow](https://github.com/infiniflow/ragflow) 一直在更新。
 >
 > 想继续看我们往哪走，欢迎去 [KnowWork](https://github.com/knowflow-ai/KnowWork) 点个 Star，那边的 Issue 我们都会看。
-
-> [!IMPORTANT]
-> **KnowFlow is no longer maintained. Our work continues in [KnowWork](https://github.com/knowflow-ai/KnowWork).**
->
-> Thank you to everyone who starred KnowFlow, ran it in production, filed issues and sent pull requests. Your feedback is what got it this far.
->
-> We have come to believe that knowledge-base Q&A is moving from "retrieve once and paste the chunks into the prompt" to agents that decide where to look, what to read, and when they have read enough. The whole team now works on KnowWork, building agentic RAG on DeepSeek Harness (DSH), and what we learned about parsing, chunking and citation tracing in KnowFlow comes with us. To be clear, what KnowWork open-sources is the agent platform layer (the DSH core, permissions, per-session sandboxes, approvals and audit). It connects to RAGFlow and other third-party knowledge bases; the built-in knowledge base is part of the commercial edition.
->
-> This repository will stay up, and the code remains free to use and fork under AGPL-3.0. There will be no new releases, dependency upgrades or security fixes, and we are no longer able to respond to issues or pull requests. If you need an actively maintained RAG engine, our upstream [RAGFlow](https://github.com/infiniflow/ragflow) is still under active development.
->
-> To follow what we do next, please star [KnowWork](https://github.com/knowflow-ai/KnowWork). We do read the issues there.
 
 ---
 
